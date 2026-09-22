@@ -53,6 +53,41 @@ once your tools are installed GSQL the entire surface maps onto one MCP tool,
 swaps the connection for a shim. The response-shaping code — the part that actually has
 bugs in it — is written once.
 
+### What the database told me
+
+For most of the build the TigerGraph path was written and unrun — no workspace. Standing
+up Community Edition in a container and pointing the pipeline at it was supposed to be a
+formality. It found eleven bugs, none of which any amount of re-reading would have
+surfaced:
+
+- **`Case` is a reserved GSQL keyword.** The agent's case vertex is `FraudCase`.
+- **`upsertVertices` wraps values itself**, so the loader's own `{"value": ...}` made
+  every attribute a dict. It only showed on vertex types that *have* attributes — so
+  `Customer`, which has none, loaded fine and `Card` was the first failure.
+- **REST will not coerce a CSV string into an `INT`.** The loader now reads attribute
+  types off the live graph and casts, rather than keeping a hand-written list of numeric
+  columns in step with the schema.
+- **`concat_ws` skips NULLs.** The packed `M1..M9` match-flag string shifted every later
+  flag one position left and was unparseable by index. Explicit empty placeholders fixed
+  it — and that one silently corrupted a *signal*, not just a load.
+- **`PRINT T[T.amount]` names the attribute `T.amount`.** Every key came back carrying an
+  alias prefix the SQL columns do not have.
+- **RESTPP returns `DATETIME` as a string**, and callers written against typed frames were
+  doing arithmetic on it.
+- **`prior_cases_for_card` had no `ORDER BY`.** The agent cites the top eight, so the two
+  backends cited *different closed cases* — not a different order, a different set. That
+  one would have changed the answers.
+- **A `SetAccum`'s order is arbitrary**, so the ring component named a different 25 cards
+  out of the same component than the sorted SQL mirror did.
+- **`date_diff('day', a, b)` counts day boundaries, not fractional days**, so the
+  recurring-charge cadence test disagreed in the last decimal on every card.
+
+The two that matter are the fourth, the seventh and the last: each silently changed what
+the agent *concluded*, and each is invisible to anything but a differential test. So the
+repo has two now. `prep/parity.py` asserts the feature rows are identical field for field
+across backends; `prep/backend_diff.py` asserts the whole answer files are. Both pass
+20/20 across all three backends, ignoring the four fields that must differ.
+
 **Policy as code.** `agent/policy.py` is Fraud Policy v1.0 compiled: fourteen action
 identifiers, the `auto`/`L1`/`L2` routing table, rules R1–R10. `route_for()` is the only
 place an approval route is decided, so there is exactly one line to audit.
@@ -211,6 +246,12 @@ fraud, was most of the project — and it is the only reason the numbers should 
 **A selection-biased label set is worse than no labels,** because it is confidently
 wrong in a direction you cannot see from the validation score. The 570× risk-score signal
 would have looked *wonderful* in cross-validation.
+
+**A second implementation is a test, if you diff it.** The DuckDB mirror existed to keep
+the pipeline runnable without a workspace. Once both were real, diffing them found
+defects in the graph path that no unit test would have been written for — including two
+that changed which closed cases the agent cited and what it concluded. Two
+implementations of one definition drift the moment nobody checks.
 
 **Installed queries make an agent tractable.** Twelve named parameterised queries are a
 contract. The agent cannot drift, the routing is auditable, and swapping pyTigerGraph for
