@@ -224,10 +224,16 @@ def decide_actions(*, prob, verdict, exposure, signals, pattern, trigger_type,
     # ---- R9: undocumented
     r9(a)
 
-    # ---- R10 guard: never block every card without two confirmed or confirmed credential theft
-    if n_confirmed_cards >= 2 or pattern == "account_takeover" and prob >= 0.85:
-        if n_confirmed_cards >= 2:
-            _add(a, BLOCK_ALL_CARDS, exposure, f"R10: {n_confirmed_cards} of the customer's cards show confirmed fraud.")
+    # ---- R10: never BLOCK_ALL_CARDS without two of the customer's cards confirmed, or
+    # their credentials confirmed compromised. Nothing in this dataset confirms a
+    # credential compromise -- suspected account takeover at 0.85 is a suspicion, not a
+    # confirmation -- so two confirmed cards is the only door, and it is the only test
+    # here. (An outer `or pattern == "account_takeover" and prob >= 0.85` used to sit on
+    # this block; it was dead, because the inner test re-checked the count anyway. A
+    # mutation test found it.)
+    if n_confirmed_cards >= 2:
+        _add(a, BLOCK_ALL_CARDS, exposure,
+             f"R10: {n_confirmed_cards} of the customer's cards show confirmed fraud.")
 
     return a
 
@@ -263,3 +269,128 @@ def stop_reason(prob, n_ind, verdict, asked, answered) -> str:
             f"is the cardholder's own intent, which only the cardholder or an analyst can "
             f"resolve; the recommended actions route it to them rather than resolving it in the "
             f"graph.")
+
+
+def demo():
+    """Runnable check for the rules that decide what happens to a customer's card.
+
+    validate.py checks the twenty answer files agree with the routing table; this checks
+    each rule actually fires on the situation it was written for, which the answer files
+    cannot show because no case exercises every branch.
+    """
+    class S:
+        def __init__(self, name, weight):
+            self.name, self.weight = name, weight
+
+    weak = [S("risk_high", 0.9)]
+    strong = [S("m_flags_2plus", 1.05), S("burst", 0.62), S("prior_fraud", 0.9)]
+
+    def acts(**kw):
+        base = dict(prob=0.5, verdict="uncertain", exposure=100.0, signals=strong,
+                    pattern="card_not_present_fraud", trigger_type="risk_score",
+                    customer_denied=False, customer_confirmed=False, recurring=False,
+                    connected_cards=[], shared_element="", n_confirmed_cards=0,
+                    phase="initial")
+        return {a["action"] for a in decide_actions(**{**base, **kw})}
+
+    # --- routing table (policy section 2): the only place a route is decided ---
+    assert route_for(MONITOR_CARD, 99999) == AUTO
+    assert route_for(DECLINE_TRANSACTION, 10) == L1
+    assert route_for(BLOCK_CARD, 2500) == L1, "at the boundary a block is still L1"
+    assert route_for(BLOCK_CARD, 2500.01) == L2, "over $2,500 a block escalates to L2"
+    assert route_for(BLOCK_ALL_CARDS, 1) == L2 and route_for(FILE_REPORT, 1) == L2
+
+    # --- R1: weak single signal must verify, never block ---
+    a = acts(signals=weak, prob=0.6)
+    assert VERIFY_WITH_CUSTOMER in a and BLOCK_CARD not in a, a
+    assert STEP_UP_AUTH in a, "R1 + a risk_score trigger also requires step-up"
+
+    # --- R2: a denial blocks; R3: a confirmation closes ---
+    assert BLOCK_CARD in acts(verdict="fraud", prob=0.75, customer_denied=True)
+    a = acts(customer_confirmed=True, phase="final")
+    assert a == {CLOSE_NO_FRAUD}, a
+
+    # --- R3 must not close a case the evidence still calls fraud ---
+    a = acts(verdict="fraud", prob=0.9, customer_denied=True, customer_confirmed=False)
+    assert CLOSE_NO_FRAUD not in a
+
+    # --- R4: no reply keeps the card alive and escalates over $500 ---
+    a = acts(no_reply=True, exposure=600.0, phase="final")
+    assert {MONITOR_CARD, DECLINE_TRANSACTION, ESCALATE_TO_ANALYST} <= a, a
+    assert BLOCK_CARD not in a, "R4 does not block on silence"
+    assert ESCALATE_TO_ANALYST not in acts(no_reply=True, exposure=400.0, phase="final")
+
+    # --- R5: card testing declines and steps up; blocks only once $100 has cleared ---
+    a = acts(pattern="card_testing", verdict="fraud", prob=0.8, exposure=50.0)
+    assert {DECLINE_TRANSACTION, STEP_UP_AUTH} <= a and BLOCK_CARD not in a, a
+    assert BLOCK_CARD in acts(pattern="card_testing", verdict="fraud", prob=0.8,
+                              exposure=250.0)
+
+    # --- R6: a shared origin puts the other cards under monitoring ---
+    a = acts(verdict="fraud", prob=0.9, connected_cards=["C1", "C2"],
+             shared_element="device profile 'x'")
+    assert MONITOR_CONNECTED_CARDS in a, a
+
+    # --- R7: a disputed recurring charge is never blocked ---
+    a = acts(recurring=True, prob=0.45, customer_denied=True, trigger_type="customer_report")
+    assert {CREATE_CASE, VERIFY_WITH_CUSTOMER, WARN_CUSTOMER} <= a, a
+    assert BLOCK_CARD not in a and BLOCK_ALL_CARDS not in a, "R7 forbids blocking"
+
+    # --- R8: uncertain and exposed goes to a human ---
+    assert ESCALATE_TO_ANALYST in acts(verdict="uncertain", prob=0.5, exposure=600.0)
+    assert ESCALATE_TO_ANALYST not in acts(verdict="uncertain", prob=0.5, exposure=100.0)
+
+    # --- R9: undocumented AND across customers. One card alone is not coordination ---
+    a = acts(pattern="undocumented", verdict="fraud", prob=0.9, connected_cards=["C1"])
+    assert {CREATE_CASE, ESCALATE_TO_ANALYST} <= a, a
+    assert ESCALATE_TO_ANALYST not in acts(pattern="undocumented", verdict="fraud",
+                                           prob=0.9, exposure=100.0)
+    # and it has to survive the early returns R1 and R4 take
+    assert ESCALATE_TO_ANALYST in acts(pattern="undocumented", signals=weak, prob=0.6,
+                                       connected_cards=["C1"]), "R9 lost to R1's return"
+    assert ESCALATE_TO_ANALYST in acts(pattern="undocumented", no_reply=True,
+                                       exposure=100.0, connected_cards=["C1"],
+                                       phase="final"), "R9 lost to R4's return"
+
+    # --- R10: never block every card without two confirmed ---
+    assert BLOCK_ALL_CARDS not in acts(verdict="fraud", prob=0.99, n_confirmed_cards=1)
+    assert BLOCK_ALL_CARDS in acts(verdict="fraud", prob=0.99, n_confirmed_cards=2)
+
+    # --- an action set must never both close the alert and block the card ---
+    for kw in ({}, {"verdict": "fraud", "prob": 0.9}, {"verdict": "legitimate", "prob": 0.1},
+               {"recurring": True, "customer_denied": True},
+               {"no_reply": True, "phase": "final"}):
+        a = acts(**kw)
+        assert not ({CLOSE_NO_FRAUD, ALLOW_TRANSACTION} & a and
+                    {BLOCK_CARD, BLOCK_ALL_CARDS} & a), (kw, a)
+
+    # --- 3a: a report needs fraud established AND a qualifier ---
+    assert should_file_report("uncertain", 0.5, 50_000, True, True)[0] is False, \
+        "an uncertain verdict never files, however large the exposure"
+    assert should_file_report("fraud", 0.9, 1500, False, False)[0] is True
+    assert should_file_report("fraud", 0.9, 500, False, False)[0] is False
+    assert should_file_report("fraud", 0.9, 500, True, False)[0] is True
+    assert should_file_report("fraud", 0.9, 500, False, True)[0] is True
+    for args in (("fraud", 0.9, 1500, False, False), ("fraud", 0.9, 500, False, False)):
+        assert should_file_report(*args)[1].startswith("Policy 3a"), "every reason cites 3a"
+
+    # --- apply_sar keeps FILE_REPORT and sar.file in agreement, as the spec demands ---
+    base = [{"action": MONITOR_CARD, "route": AUTO, "reason": "r"}]
+    assert not any(x["action"] == FILE_REPORT for x in apply_sar(base, False, 10, "no"))
+    on = apply_sar(base, True, 10, "yes")
+    assert [x for x in on if x["action"] == FILE_REPORT][0]["route"] == L2
+
+    # --- probability is a logistic over the weights, and independence is by family ---
+    assert abs(probability([]) - 0.5) < 1e-9
+    assert probability([S("a", 2.0)]) > 0.85 and probability([S("a", -2.0)]) < 0.15
+    assert independent_evidence_count(
+        [S("region_new_bad", 1.0), S("region_new_travel", 1.0)]) == 1, \
+        "two region signals are one piece of evidence"
+    assert independent_evidence_count([S("m_flags_2plus", 1.0), S("burst", 1.0)]) == 2
+    assert independent_evidence_count([S("m_flags_2plus", 0.2)]) == 0, "weak signals don't count"
+
+    print("policy.py: all rule checks passed (R1-R10, routing, 3a, scoring)")
+
+
+if __name__ == "__main__":
+    demo()
