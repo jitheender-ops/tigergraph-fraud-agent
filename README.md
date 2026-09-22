@@ -291,7 +291,8 @@ discarded and the deterministic draft stands.
 
 ```
 prep/        to_parquet.py  derive.py  calibrate.py  validate_card_id.py
-             rings.py  build_corpus.py
+             rings.py  build_corpus.py  parity.py  backend_diff.py
+eval/        backtest.py
 graph/       schema.gsql  queries.gsql  load.py
 agent/       features.py  patterns.py  policy.py  episode.py  investigate.py
              answer.py  backend.py  mcp_backend.py  retrieve.py  llm.py  tg.py

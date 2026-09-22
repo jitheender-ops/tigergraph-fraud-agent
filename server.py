@@ -12,7 +12,7 @@ not a judgement -- and even that is validated against the signals actually prese
   uv run uvicorn server:app --reload --port 8000
 """
 from __future__ import annotations
-import datetime as dt, json, os, pathlib, sys
+import datetime as dt, hashlib, json, os, pathlib, sys, threading
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "agent"))
 
@@ -38,6 +38,51 @@ app = FastAPI(title="Fraud Investigation Console")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"],
                    allow_headers=["*"])
 
+# One backend for the process. get_backend() opens a connection each time it is called,
+# and on the MCP path it starts a whole server subprocess -- once per request was a leak,
+# not a design. Each call still gets its own ToolLog, which is the only per-request state.
+_BACKEND = None
+_BACKEND_LOCK = threading.Lock()
+
+
+def backend(log: ToolLog | None = None):
+    global _BACKEND
+    with _BACKEND_LOCK:
+        if _BACKEND is None:
+            _BACKEND = get_backend(BACKEND, ToolLog())
+    _BACKEND.log = log or ToolLog()
+    return _BACKEND
+
+
+@app.exception_handler(Exception)
+def unhandled(request, exc: Exception):
+    """A dead database should read as a sentence, not a traceback in the browser.
+
+    Deliberately narrow: registering a handler for Exception also catches the
+    HTTPExceptions the endpoints raise on purpose, which turned every honest 404 and 409
+    into a 503 about the database being down.
+    """
+    from fastapi.responses import JSONResponse
+    if isinstance(exc, HTTPException):
+        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+    return JSONResponse(status_code=503, content={
+        "error": f"{type(exc).__name__}: {exc}"[:400],
+        "hint": f"The console is on the '{BACKEND}' backend. If that is TigerGraph, "
+                f"check the container is up: ./graph/local_tigergraph.sh status",
+    })
+
+
+@app.get("/api/health")
+def health():
+    """Enough to tell a broken database from a broken front end."""
+    try:
+        n = len(backend(ToolLog()).prior_cases_for_card("__none__"))
+        ok = True
+    except Exception as e:                       # noqa: BLE001 - reported, not raised
+        n, ok = str(e)[:200], False
+    return {"backend": BACKEND, "graph_reachable": ok, "probe": n,
+            "cases": len(STORE), "closed": sum(1 for c in STORE.values() if c.closed)}
+
 
 # ---------------------------------------------------------------------------
 # state. One process, one analyst, so the working set is a dict -- the durable
@@ -53,6 +98,11 @@ class Case:
         self.closed: str | None = None
         self.signals = None        # real Signal objects, filled by the first re-run
 
+        # Steering re-runs the investigation and writes back onto this object; two
+        # requests for one case must not interleave. FastAPI runs sync endpoints in a
+        # threadpool, so this is not theoretical.
+        self.lock = threading.Lock()
+
     def log(self, kind, detail, **extra):
         self.events.append({"at": dt.datetime.now().isoformat(timespec="seconds"),
                             "kind": kind, "detail": detail, **extra})
@@ -63,7 +113,12 @@ STORE: dict[str, Case] = {}
 
 
 def load():
-    triggers = json.loads(pathlib.Path("build/triggers.json").read_text())
+    tp = pathlib.Path("build/triggers.json")
+    if not tp.exists():
+        print("console: build/triggers.json is missing -- run `uv run python run.py` "
+              "first. Starting empty so /api/health still answers.")
+        return
+    triggers = json.loads(tp.read_text())
     # triggers.json is JSON, so opened_at came back a string; the investigation does
     # date arithmetic on it.
     for t in triggers.values():
@@ -80,7 +135,34 @@ def load():
             cid = a["case_id"]
             if cid in triggers:
                 STORE[cid] = Case(a, triggers[cid], source)
+    _recover_closed()
     print(f"console: {len(STORE)} cases loaded, backend={BACKEND}")
+
+
+def _recover_closed():
+    """A case closed in a previous session is closed.
+
+    The working set is in memory, but the decision is not: closing writes a ClosedCase
+    vertex. Without this the console forgets on restart and offers to close a case the
+    graph already records, which would write the decision twice.
+    """
+    try:
+        b = backend()
+    except Exception as e:                       # noqa: BLE001 - the graph may be down
+        print(f"console: could not reach the graph to recover closed cases ({e})")
+        return
+    for cid, c in STORE.items():
+        try:
+            row = b.closed_case(closed_case_id(cid))
+        except Exception:                        # noqa: BLE001 - absence is not an error
+            continue
+        if row:
+            c.closed = row.get("outcome")
+            c.log("recovered", f"already closed as {c.closed} in a previous session")
+
+
+def closed_case_id(cid: str) -> str:
+    return f"CC-{cid.replace('-', '')}"
 
 
 def get(cid) -> Case:
@@ -92,7 +174,7 @@ def get(cid) -> Case:
 def rerun(c: Case) -> dict:
     """Re-investigate under the analyst's current steering and replace the answer."""
     log = ToolLog()
-    b = get_backend(BACKEND, log)
+    b = backend(log)
     r = Investigation(b, c.trigger, suppress=c.suppressed,
                       analyst_signals=c.analyst_signals, ring_cap=c.ring_cap).run()
     out = ans.build(c.trigger, r, backend=b)
@@ -184,11 +266,13 @@ def challenge(cid: str, body: Challenge):
     if not hit:
         return {"matched": [], "note": "No signal in this case matches that objection. "
                 "Nothing was changed.", "names": sorted(names)}
-    c.suppressed |= set(hit)
-    c.analyst_signals = [P.Signal(
-        "analyst_context", 0.0,
-        f"Analyst context: {body.text.strip()}", [], f"analyst:{cid}", source="external")]
-    res = rerun(c)
+    with c.lock:
+        c.suppressed |= set(hit)
+        c.analyst_signals = [P.Signal(
+            "analyst_context", 0.0,
+            f"Analyst context: {body.text.strip()}", [], f"analyst:{cid}",
+            source="external")]
+        res = rerun(c)
     c.log("challenge", body.text.strip(), withdrew=sorted(hit),
           moved=res["changed"]["probability"])
     return {"matched": sorted(hit), **res}
@@ -207,9 +291,10 @@ def reset(cid: str):
         raise HTTPException(409, "case is closed")
     if not (c.suppressed or c.analyst_signals or c.ring_cap):
         return {"note": "Nothing to reset -- this case is as the agent left it."}
-    undone = sorted(c.suppressed)
-    c.suppressed, c.analyst_signals, c.ring_cap = set(), [], None
-    res = rerun(c)
+    with c.lock:
+        undone = sorted(c.suppressed)
+        c.suppressed, c.analyst_signals, c.ring_cap = set(), [], None
+        res = rerun(c)
     c.log("reset", "analyst steering cleared; back to the agent's own assessment",
           restored=undone)
     return {"restored": undone, **res}
@@ -227,10 +312,11 @@ def deepen(cid: str, body: Deepen):
     c = get(cid)
     if c.closed:
         raise HTTPException(409, "case is closed")
-    if c.signals is None:
-        rerun(c)          # establish the baseline so the diff has something to show
-    c.ring_cap = body.cap
-    res = rerun(c)
+    with c.lock:
+        if c.signals is None:
+            rerun(c)      # establish the baseline so the diff has something to show
+        c.ring_cap = body.cap
+        res = rerun(c)
     c.log("deepen", f"device-sharing component recomputed at a cap of {body.cap} cards",
           ring_cap=body.cap)
     return res
@@ -244,16 +330,18 @@ def stepup(cid: str):
         raise HTTPException(409, "case is closed")
     prob = c.answer["case"]["fraud_probability"]
     passed = prob < 0.55       # same rule the offline loop uses
-    c.analyst_signals = [s for s in c.analyst_signals if s.name != "step_up"]
-    c.analyst_signals.append(P.Signal(
-        "step_up", P.W["customer_confirmed"] if passed else P.W["customer_denied"],
-        ("One-time passcode completed from the cardholder's registered number."
-         if passed else
-         "Step-up authentication was not completed; the challenge expired unanswered.")
-        + " SIMULATED: no authentication responses ship with this dataset, and the "
-          "weight is damped accordingly.",
-        [], f"evidence_request:step_up_auth", source="customer"))
-    res = rerun(c)
+    with c.lock:
+        c.analyst_signals = [x for x in c.analyst_signals if x.name != "step_up"]
+        c.analyst_signals.append(P.Signal(
+            "step_up", P.W["customer_confirmed"] if passed else P.W["customer_denied"],
+            ("One-time passcode completed from the cardholder's registered number."
+             if passed else
+             "Step-up authentication was not completed; the challenge expired "
+             "unanswered.")
+            + " SIMULATED: no authentication responses ship with this dataset, and the "
+              "weight is damped accordingly.",
+            [], "evidence_request:step_up_auth", source="customer"))
+        res = rerun(c)
     c.log("stepup", "passed" if passed else "not completed",
           moved=res["changed"]["probability"])
     return {"passed": passed, **res}
@@ -265,7 +353,7 @@ def episode(cid: str):
     asserted. Card testing is three sub-$5 authorisations and then a purchase; that is a
     shape, and a list of 25 identifiers is not."""
     c = get(cid)
-    b = get_backend(BACKEND, ToolLog())
+    b = backend()
     t = c.trigger
     anchor = dt.datetime.fromisoformat(str(t["opened_at"]))
     lo, hi = anchor - dt.timedelta(hours=72), anchor + dt.timedelta(hours=24)
@@ -318,7 +406,7 @@ def network(cid: str):
 def closed_case(case_id: str):
     """One prior investigation, in full. The chips under `similar_prior_cases` are the
     bank's own closed cases; this is what they actually said."""
-    b = get_backend(BACKEND, ToolLog())
+    b = backend()
     row = b.closed_case(case_id)
     if not row:
         raise HTTPException(404, f"no closed case {case_id}")
@@ -381,7 +469,7 @@ def close(cid: str, body: Close):
     if c.closed:
         raise HTTPException(409, "case is already closed")
     a, t = c.answer, c.trigger
-    case_id = f"CC-{cid.replace('-', '')}"
+    case_id = closed_case_id(cid)
     payload = {
         "p_case_id": case_id, "p_customer_id": t["customer_id"], "p_card_id": t["card_id"],
         "p_opened_at": str(t["opened_at"])[:19],
@@ -415,13 +503,17 @@ def blacklist(body: Blacklist):
     the transactions that ran on it. query 7 (prior_cases_for_device) then reaches it
     from any future transaction on the same profile -- so the flag propagates through
     the graph rather than through a side table nothing else reads."""
-    b = get_backend(BACKEND, ToolLog())
+    b = backend()
     lo = dt.datetime(2016, 1, 1)
     hi = dt.datetime(2017, 1, 1)
     ring = b.device_neighbors(body.device_profile, lo, hi)
     txns = ring["txns"]
     txn_ids = [str(x) for x in (txns.txn_id.tolist() if len(txns) else [])][:200]
-    case_id = f"CC-BL{abs(hash(body.device_profile)) % 100000:05d}"
+    # hash() is salted per process, so the same device profile produced a different case
+    # id on every restart and blacklisting it twice made two vertices. A content hash is
+    # the same everywhere, which is what an identifier derived from content has to be.
+    digest = hashlib.blake2s(body.device_profile.encode(), digest_size=4).hexdigest()
+    case_id = f"CC-BL{digest}"
     written = _write_closed_case({
         "p_case_id": case_id, "p_customer_id": "", "p_card_id": "",
         "p_opened_at": "2016-12-31 23:59:59",
@@ -452,7 +544,7 @@ def _ring_size(sig) -> int | None:
 
 
 def _write_closed_case(params) -> bool:
-    b = get_backend(BACKEND, ToolLog())
+    b = backend()
     if not hasattr(b, "conn"):
         return False          # duckdb mirror: nothing to write to
     b.conn.runInstalledQuery("write_closed_case", params)

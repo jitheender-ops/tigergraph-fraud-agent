@@ -363,7 +363,17 @@ class TigerGraphBackend:
                 "ring_size": int(out.get("ring_size", 1) or 1), "members": members[:25]}
 
     def closed_case(self, case_id):
-        v = self.conn.getVerticesById("ClosedCase", case_id)
+        # getVerticesById RAISES for an id that does not exist rather than returning
+        # nothing, so absence arrived at the console as "the database is down". The
+        # DuckDB mirror returns {} for a case it does not have, and the two backends
+        # have to answer the same question the same way.
+        try:
+            v = self.conn.getVerticesById("ClosedCase", case_id)
+        except Exception as e:                   # noqa: BLE001 - re-raised unless 601
+            if "not a valid vertex id" in str(e):
+                self.log.record("closed_case", {"case_id": case_id}, 0)
+                return {}
+            raise
         self.log.record("closed_case", {"case_id": case_id}, len(v))
         return v[0]["attributes"] if v else {}
 
