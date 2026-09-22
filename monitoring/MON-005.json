@@ -61,7 +61,7 @@
       }
     ],
     "similar_prior_cases": [],
-    "summary": "Monitoring sweep on card C09623-K2 over a $549.96 in person transaction on 2016-11-06 returned 3 of the card-detail match flags M1-M9 as F, while $549.96 was 8.0x this card's median and above its 95th percentile. The evidence conflicts and the probability sits at 0.63, so the case is not decided in the graph; exposure if the activity is fraudulent is $570.05, and connected components over the device-sharing graph placed this card in a bounded component of 2 cards (C00266-K1). Policy rule R8 recommended `ESCALATE_TO_ANALYST`, and policy rule R6 named the shared device profile for monitoring.",
+    "summary": "Monitoring sweep on card C09623-K2 identified a $549.96 in person transaction on 2016-11-06 under case ID C00266-K1. Three of the card-detail match flags M1-M9 returned F, the amount was 8.0x the card's median and above its 95th percentile, and the connected component contained 2 cards. The verdict is uncertain at probability 0.63, the evidence conflicts, and exposure is $570.05. Policy rule R8 recommended escalation, and policy rule R6 named 1 other card for monitoring.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-005"
   },
@@ -144,7 +144,7 @@
   },
   "stop_reason": "A verification response settled the question (policy 6): probability moved to 0.63 on 2 independent pieces of evidence and the action set follows directly. Further steps would not change it.",
   "tool_calls": 9,
-  "tokens": 934,
+  "tokens": 896,
   "latency_s": 0.15,
   "trigger": {
     "type": "monitoring_sweep",

@@ -19,7 +19,7 @@ uv run python graph/load.py --all       # schema + data + docs + queries into Ti
 uv run python run.py --backend tigergraph
 uv run python validate.py               # check all 20 answers against the spec
 uv run python monitor.py --top 5        # cases nobody asked for: the self-directed sweep
-uv run python ui/build.py && open ui/dashboard.html
+./run.sh                                # the analyst console: API on :8000, UI on :5180
 ```
 
 No Savanna workspace? `./graph/local_tigergraph.sh up` brings up TigerGraph Community
@@ -62,6 +62,42 @@ card and the device, then reconstruct the episode and size the exposure.
 The agent then scores the evidence, classifies the pattern, recommends an initial action
 set, asks for whatever evidence the policy says it may ask for, folds the response back in,
 and re-recommends. Both recommendations are recorded, with what changed between them.
+
+## The console: arguing with the agent
+
+`server.py` and `dashboard-app/` are where a human disagrees with the investigation. Three
+of the endpoints **re-run it** rather than editing its output, which is the whole point.
+
+**Challenge.** An analyst types *"ignore the out-of-region flag, the customer is on
+holiday."* The objection is matched to the signals actually in evidence, those signals are
+withdrawn, and the probability is recomputed by the same log-odds sum as before. On
+HHG-015 that moves it 0.05 -> 0.17 and adds `MONITOR_CARD` to the action set, because R1's
+residual-uncertainty branch now applies. The withdrawn claims stay in the case file marked
+WITHDRAWN BY ANALYST, because a case that quietly loses evidence is not auditable.
+
+The LLM's only job in that loop is mapping free text onto a signal *name* -- a
+classification, not a judgement -- and its answer is intersected with the signals really
+present, so it can only choose among them. A probability the model wrote is a probability
+nobody can audit, and `agent/llm.py` still never produces one.
+
+**Look wider.** The device-sharing component is recomputed at a cap the analyst chooses.
+On HHG-011 that grows it from 2,500 cards to 3,504 -- and the agent still refuses to put
+them under monitoring, because that is percolation, not a ring. The case records that the
+analyst asked.
+
+**Step-up.** Fires the challenge and folds the outcome back in as customer-sourced
+evidence at the damped weight a simulated reply earns.
+
+**Approve / override.** An override is still routed by `policy.route_for`, so overriding
+to `BLOCK_ALL_CARDS` returns the L2 approval it demands. The UI names an action; it never
+decides a route.
+
+**Close, and blacklist a device.** Both write a `ClosedCase` vertex, which is the memory
+loop and not a metaphor: `prior_cases_for_card` and `prior_cases_for_device` read
+`ClosedCase`, so the next investigation that touches the same card or device retrieves
+what the analyst just decided. Blacklisting attaches the case to the transactions that ran
+on the profile, so the flag propagates through the graph rather than through a side table
+nothing else reads. Nothing is retrained -- the evidence set grows.
 
 ## GraphRAG: both halves
 
@@ -227,8 +263,8 @@ agent/       features.py  patterns.py  policy.py  episode.py  investigate.py
              answer.py  backend.py  mcp_backend.py  retrieve.py  llm.py  tg.py
 cases/       HHG-001.json … HHG-020.json
 monitoring/  MON-001.json … MON-005.json  index.md
-ui/          build.py -> dashboard.html
-run.py       monitor.py  validate.py  .mcp.json
+dashboard-app/  the analyst console (React + Vite); server.py is its API
+run.py       monitor.py  server.py  validate.py  run.sh  .mcp.json
 ```
 
 Three modules carry a runnable self-check rather than a test suite:

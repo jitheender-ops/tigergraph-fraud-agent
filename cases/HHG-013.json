@@ -90,7 +90,7 @@
       "CC-3216",
       "CC-1475"
     ],
-    "summary": "The risk score on card C07671-K2 for a $35.66 online transaction on 2016-12-09 was 0.76, and 25 transactions occurred on this card in the 48 hours ending at the flagged one. The identity record marked this device New for the account, the card's history was 1% online, and the bank had 3 confirmed-fraud case(s) already closed on this card (CC-4294, CC-3216, CC-1475), pattern(s): account_takeover, card_not_present_new_device. The transaction was assessed as legitimate at probability 0.27, the pattern was account_takeover, and exposure was $0.00.",
+    "summary": "Risk score on card C07671-K2 over a $35.66 online transaction on 2016-12-09 was 0.76, against a model where 25 transactions occurred in the 48 hours ending at the flagged one. The bank has 3 confirmed-fraud case(s) already closed on this card (CC-4294, CC-3216, CC-1475), pattern(s): account_takeover, card_not_present_new_device, and the identity record marks this device New for the account while the card's history is 1% online. The transaction was assessed as legitimate at probability 0.27 with exposure of $0.00, and the connected component of 2,500 cards carried no weight.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-013"
   },
@@ -142,6 +142,6 @@
   },
   "stop_reason": "Policy 6: probability 0.27 on 4 independent pieces of evidence sits between the stopping thresholds. Stopping here because the remaining uncertainty is the cardholder's own intent, which only the cardholder or an analyst can resolve; the recommended actions route it to them rather than resolving it in the graph.",
   "tool_calls": 9,
-  "tokens": 1056,
-  "latency_s": 0.77
+  "tokens": 1062,
+  "latency_s": 0.79
 }

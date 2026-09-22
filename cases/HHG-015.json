@@ -88,7 +88,7 @@
       "CC-1313",
       "CC-0615"
     ],
-    "summary": "Risk score on card C03042-K1 over a $599.94 online transaction on 2016-11-17 was 0.77, and the identity record marked the device New for the account, with 83% of cleared alarms showing a New device versus 18% of confirmed fraud. Although the card has no billing history in region 327.0, all card-detail match flags passed, and $599.94 was 6.0x the card's median and above its 95th percentile, the bank's closed history for the 0.70-0.85 band held 817 confirmed frauds against 234 cleared alarms at a likelihood ratio of 0.67. The bank also has 2 confirmed-fraud case(s) already closed on this card (CC-3886, CC-0615) with pattern(s): card_not_present_new_device, and the card sits in a giant device-sharing component of 2,500 cards. The case was assessed as legitimate at fraud probability 0.05 under pattern card_not_present_new_device with exposure $0.00, so no transaction is treated as part of a fraud episode.",
+    "summary": "Risk score on card C03042-K1 over a $599.94 online transaction on 2016-11-17. Against it: The bank has 2 confirmed-fraud case(s) already closed on this card (CC-3886, CC-0615), pattern(s): card_not_present_new_device. For the cardholder: The card has no billing history in region 327.0, but every card-detail match flag passed. The identity record marks this device New for the account. Assessed as legitimate at fraud probability 0.05; no transaction is treated as part of a fraud episode and exposure is zero.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-015"
   },
@@ -130,6 +130,6 @@
   },
   "stop_reason": "Policy 6: probability 0.05 is at or below 0.15 on 4 independent pieces of evidence; the alarm is explained and further investigation would not change the outcome.",
   "tool_calls": 12,
-  "tokens": 1210,
-  "latency_s": 0.76
+  "tokens": 1155,
+  "latency_s": 0.62
 }

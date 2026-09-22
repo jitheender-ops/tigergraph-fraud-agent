@@ -54,7 +54,7 @@
       }
     ],
     "similar_prior_cases": [],
-    "summary": "A monitoring sweep on card C00081-K2 flagged a $977.77 in person transaction on 2016-11-02 with a verdict of uncertain at probability 0.38 and pattern card_not_present_fraud. The amount is 8.7x the card's median and above its 95th percentile, and connected components over the device-sharing graph placed this card in a bounded component of 3 cards (C05979-K1, C12940-K1). Policy rule R8 recommended ESCALATE_TO_ANALYST because the evidence conflicts and the exposure of $977.77 exceeds $500, while policy rule R6 recommended naming the shared origin and monitoring the 2 other card(s). The case ID is unprovided.",
+    "summary": "The case for card C00081-K2 was assessed at uncertain probability 0.38 following an in-person transaction of $977.77 on 2016-11-02. The amount of $977.77 was 8.7x this card's median and above its 95th percentile, and the device-sharing graph placed the card in a bounded component of 3 cards including C05979-K1 and C12940-K1. Policy rule R8 recommended escalation because the evidence conflicts and exposure exceeds $500, while policy rule R6 named the 2 other card(s) transacted through the same device profile for monitoring. The exposure if the activity is fraudulent is $977.77, and the card-not-present fraud pattern noted that a single unusual online purchase is ambiguous.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-004"
   },
@@ -122,8 +122,8 @@
   },
   "stop_reason": "A verification response settled the question (policy 6): probability moved to 0.38 on 1 independent pieces of evidence and the action set follows directly. Further steps would not change it.",
   "tool_calls": 9,
-  "tokens": 895,
-  "latency_s": 0.17,
+  "tokens": 905,
+  "latency_s": 0.14,
   "trigger": {
     "type": "monitoring_sweep",
     "text": "Self-directed sweep. Connected components over the device-sharing graph put card C00081-K2 in a bounded component of 3 cards sharing 2 device profile(s), moving $7,102.69 across 48 transactions since 2016-11-02. No model score, cardholder report or analyst request opened this."

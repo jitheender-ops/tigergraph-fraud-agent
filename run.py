@@ -44,6 +44,12 @@ def main():
 
     pathlib.Path(args.out).mkdir(exist_ok=True)
     reset_case_log()          # this run owns the case log; monitor.py appends to it
+    # the console re-runs investigations when an analyst steers one, and needs the
+    # trigger to do it. It does not belong in the answer files, so it goes beside them.
+    pathlib.Path("build").mkdir(exist_ok=True)
+    pathlib.Path("build/triggers.json").write_text(
+        json.dumps({t["case_id"]: t for t in triggers}, indent=1, default=str))
+
     rows = []
     for t in triggers:
         log = ToolLog()

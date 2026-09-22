@@ -81,7 +81,7 @@ def main():
 
     out = pathlib.Path(args.out)
     out.mkdir(exist_ok=True)
-    rows = []
+    rows, made = [], {}
     for i, r in enumerate(rings, 1):
         anchor = con.execute(
             "SELECT txn_id, card_id, customer_id, ts, amount, risk_score FROM tx WHERE txn_id = ?",
@@ -101,6 +101,7 @@ def main():
             "risk_score": float(anchor.risk_score) if anchor.risk_score == anchor.risk_score else None,
         }
 
+        made[trigger["case_id"]] = trigger
         log = ToolLog()
         b = get_backend(args.backend, log)
         if llm:
@@ -127,6 +128,11 @@ def main():
         rows.append((trigger["case_id"], int(r["ring_size"]), r["amt"], res["verdict"],
                      round(res["prob"], 2), a["case"]["pattern"], res["sar_file"],
                      "|".join(x["action"] for x in res["final"])))
+
+    # merge, don't overwrite: run.py wrote the twenty benchmark triggers here first.
+    tp = pathlib.Path("build/triggers.json")
+    have = json.loads(tp.read_text()) if tp.exists() else {}
+    tp.write_text(json.dumps({**have, **made}, indent=1, default=str))
 
     hdr = f"{'case':8} {'ring':>4} {'ring $':>11} {'verdict':11} {'p':5} {'pattern':28} {'sar':5} actions"
     print(hdr); print("-" * len(hdr))

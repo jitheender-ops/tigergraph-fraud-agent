@@ -97,7 +97,7 @@
       "CC-3566",
       "CC-3422"
     ],
-    "summary": "Customer report on card C13171-K2 over a $55.68 online transaction on 2016-12-19. The cardholder contacted the bank stating they did not make this purchase. There were 14 transactions on this card in the 48 hours ending at the flagged one, and the case, ID CC-5010, was assessed as card_not_present_fraud at probability 0.87 with 8 transaction(s) and $284.65 of exposure. The bank has 18 confirmed-fraud case(s) already closed on this card (CC-5010, CC-4485, CC-4163, CC-3928), pattern(s): card_not_present_fraud, card_not_present_new_device. The card sits in the graph's giant device-sharing component (2,500 cards), and known fraud pattern 2 describes card-not-present fraud as online use of the number without the card, often in a burst of two to four within 48 hours. Policy rule R2 recommends `BLOCK_CARD` and `CREATE_CASE` when the customer denies the transaction, and `FILE_REPORT` if exposure exceeds $1,000 or the case connects to a shared device profile or another card's fraud.",
+    "summary": "Customer report on card C13171-K2 over a $55.68 online transaction on 2016-12-19 stated they did not make the purchase. The card had 14 transactions in the 48 hours ending at the flagged one, and the case C13171-K2 was assessed as card_not_present_fraud at probability 0.87 with $284.65 of exposure. The bank had 18 confirmed-fraud case(s) already closed on this card (CC-5010, CC-4485, CC-4163, CC-3928) with pattern(s) card_not_present_fraud and card_not_present_new_device. This card was placed in the graph's giant device-sharing component (2,500 cards), but transitive device sharing percolates at every threshold tested and carries no weight. Known fraud pattern 2 describes card-not-present fraud involving a burst of two to four transactions within 48 hours, and policy rule R2 recommends BLOCK_CARD and CREATE_CASE when the customer denies the transaction.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-008"
   },
@@ -154,6 +154,6 @@
   },
   "stop_reason": "Policy 6: probability 0.87 is at or above 0.85 on 2 independent pieces of evidence, which is the bar for a defensible action.",
   "tool_calls": 9,
-  "tokens": 964,
-  "latency_s": 0.62
+  "tokens": 920,
+  "latency_s": 0.69
 }

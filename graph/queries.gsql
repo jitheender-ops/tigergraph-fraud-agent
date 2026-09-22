@@ -293,4 +293,35 @@ CREATE OR REPLACE QUERY write_case(
   PRINT p_graph_case_id AS written;
 }
 
+// ---------------------------------------------------------------------------
+// 13. An analyst's decision, written back as a ClosedCase.
+//
+//     This is the memory loop the console closes. When a human confirms or clears a
+//     case, it stops being this agent's opinion and becomes the bank's record -- and
+//     prior_cases_for_card and prior_cases_for_device (queries 6 and 7) retrieve it on
+//     the very next investigation that touches the same card or device. No retraining,
+//     no weight update: the evidence set simply grows.
+// ---------------------------------------------------------------------------
+CREATE OR REPLACE QUERY write_closed_case(
+  STRING p_case_id, STRING p_customer_id, STRING p_card_id,
+  DATETIME p_opened_at, DATETIME p_closed_at, STRING p_outcome, STRING p_pattern,
+  STRING p_first_txn_id, INT p_n_txns, DOUBLE p_exposure,
+  STRING p_actions_taken, STRING p_report_filed, STRING p_analyst_notes,
+  SET<STRING> p_txn_ids, SET<STRING> p_connected_cards
+) FOR GRAPH FraudInvestigation {
+  INSERT INTO ClosedCase VALUES (p_case_id, p_customer_id, p_card_id, p_opened_at,
+    p_closed_at, p_outcome, p_pattern, p_first_txn_id, p_n_txns, p_exposure,
+    p_actions_taken, p_report_filed, p_analyst_notes);
+
+  FOREACH t IN p_txn_ids DO         INSERT INTO INVOLVES     VALUES (p_case_id, t); END;
+  FOREACH c IN p_connected_cards DO INSERT INTO CONNECTED_TO VALUES (p_case_id, c); END;
+  // A blacklisted device is a case against a machine, not against one cardholder, so
+  // it arrives with no card. An empty vertex id is a runtime error, not a no-op.
+  IF p_card_id != "" THEN
+    INSERT INTO ON_CARD VALUES (p_case_id, p_card_id);
+  END;
+
+  PRINT p_case_id AS written;
+}
+
 INSTALL QUERY ALL

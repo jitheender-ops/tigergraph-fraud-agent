@@ -60,7 +60,7 @@
       }
     ],
     "similar_prior_cases": [],
-    "summary": "A monitoring sweep on card C12352-K2 identified a $2,161.07 in person transaction on 2016-12-14 with a case ID that remains uncertain at probability 0.63. Four of the card-detail match flags M1-M9 returned F, $2,161.07 is 36.6x this card's median and above its 95th percentile, and the card shares a bounded device component of 2 cards (C11164-K1). The evidence conflicts, and policy rule R8 recommends `ESCALATE_TO_ANALYST` because the exposure exceeds $500, while policy rule R6 names the shared element for `CREATE_CASE`, `FILE_REPORT`, and `MONITOR_CONNECTED_CARDS`.",
+    "summary": "Monitoring sweep on card C12352-K2 over a $2,161.07 in person transaction on 2016-12-14. Against it: 4 of the card-detail match flags M1-M9 came back F on this transaction. For the cardholder: $2,161.07 is 36.6x this card's median and above its 95th percentile. The evidence conflicts and probability sits at 0.63, so the case is not decided in the graph; exposure if the activity is fraudulent is $2,161.07. 1 other card(s) transacted through the same device profile in the window and are named for monitoring.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-002"
   },
@@ -143,8 +143,8 @@
   },
   "stop_reason": "A verification response settled the question (policy 6): probability moved to 0.63 on 2 independent pieces of evidence and the action set follows directly. Further steps would not change it.",
   "tool_calls": 9,
-  "tokens": 948,
-  "latency_s": 0.14,
+  "tokens": 1001,
+  "latency_s": 0.18,
   "trigger": {
     "type": "monitoring_sweep",
     "text": "Self-directed sweep. Connected components over the device-sharing graph put card C12352-K2 in a bounded component of 2 cards sharing 1 device profile(s), moving $17,501.41 across 72 transactions since 2016-11-02. No model score, cardholder report or analyst request opened this."

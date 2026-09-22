@@ -62,7 +62,7 @@
     "similar_prior_cases": [
       "CC-0873"
     ],
-    "summary": "Risk score on card C10434-K1 over a $1,000.03 online transaction on 2016-12-02. For the cardholder: The identity record marks this device New for the account. Model risk score 0.90. Assessed as legitimate at fraud probability 0.07; no transaction is treated as part of a fraud episode and exposure is zero.",
+    "summary": "On 2016-12-02, card C10434-K1 was assessed as legitimate at fraud probability 0.07 for a $1,000.03 online transaction, yielding exposure of $0.00 and case ID CC-0873. The model risk score was 0.90, the identity record marked the device as New, and 1 previous alarm on this card was investigated and cleared. The draft notes that a score of 0.90 is evidence against fraud because 74% of cleared alarms scored at or above 0.85 against 9% of confirmed fraud, a new device appears in 83% of cleared alarms versus 18% of confirmed fraud, and large outliers occur on 16% of cleared alarms versus 6% of confirmed fraud. The case file also references known fraud pattern 3 and Fraud Policy 6, which permits stopping an investigation when fraud probability is at or below 0.15 supported by at least two independent pieces of evidence.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-010"
   },
@@ -104,6 +104,6 @@
   },
   "stop_reason": "Policy 6: probability 0.07 is at or below 0.15 on 3 independent pieces of evidence; the alarm is explained and further investigation would not change the outcome.",
   "tool_calls": 10,
-  "tokens": 854,
+  "tokens": 939,
   "latency_s": 0.12
 }

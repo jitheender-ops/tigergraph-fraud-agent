@@ -65,7 +65,7 @@
       }
     ],
     "similar_prior_cases": [],
-    "summary": "Customer C08299-K1 disputed an online transaction of $30.02 on 2016-12-28. The cardholder first stated they did not make the purchase, but later confirmed the transaction was theirs, creating conflicting evidence. Pattern card_not_present_fraud was identified with exposure of $30.02 and probability 0.45, and case ID C08299-K1 remains undecided because the $30.02 amount appeared 5 times across 3 distinct months under the same product code with a median of 34 days apart, which policy R7 forbids blocking. The card belongs to a shared device component of 2,500 cards, yet transitive device sharing percolates at every threshold tested and carries no weight per policy R6, and known fraud pattern 2 notes that a single unusual online purchase is ambiguous per policy R1 to R4.",
+    "summary": "The customer reported card C08299-K1 for case 2016-12-28 regarding a $30.02 charge, yet the cardholder later confirmed the transaction was theirs. Against this, the customer initially stated they did not make the purchase, and graph data showed the card belongs to a giant device-sharing component of 2,500 cards with no ring evidence. The $30.02 amount appeared 5 times across 3 distinct months under the same product code at a median interval of 34 days, matching a subscription cadence that policy R7 forbids blocking. The probability remains uncertain at 0.45, and the exposure is $30.02.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-009"
   },
@@ -138,6 +138,6 @@
   },
   "stop_reason": "A verification response settled the question (policy 6): probability moved to 0.45 on 2 independent pieces of evidence and the action set follows directly. Further steps would not change it.",
   "tool_calls": 10,
-  "tokens": 813,
-  "latency_s": 0.62
+  "tokens": 768,
+  "latency_s": 0.59
 }

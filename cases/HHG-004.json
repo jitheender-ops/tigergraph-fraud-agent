@@ -84,7 +84,7 @@
       "CC-1736",
       "CC-0696"
     ],
-    "summary": "Customer report on 2016-12-29 denied making a $128.33 online transaction on card C08106-K1, yielding an uncertain verdict at probability 0.45 with pattern card_not_present_new_device and exposure $128.33. The identity record marks this device New for the account, and $128.33 is 4.8x this card's median and above its 95th percentile, while the bank has 3 confirmed-fraud case(s) already closed on this card (CC-3778, CC-2121, CC-1736), pattern(s): card_not_present_fraud. Connected components place this card in the graph's giant device-sharing component (2,500 cards), and policy R2 recommends `BLOCK_CARD` and `CREATE_CASE` for this case.",
+    "summary": "Customer report on card C08106-K1 over a $128.33 online transaction on 2016-12-29 resulted in a verdict of uncertain at probability 0.45 with pattern card_not_present_new_device and exposure $128.33. The cardholder contacted the bank stating they did not make this purchase, while the bank has 3 confirmed-fraud case(s) already closed on this card (CC-3778, CC-2121, CC-1736), pattern(s): card_not_present_fraud. The identity record marks this device New for the account, $128.33 is 4.8x this card's median and above its 95th percentile, and connected components place this card in the graph's giant device-sharing component (2,500 cards). Known fraud pattern 3 indicates card-not-present fraud from a new device, and policy rule R2 recommends BLOCK_CARD and CREATE_CASE with FILE_REPORT if exposure exceeds $1,000 or the case connects to a shared device profile or another card's fraud.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-004"
   },
@@ -157,6 +157,6 @@
   },
   "stop_reason": "A verification response settled the question (policy 6): probability moved to 0.45 on 3 independent pieces of evidence and the action set follows directly. Further steps would not change it.",
   "tool_calls": 11,
-  "tokens": 1016,
-  "latency_s": 0.63
+  "tokens": 1069,
+  "latency_s": 0.62
 }

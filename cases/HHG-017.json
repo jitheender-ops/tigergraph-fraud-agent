@@ -59,7 +59,7 @@
     "similar_prior_cases": [
       "CC-1383"
     ],
-    "summary": "The risk score on card C04570-K1 for online transaction 2016-11-11 on a $100.09 transaction is uncertain at probability 0.43. For the cardholder, 1 previous alarm(s) on this card were investigated and cleared (CC-1383), and the connection came through proxy IP_PROXY:HIDDEN. The connection placed the card in the graph's giant device-sharing component of 2,500 cards, which carries no weight. The exposure if the activity is fraudulent is $300.14, and the pattern is undocumented.",
+    "summary": "Risk score on card C04570-K1 over a $100.09 online transaction on 2016-11-11. For the cardholder, 1 previous alarm(s) on this card were investigated and cleared (CC-1383), and the connection came through a proxy (IP_PROXY:HIDDEN). The evidence conflicts and probability sits at 0.43, so the case is not decided in the graph; exposure if the activity is fraudulent is $300.14, and the card belongs to the graph's giant device-sharing component of 2,500 cards.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-017"
   },
@@ -122,6 +122,6 @@
   },
   "stop_reason": "A verification response settled the question (policy 6): probability moved to 0.43 on 0 independent pieces of evidence and the action set follows directly. Further steps would not change it.",
   "tool_calls": 10,
-  "tokens": 662,
-  "latency_s": 0.62
+  "tokens": 663,
+  "latency_s": 0.61
 }

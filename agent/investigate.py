@@ -50,13 +50,30 @@ def device_link_is_meaningful(f) -> bool:
 
 
 class Investigation:
-    def __init__(self, backend, trigger, llm=None, now=None):
+    def __init__(self, backend, trigger, llm=None, now=None,
+                 suppress=None, analyst_signals=None, ring_cap=None):
+        """suppress / analyst_signals are how a human steers the investigation.
+
+        An analyst who says "ignore the out-of-region flag, the customer is on holiday"
+        is not overruling the arithmetic, they are withdrawing a premise from it. So the
+        challenge removes named signals and may add an analyst-sourced one, and the same
+        deterministic scorer runs again over what is left. The LLM's only job in that
+        loop is mapping free text onto a signal name -- a classification, not a
+        judgement -- because a probability the model wrote is a probability nobody can
+        audit.
+
+        ring_cap widens the device-sharing expansion when an analyst asks for a deeper
+        look; it is passed straight to the graph algorithm.
+        """
         self.b = backend
         self.t = trigger                      # row from case_pack
         self.llm = llm
         self.now = now or trigger["opened_at"]
         self.steps: list[str] = []
         self.signals: list[P.Signal] = []
+        self.suppress = set(suppress or ())
+        self.analyst_signals = list(analyst_signals or ())
+        self.ring_cap = ring_cap
         self._docs_seen: set[str] = set()
         self.t0 = time.time()
 
@@ -113,6 +130,18 @@ class Investigation:
         pattern, pattern_desc = P.classify(f, episode, ring)
 
         self.signals = P.score_signals(f, episode, ring, prior)
+        # --- human steering, applied before anything is scored off the signal set ---
+        if self.suppress:
+            kept, dropped = [], []
+            for x in self.signals:
+                (dropped if x.name in self.suppress else kept).append(x)
+            self.signals = kept
+            for x in dropped:
+                self.signals.append(P.Signal(
+                    f"withdrawn:{x.name}", 0.0,
+                    f"WITHDRAWN BY ANALYST. {x.claim}", x.entity_ids, x.ref,
+                    source="external"))
+        self.signals.extend(self.analyst_signals)
         if dev_prior:
             conf = [d for d in dev_prior if d.get("outcome") == "confirmed_fraud"]
             if conf:
@@ -158,7 +187,8 @@ class Investigation:
         # before it stops. Reported because R6 asks for the shared element to be named;
         # given no weight, because it percolates (see prep/rings.py).
         self.step("run connected components over the device-sharing graph")
-        comp = self.b.ring_component(card_id)
+        comp = (self.b.ring_component(card_id, self.ring_cap) if self.ring_cap
+                else self.b.ring_component(card_id))
         if comp["ring_size"] >= 2:
             if comp["ring_size"] <= 10:
                 claim = (f"Connected components over the device-sharing graph place this card "

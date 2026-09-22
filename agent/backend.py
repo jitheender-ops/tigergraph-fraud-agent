@@ -150,12 +150,14 @@ class DuckDBBackend:
         return df.iloc[0].to_dict()
 
     # 10 -------------------------------------------------------------------
-    def ring_component(self, card_id):
+    def ring_component(self, card_id, cap=None):
         """Graph algorithm: the transitive device-sharing component this card sits in.
 
         TigerGraph runs `tg_conn_comp`; here the same components are precomputed by
         prep/rings.py. Size is reported, never weighted -- see that module for why.
         """
+        if cap:   # an analyst asked to look wider than the calibrated cap
+            return self._ring_at_cap(card_id, cap)
         df = self._df("ring_component",
                       "SELECT ring_id, ring_size FROM card_ring WHERE card_id = ?", [card_id])
         if not len(df):
@@ -166,6 +168,29 @@ class DuckDBBackend:
             [row.ring_id, card_id]).df()
         return {"ring_id": str(row.ring_id), "ring_size": int(row.ring_size),
                 "members": m.card_id.tolist()}
+
+    def _ring_at_cap(self, card_id, cap):
+        """The same component, recomputed with a wider tolerance for how many cards a
+        device may touch before it stops counting as a link. prep/rings.py precomputes
+        only the calibrated cap of 8, so a deeper look is computed on demand."""
+        df = self._df("ring_component", f"""
+            WITH RECURSIVE d AS (
+              SELECT device_profile FROM tx
+              WHERE device_profile IS NOT NULL AND device_profile <> ''
+                AND device_profile NOT LIKE 'unknown | unknown | unknown%'
+              GROUP BY 1 HAVING count(DISTINCT card_id) BETWEEN 2 AND {int(cap)}
+            ),
+            e AS (SELECT DISTINCT t.card_id, t.device_profile FROM tx t JOIN d USING (device_profile)),
+            reach(card_id) AS (
+              SELECT ? UNION
+              SELECT e2.card_id FROM reach r
+                JOIN e e1 ON e1.card_id = r.card_id
+                JOIN e e2 ON e2.device_profile = e1.device_profile
+            )
+            SELECT card_id FROM reach ORDER BY 1
+        """, [card_id])
+        members = [c for c in df.card_id.tolist() if c != card_id]
+        return {"ring_id": card_id, "ring_size": len(members) + 1, "members": members[:25]}
 
     # 11 -------------------------------------------------------------------
     def doc_search(self, query, k=2, sources=None):
@@ -314,8 +339,11 @@ class TigerGraphBackend:
         return {"cards": out.get("card_ids", []), "n_txns": out.get("n_txns", 0),
                 "total": out.get("total_amount", 0.0)}
 
-    def ring_component(self, card_id):
-        r = self._run("ring_component", {"p_card_id": card_id})
+    def ring_component(self, card_id, cap=None):
+        params = {"p_card_id": card_id}
+        if cap:
+            params["p_max_cards_per_device"] = int(cap)
+        r = self._run("ring_component", params)
         out = {}
         for blk in r:
             out.update(blk)
