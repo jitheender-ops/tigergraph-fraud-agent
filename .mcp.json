@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "tigergraph": {
+      "command": "tigergraph-mcp",
+      "args": ["--env-file", ".env"],
+      "env": {
+        "TG_GRAPHNAME": "FraudInvestigation"
+      }
+    }
+  }
+}

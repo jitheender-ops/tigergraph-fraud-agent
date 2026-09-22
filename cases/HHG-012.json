@@ -1,0 +1,117 @@
+{
+  "case_id": "HHG-012",
+  "case": {
+    "status": "closed_fraud",
+    "verdict": "fraud",
+    "fraud_probability": 0.87,
+    "pattern": "account_takeover",
+    "pattern_description": "",
+    "affected_txn_ids": [
+      "3553342"
+    ],
+    "first_suspicious_txn_id": "3553342",
+    "connected_card_ids": [],
+    "connected_device_profiles": [],
+    "exposure_usd": 30.91,
+    "evidence": [
+      {
+        "claim": "One card-detail match flag (M1-M9) came back F on this transaction. A single failed flag is 3.5x more likely on confirmed fraud than on a cleared alarm",
+        "source": "graph",
+        "ref": "query:card_window",
+        "entity_ids": [
+          "3553342"
+        ]
+      },
+      {
+        "claim": "13 transactions on this card in the 48 hours ending at the flagged one. A burst of ten or more is 1.9x more likely on confirmed fraud",
+        "source": "graph",
+        "ref": "query:card_window",
+        "entity_ids": [
+          "3553342"
+        ]
+      },
+      {
+        "claim": "The bank has 1 confirmed-fraud case(s) already closed on this card (CC-2370), pattern(s): card_not_present_fraud",
+        "source": "graph",
+        "ref": "query:prior_cases_for_card",
+        "entity_ids": [
+          "CC-2370"
+        ]
+      },
+      {
+        "claim": "Connected components place this card in the graph's giant device-sharing component (2,500 cards). Transitive device sharing percolates at every threshold tested, so membership is not evidence of a ring and carries no weight here; it is recorded because policy R6 asks for the shared element to be named.",
+        "source": "graph",
+        "ref": "query:ring_component",
+        "entity_ids": [
+          "C00001-K1",
+          "C00003-K1",
+          "C00015-K1",
+          "C00018-K1",
+          "C00032-K1",
+          "C00034-K1",
+          "C00051-K1",
+          "C00060-K1"
+        ]
+      },
+      {
+        "claim": "Known fraud pattern 5: Account takeover: Account takeover. Mixed-channel activity inconsistent with the cardholder, often with device and match-flag anomalies, pointing to stolen credentials rather than a stolen number.",
+        "source": "document",
+        "ref": "document:fraud_patterns#Account takeover",
+        "entity_ids": []
+      },
+      {
+        "claim": "Policy rule R1: Verify before you block on a weak signal: R1. Verify before you block on a weak signal. If the case rests on a single signal (including a risk score alone) and your assessed fraud probability is below 0.70, recommend `VERIFY_WITH_CUSTOMER` or `STEP_UP_AUTH` before any block. Blocking a legitimate customer on one signal is a policy breach.",
+        "source": "document",
+        "ref": "document:fraud_policy#R1",
+        "entity_ids": []
+      }
+    ],
+    "similar_prior_cases": [
+      "CC-2370",
+      "CC-0003"
+    ],
+    "summary": "The risk score on card C05876-K2 for a $30.91 in person transaction on 2016-12-18 returned fraud at probability 0.87 with pattern account_takeover and exposure of $30.91. One card-detail match flag (M1-M9) came back F on this transaction, 13 transactions occurred on this card in the 48 hours ending at the flagged one, and the bank has 1 confirmed-fraud case(s) already closed on this card (CC-2370) with pattern card_not_present_fraud. This card is in the graph's giant device-sharing component of 2,500 cards, which carries no weight because transitive device sharing percolates at every threshold tested. The case was assessed as mixed-channel activity consistent with stolen credentials, and policy rule R1 advises verifying before blocking on a weak signal when the assessed fraud probability is below 0.70.",
+    "written_to_graph": true,
+    "graph_case_id": "CASE-2016-012"
+  },
+  "evidence_requests": [],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "Policy 3a: probability is at or above 0.30, so a case is opened."
+      },
+      {
+        "action": "BLOCK_CARD",
+        "route": "L1",
+        "reason": "Probability 0.87 on 2 independent pieces of evidence meets the policy 6 stopping bar for a defensible block."
+      }
+    ],
+    "final": [
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "Policy 3a: probability is at or above 0.30, so a case is opened."
+      },
+      {
+        "action": "BLOCK_CARD",
+        "route": "L1",
+        "reason": "Probability 0.87 on 2 independent pieces of evidence meets the policy 6 stopping bar for a defensible block."
+      }
+    ],
+    "what_changed": "nothing"
+  },
+  "sar": {
+    "file": false,
+    "reason": "Policy 3a: fraud established but exposure $30.91 is under $1,000, the activity is confined to this card, and no shared origin or coordination was found. A case is opened; most cases never need a report.",
+    "narrative": "",
+    "subjects": [],
+    "total_amount_usd": 0,
+    "activity_dates": []
+  },
+  "stop_reason": "Policy 6: probability 0.87 is at or above 0.85 on 2 independent pieces of evidence, which is the bar for a defensible action.",
+  "tool_calls": 9,
+  "tokens": 862,
+  "latency_s": 0.07
+}

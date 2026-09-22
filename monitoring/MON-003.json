@@ -1,0 +1,199 @@
+{
+  "case_id": "MON-003",
+  "case": {
+    "status": "closed_fraud",
+    "verdict": "fraud",
+    "fraud_probability": 0.7,
+    "pattern": "account_takeover",
+    "pattern_description": "",
+    "affected_txn_ids": [
+      "3584204",
+      "3589241"
+    ],
+    "first_suspicious_txn_id": "3584204",
+    "connected_card_ids": [
+      "C13355-K1"
+    ],
+    "connected_device_profiles": [],
+    "exposure_usd": 959.27,
+    "evidence": [
+      {
+        "claim": "2 of the card-detail match flags M1-M9 came back F on this transaction. Measured across the bank's closed cases, two or more failed flags is 2.9x more likely on confirmed fraud than on a cleared alarm (22.7% vs 7.9%)",
+        "source": "graph",
+        "ref": "query:card_window",
+        "entity_ids": [
+          "3584204"
+        ]
+      },
+      {
+        "claim": "$934.98 is 12.7x this card's median and above its 95th percentile. Counter-intuitively this is mildly exculpatory: large outliers appear on 16% of cleared alarms and 6% of confirmed fraud, because confirmed fraud tends to stay inside the cardholder's normal range to avoid attention",
+        "source": "graph",
+        "ref": "query:card_baseline",
+        "entity_ids": [
+          "3584204"
+        ]
+      },
+      {
+        "claim": "The bank has 1 confirmed-fraud case(s) already closed on this card (CC-3048), pattern(s): card_not_present_new_device",
+        "source": "graph",
+        "ref": "query:prior_cases_for_card",
+        "entity_ids": [
+          "CC-3048"
+        ]
+      },
+      {
+        "claim": "Connected components over the device-sharing graph place this card in a bounded component of 2 cards (C13355-K1), linked transitively through device profiles each used by no more than 8 cards. A component this small is a genuine shared origin rather than a common configuration.",
+        "source": "graph",
+        "ref": "query:ring_component",
+        "entity_ids": [
+          "C13355-K1"
+        ]
+      },
+      {
+        "claim": "Known fraud pattern 5: Account takeover: Account takeover. Mixed-channel activity inconsistent with the cardholder, often with device and match-flag anomalies, pointing to stolen credentials rather than a stolen number.",
+        "source": "document",
+        "ref": "document:fraud_patterns#Account takeover",
+        "entity_ids": []
+      },
+      {
+        "claim": "Policy rule R1: Verify before you block on a weak signal: R1. Verify before you block on a weak signal. If the case rests on a single signal (including a risk score alone) and your assessed fraud probability is below 0.70, recommend `VERIFY_WITH_CUSTOMER` or `STEP_UP_AUTH` before any block. Blocking a legitimate customer on one signal is a policy breach.",
+        "source": "document",
+        "ref": "document:fraud_policy#R1",
+        "entity_ids": []
+      },
+      {
+        "claim": "Policy rule R6: Shared origin: R6. Shared origin. When several cards show fraud from the same device profile, the same billing region, or the same recipient email in one window, name the shared element, recommend `CREATE_CASE` and `FILE_REPORT`, and `MONITOR_CONNECTED_CARDS` for every card that shares it.",
+        "source": "document",
+        "ref": "document:fraud_policy#R6",
+        "entity_ids": []
+      },
+      {
+        "claim": "Policy rule R4: No reply within 24 hours: R4. No reply within 24 hours. Recommend `MONITOR_CARD` and `DECLINE_TRANSACTION` for pending authorizations. Escalate if exposure exceeds $500.",
+        "source": "document",
+        "ref": "document:fraud_policy#R4",
+        "entity_ids": []
+      },
+      {
+        "claim": "fincen sar narrative: reported activity. When did the suspicious activity take place? If the activity takes place over a period of time, indicate the date when the suspicious activity was first noticed and describe the duration of the activity. Filers will often provide a tabular presentation of the suspicious account activities (transactions in and out).",
+        "source": "document",
+        "ref": "document:fincen_sar_narrative#chunk 8",
+        "entity_ids": []
+      },
+      {
+        "claim": "fincen sar complete: reported activity. When did the suspicious activity take place? If the activity takes place over a period of time, indicate the date when the suspicious activity was first noticed and describe the duration of the activity. Filers will often provide a tabular presentation of the suspicious account activities (transactions in and out).",
+        "source": "document",
+        "ref": "document:fincen_sar_complete#chunk 8",
+        "entity_ids": []
+      }
+    ],
+    "similar_prior_cases": [
+      "CC-3579",
+      "CC-3048"
+    ],
+    "summary": "A monitoring sweep on card C00782-K1 over a $934.98 in person transaction on 2016-12-29 found that 2 of the card-detail match flags M1-M9 came back F, and $934.98 is 12.7x this card's median and above its 95th percentile. The bank has 1 confirmed-fraud case(s) already closed on this card (CC-3048), pattern(s): card_not_present_new_device, and connected components over the device-sharing graph placed this card in a bounded component of 2 cards (C13355-K1) linked transitively through device profiles each used by no more than 8 cards. Assessed as mixed-channel activity consistent with stolen credentials at probability 0.70, the case carries 2 transaction(s) and $959.27 of exposure. One other card(s) transacted through the same device profile in the window and are named for monitoring.",
+    "written_to_graph": true,
+    "graph_case_id": "CASE-2016-003"
+  },
+  "evidence_requests": [
+    {
+      "type": "customer_validation",
+      "asked_after_step": 9,
+      "assumed_response": "No reply within 24 hours. ASSUMPTION: no replies ship with this dataset, and nothing independent in the evidence points to what the cardholder would say. Inventing an answer here would manufacture certainty, so the agent assumes the case policy R4 is written for - the customer does not respond - and acts accordingly."
+    }
+  ],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "Policy 3a: probability is at or above 0.30, so a case is opened."
+      },
+      {
+        "action": "VERIFY_WITH_CUSTOMER",
+        "route": "auto",
+        "reason": "R1: probability 0.70 is below the 0.85 stopping bar in policy 6; confirm with the cardholder before any action with customer impact."
+      },
+      {
+        "action": "STEP_UP_AUTH",
+        "route": "auto",
+        "reason": "R1: require step-up authentication on further activity while verification is outstanding."
+      },
+      {
+        "action": "DECLINE_TRANSACTION",
+        "route": "L1",
+        "reason": "R4: decline the pending authorisation while the card stays active, given assessed probability 0.70."
+      },
+      {
+        "action": "MONITOR_CARD",
+        "route": "auto",
+        "reason": "R4: raise monitoring sensitivity for 72 hours."
+      },
+      {
+        "action": "MONITOR_CONNECTED_CARDS",
+        "route": "auto",
+        "reason": "R6: shared device-sharing component of 2 cards links 1 other card(s) to this activity; place them under monitoring."
+      },
+      {
+        "action": "FILE_REPORT",
+        "route": "L2",
+        "reason": "Policy 3a and R6: the activity connects to a shared device profile / region cluster used by other cards, which requires a filing regardless of amount."
+      }
+    ],
+    "final": [
+      {
+        "action": "MONITOR_CARD",
+        "route": "auto",
+        "reason": "R4: no reply within 24 hours; keep the card active under raised monitoring."
+      },
+      {
+        "action": "DECLINE_TRANSACTION",
+        "route": "L1",
+        "reason": "R4: decline pending authorisations while the verification is unanswered."
+      },
+      {
+        "action": "ESCALATE_TO_ANALYST",
+        "route": "auto",
+        "reason": "R4: no reply and exposure $959.27 exceeds $500; escalate to a human analyst."
+      },
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "Policy 3a: a case is opened because evidence was requested."
+      },
+      {
+        "action": "MONITOR_CONNECTED_CARDS",
+        "route": "auto",
+        "reason": "R6: shared device-sharing component of 2 cards links 1 other card(s); place them under monitoring."
+      },
+      {
+        "action": "FILE_REPORT",
+        "route": "L2",
+        "reason": "Policy 3a and R6: the activity connects to a shared device profile / region cluster used by other cards, which requires a filing regardless of amount."
+      }
+    ],
+    "what_changed": "No reply within 24 hours, moving assessed probability to 0.70. Added: ESCALATE_TO_ANALYST. Dropped: STEP_UP_AUTH, VERIFY_WITH_CUSTOMER."
+  },
+  "sar": {
+    "file": true,
+    "reason": "Policy 3a and R6: the activity connects to a shared device profile / region cluster used by other cards, which requires a filing regardless of amount.",
+    "narrative": "Between 2016-12-29 and 2016-12-31, card C00782-K1 belonging to customer C00782 was used for 2 transaction(s) totalling $959.27, of which the transaction that triggered this investigation was $934.98 on 2016-12-29, and the activity was conducted in person under product code W and billed in region 327.0. On 2016-12-29, 2 of the card-detail match flags M1-M9 came back F on this transaction, and the bank's closed investigations already record 1 confirmed fraud case(s) on this card (CC-3048) with pattern(s) card_not_present_new_device. The same device profile was used by 1 other card(s) in the thirty days to 2016-12-29, specifically C13355-K1, indicating a common actor operating across more than one cardholder. Connected components over the device-sharing graph place this card in a bounded component of 2 cards, C13355-K1, linked transitively through device profiles each used by no more than 8 cards, and a component this small is assumed to be a genuine shared origin rather than a common configuration. On contact, no reply within 24 hours, which is an assumption recorded in the case file, as no cardholder replies were available to this investigation. The activity is suspicious because it is consistent with mixed-channel activity inconsistent with the cardholder, often with device and match-flag anomalies, pointing to stolen credentials rather than a stolen number, and $934.98 is 12.7x this card's median and above its 95th percentile; the activity was assessed at a 70% probability of being fraudulent on 2 independent pieces of evidence drawn from the transaction graph and the institution's closed-case history, with exposure of $959.27, and the filing is made because the activity connects to a device profile shared with other compromised cards, which requires a report regardless of amount.",
+    "subjects": [
+      "C00782",
+      "C00782-K1",
+      "C13355-K1"
+    ],
+    "total_amount_usd": 959.27,
+    "activity_dates": [
+      "2016-12-29",
+      "2016-12-31"
+    ]
+  },
+  "stop_reason": "A verification response settled the question (policy 6): probability moved to 0.70 on 2 independent pieces of evidence and the action set follows directly. Further steps would not change it.",
+  "tool_calls": 12,
+  "tokens": 3160,
+  "latency_s": 0.08,
+  "trigger": {
+    "type": "monitoring_sweep",
+    "text": "Self-directed sweep. Connected components over the device-sharing graph put card C00782-K1 in a bounded component of 2 cards sharing 1 device profile(s), moving $8,597.00 across 74 transactions since 2016-11-02. No model score, cardholder report or analyst request opened this."
+  }
+}

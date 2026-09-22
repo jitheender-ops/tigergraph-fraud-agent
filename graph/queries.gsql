@@ -1,0 +1,282 @@
+// Investigation queries — installed as the agent's graph tools.
+// Install: graph/load.py --install-queries   (or: gsql -g FraudInvestigation graph/queries.gsql)
+USE GRAPH FraudInvestigation
+
+// ---------------------------------------------------------------------------
+// 1. Everything this card did inside a time window, in order.
+//    The workhorse: burst detection, amount outliers, channel mix all read off this.
+// ---------------------------------------------------------------------------
+CREATE OR REPLACE QUERY card_window(STRING p_card_id, DATETIME p_from, DATETIME p_to) FOR GRAPH FraudInvestigation {
+  SetAccum<VERTEX<Transaction>> @@hits;
+  Start = {Card.*};
+  C = SELECT c FROM Start:c WHERE c.card_id == p_card_id;
+  T = SELECT t FROM C:c -(MADE>)- Transaction:t
+      WHERE t.ts >= p_from AND t.ts <= p_to
+      ACCUM @@hits += t
+      ORDER BY t.ts ASC;
+  PRINT T[T.txn_id, T.ts, T.amount, T.product_cd, T.channel, T.risk_score,
+          T.addr1, T.p_email, T.device_profile, T.id_15, T.id_23, T.m_flags] AS txns;
+}
+
+// ---------------------------------------------------------------------------
+// 2. What normal looks like for this card, over its whole life.
+//    Used to decide whether the flagged transaction is actually out of character.
+// ---------------------------------------------------------------------------
+CREATE OR REPLACE QUERY card_baseline(STRING p_card_id) FOR GRAPH FraudInvestigation {
+  SumAccum<INT>    @@n, @@n_online;
+  SumAccum<DOUBLE> @@total;
+  MaxAccum<DOUBLE> @@max_amt;
+  SetAccum<STRING> @@regions, @@products, @@devices, @@emails;
+  MinAccum<DATETIME> @@first_ts;
+  MaxAccum<DATETIME> @@last_ts;
+
+  Start = {Card.*};
+  C = SELECT c FROM Start:c WHERE c.card_id == p_card_id;
+  T = SELECT t FROM C:c -(MADE>)- Transaction:t
+      ACCUM @@n += 1, @@total += t.amount, @@max_amt += t.amount,
+            @@first_ts += t.ts, @@last_ts += t.ts,
+            @@regions += t.addr1, @@products += t.product_cd, @@emails += t.p_email,
+            CASE WHEN t.channel == "online" THEN @@n_online += 1 END,
+            CASE WHEN t.device_profile != "" THEN @@devices += t.device_profile END;
+
+  PRINT @@n AS n_txns, @@total AS amt_total, @@max_amt AS amt_max,
+        @@first_ts AS first_ts, @@last_ts AS last_ts,
+        @@n_online AS n_online, @@regions AS regions, @@products AS products,
+        @@devices AS device_profiles, @@emails AS email_domains;
+}
+
+// ---------------------------------------------------------------------------
+// 3. Who else used this device profile. The shared-origin query (policy R6).
+//    Two hops: DeviceProfile <- Transaction <- Card.
+// ---------------------------------------------------------------------------
+CREATE OR REPLACE QUERY device_neighbors(STRING p_device_profile, DATETIME p_from, DATETIME p_to) FOR GRAPH FraudInvestigation {
+  SetAccum<STRING> @@cards, @@customers;
+  SumAccum<INT>    @@n_txns;
+
+  Start = {DeviceProfile.*};
+  D = SELECT d FROM Start:d WHERE d.device_profile == p_device_profile;
+  T = SELECT t FROM D:d -(DEVICE_USED_IN>)- Transaction:t
+      WHERE t.ts >= p_from AND t.ts <= p_to
+      ACCUM @@n_txns += 1, @@cards += t.card_id, @@customers += t.customer_id;
+
+  PRINT @@cards AS card_ids, @@customers AS customer_ids, @@n_txns AS n_txns;
+  PRINT T[T.txn_id, T.card_id, T.customer_id, T.ts, T.amount, T.channel, T.risk_score] AS txns;
+}
+
+// ---------------------------------------------------------------------------
+// 4. Has this card ever been billed in this region before a given date?
+//    Separates a genuine trip (pattern 4) from a clone.
+// ---------------------------------------------------------------------------
+CREATE OR REPLACE QUERY region_history(STRING p_card_id, STRING p_region, DATETIME p_before) FOR GRAPH FraudInvestigation {
+  SumAccum<INT> @@n_prior;
+  MinAccum<DATETIME> @@first_use;
+  MaxAccum<DATETIME> @@last_prior_use;
+
+  Start = {Card.*};
+  C = SELECT c FROM Start:c WHERE c.card_id == p_card_id;
+  T = SELECT t FROM C:c -(MADE>)- Transaction:t
+      WHERE t.addr1 == p_region
+      ACCUM @@first_use += t.ts,
+            CASE WHEN t.ts < p_before THEN @@n_prior += 1, @@last_prior_use += t.ts END;
+
+  PRINT @@n_prior AS n_prior_txns_in_region, @@first_use AS first_ever_use,
+        @@last_prior_use AS last_prior_use;
+}
+
+// ---------------------------------------------------------------------------
+// 5. Card-testing probe (policy R5): small online authorisations clustered in
+//    time, followed by a larger purchase. Returns the raw sequence; the
+//    threshold decision stays in the policy engine, not buried in GSQL.
+// ---------------------------------------------------------------------------
+CREATE OR REPLACE QUERY card_testing_probe(STRING p_card_id, DATETIME p_anchor, INT p_hours) FOR GRAPH FraudInvestigation {
+  SumAccum<INT> @@n_small;
+  MaxAccum<DOUBLE> @@largest;
+  DATETIME lo, hi;
+  lo = datetime_add(p_anchor, INTERVAL -p_hours HOUR);
+  hi = datetime_add(p_anchor, INTERVAL  p_hours HOUR);
+
+  Start = {Card.*};
+  C = SELECT c FROM Start:c WHERE c.card_id == p_card_id;
+  T = SELECT t FROM C:c -(MADE>)- Transaction:t
+      WHERE t.ts >= lo AND t.ts <= hi AND t.channel == "online"
+      ACCUM CASE WHEN t.amount < 5.0 THEN @@n_small += 1 ELSE @@largest += t.amount END
+      ORDER BY t.ts ASC;
+
+  PRINT @@n_small AS n_small_auths, @@largest AS largest_amount;
+  PRINT T[T.txn_id, T.ts, T.amount, T.channel, T.product_cd, T.device_profile] AS sequence;
+}
+
+// ---------------------------------------------------------------------------
+// 6. Case memory. Closed cases reachable from this card: same card, same
+//    customer, or named as a connected card in someone else's investigation.
+// ---------------------------------------------------------------------------
+CREATE OR REPLACE QUERY prior_cases_for_card(STRING p_card_id) FOR GRAPH FraudInvestigation {
+  Start = {Card.*};
+  C  = SELECT c FROM Start:c WHERE c.card_id == p_card_id;
+  CC = SELECT k FROM C:c -(HAS_CLOSED_CASE>)- ClosedCase:k;
+  CN = SELECT k FROM C:c -(CONNECTED_FROM>)- ClosedCase:k;
+  ALL_CASES = CC UNION CN;
+  PRINT ALL_CASES[ALL_CASES.case_id, ALL_CASES.outcome, ALL_CASES.pattern,
+                  ALL_CASES.opened_at, ALL_CASES.exposure_usd, ALL_CASES.n_txns,
+                  ALL_CASES.actions_taken, ALL_CASES.report_filed,
+                  ALL_CASES.analyst_notes] AS prior_cases;
+}
+
+// ---------------------------------------------------------------------------
+// 7. Closed cases that touched this device profile — the strongest memory
+//    signal there is: this exact device already produced confirmed fraud.
+// ---------------------------------------------------------------------------
+CREATE OR REPLACE QUERY prior_cases_for_device(STRING p_device_profile) FOR GRAPH FraudInvestigation {
+  SetAccum<STRING> @@case_ids;
+  Start = {DeviceProfile.*};
+  D = SELECT d FROM Start:d WHERE d.device_profile == p_device_profile;
+  T = SELECT t FROM D:d -(DEVICE_USED_IN>)- Transaction:t;
+  K = SELECT k FROM T:t -(INVOLVED_IN>)- ClosedCase:k
+      ACCUM @@case_ids += k.case_id;
+  PRINT K[K.case_id, K.outcome, K.pattern, K.opened_at, K.exposure_usd,
+          K.card_id, K.analyst_notes] AS device_cases;
+}
+
+// ---------------------------------------------------------------------------
+// 8. Connected cards: two-hop ring expansion from this card through shared
+//    device profiles inside a window. Feeds MONITOR_CONNECTED_CARDS (R6).
+// ---------------------------------------------------------------------------
+CREATE OR REPLACE QUERY connected_cards(STRING p_card_id, DATETIME p_from, DATETIME p_to) FOR GRAPH FraudInvestigation {
+  SetAccum<STRING> @@devices, @@linked_cards;
+
+  Start = {Card.*};
+  C = SELECT c FROM Start:c WHERE c.card_id == p_card_id;
+  T = SELECT t FROM C:c -(MADE>)- Transaction:t
+      WHERE t.ts >= p_from AND t.ts <= p_to AND t.device_profile != ""
+      ACCUM @@devices += t.device_profile;
+
+  D  = SELECT d FROM {DeviceProfile.*}:d WHERE d.device_profile IN @@devices;
+  T2 = SELECT t FROM D:d -(DEVICE_USED_IN>)- Transaction:t
+       WHERE t.ts >= p_from AND t.ts <= p_to AND t.card_id != p_card_id
+       ACCUM @@linked_cards += t.card_id;
+
+  PRINT @@devices AS shared_device_profiles, @@linked_cards AS connected_card_ids;
+}
+
+// ---------------------------------------------------------------------------
+// 9. Region cluster (R6): cards newly active in a billing region in a window.
+//    Catches out-of-region rings that no single card's history reveals.
+// ---------------------------------------------------------------------------
+CREATE OR REPLACE QUERY region_cluster(STRING p_region, DATETIME p_from, DATETIME p_to) FOR GRAPH FraudInvestigation {
+  SetAccum<STRING> @@cards;
+  SumAccum<DOUBLE> @@total;
+  SumAccum<INT>    @@n;
+
+  Start = {BillingRegion.*};
+  R = SELECT r FROM Start:r WHERE r.region_id == p_region;
+  T = SELECT t FROM R:r -(REGION_OF>)- Transaction:t
+      WHERE t.ts >= p_from AND t.ts <= p_to
+      ACCUM @@cards += t.card_id, @@total += t.amount, @@n += 1;
+
+  PRINT @@cards AS card_ids, @@n AS n_txns, @@total AS total_amount;
+}
+
+// ---------------------------------------------------------------------------
+// 10. GRAPH ALGORITHM. Connected components over the device-sharing card graph.
+//
+//     query 8 is one hop: who else touched this handset. A ring is transitive --
+//     A shares a phone with B, B shares a different phone with C -- and one hop
+//     never reaches C. This is a breadth-first expansion to a fixed point, which
+//     is the connected component of the seed card, computed on the seed's
+//     component alone rather than by running tg_conn_comp over the whole graph
+//     (the library algorithm is the right tool when every component is wanted at
+//     once; monitor.py is where that sweep lives).
+//
+//     A profile only conducts an edge if it plausibly describes a machine. Above
+//     p_max_cards_per_device it is a configuration -- 'Windows | Windows 10 |
+//     chrome 63.0 | 1920x1080' is shared by hundreds of cards -- and joining on it
+//     collapses the population into one component. Even at a cap of 3 a giant
+//     component forms; see prep/rings.py for the measured sweep and for why
+//     ring_size is reported as evidence but given no weight.
+// ---------------------------------------------------------------------------
+CREATE OR REPLACE QUERY ring_component(STRING p_card_id, INT p_max_cards_per_device = 8,
+                                       INT p_max_iter = 8) FOR GRAPH FraudInvestigation {
+  OrAccum<BOOL>    @seen;
+  SetAccum<STRING> @@members, @@devices;
+  INT              n_before = 0;
+
+  Seed = {Card.*};
+  Frontier = SELECT c FROM Seed:c WHERE c.card_id == p_card_id
+             ACCUM c.@seen += TRUE, @@members += c.card_id;
+
+  WHILE Frontier.size() > 0 AND @@members.size() > n_before LIMIT p_max_iter DO
+    n_before = @@members.size();
+
+    // cards -> their transactions -> the device profiles those ran on
+    T = SELECT t FROM Frontier:c -(MADE>)- Transaction:t
+        WHERE t.device_profile != ""
+          AND t.device_profile NOT LIKE "unknown | unknown | unknown%";
+    D = SELECT d FROM T:t -(FROM_DEVICE>)- DeviceProfile:d
+        WHERE d.n_cards >= 2 AND d.n_cards <= p_max_cards_per_device
+        ACCUM @@devices += d.device_profile;
+
+    // back down to every other card that used them
+    T2 = SELECT t FROM D:d -(DEVICE_USED_IN>)- Transaction:t;
+    Frontier = SELECT c FROM T2:t -(MADE_BY>)- Card:c
+               WHERE c.@seen == FALSE
+               ACCUM c.@seen += TRUE, @@members += c.card_id;
+  END;
+
+  PRINT p_card_id AS ring_id, @@members.size() AS ring_size,
+        @@members AS members, @@devices AS ring_devices;
+}
+
+// ---------------------------------------------------------------------------
+// 11. GraphRAG, document half. Vector search over the policy, the documented
+//     typologies and the FinCEN guidance loaded by graph/load.py --docs.
+//
+//     p_query is a 384-dimension unit vector from BAAI/bge-small-en-v1.5, embedded
+//     agent-side by agent/retrieve.py so the same model produces the corpus vectors
+//     and the query vector. p_sources restricts the search to one corpus: the six
+//     FinCEN PDFs are 284 of the 309 chunks and would otherwise drown a nine-rule
+//     policy on any query phrased in regulatory language. vectorSearch has no
+//     pre-filter, so it over-fetches and filters after, which is exact as long as
+//     the over-fetch is larger than the filtered corpus.
+// ---------------------------------------------------------------------------
+CREATE OR REPLACE QUERY doc_search(LIST<FLOAT> p_query, INT p_k = 2,
+                                   SET<STRING> p_sources) FOR GRAPH FraudInvestigation {
+  MapAccum<VERTEX, FLOAT> @@dist;
+  SumAccum<FLOAT>         @score;
+  INT over = 60;   // > |fraud_policy| + |fraud_patterns|, so a filtered search is exact
+
+  Cand = vectorSearch({DocChunk.embedding}, p_query, over, {distance_map: @@dist});
+  Hits = SELECT d FROM Cand:d
+         WHERE p_sources.size() == 0 OR p_sources.contains(d.source)
+         ACCUM d.@score += (1.0 - @@dist.get(d))      // COSINE distance -> similarity
+         ORDER BY d.@score DESC
+         LIMIT p_k;
+
+  PRINT Hits[Hits.doc_id, Hits.source, Hits.section, Hits.title, Hits.text,
+             Hits.@score AS score] AS hits;
+}
+
+// ---------------------------------------------------------------------------
+// 12. Write the agent's case back into the graph. This is the case memory the
+//     next investigation retrieves: a case naming a device becomes evidence.
+// ---------------------------------------------------------------------------
+CREATE OR REPLACE QUERY write_case(
+  STRING p_graph_case_id, STRING p_source_case_id, STRING p_customer_id, STRING p_card_id,
+  DATETIME p_opened_at, STRING p_status, STRING p_verdict, DOUBLE p_fraud_probability,
+  STRING p_pattern, STRING p_pattern_description, DOUBLE p_exposure, STRING p_summary,
+  STRING p_stop_reason, STRING p_actions_final, BOOL p_sar_filed,
+  SET<STRING> p_txn_ids, SET<STRING> p_connected_cards, SET<STRING> p_devices, SET<STRING> p_prior_cases
+) FOR GRAPH FraudInvestigation {
+  INSERT INTO Case VALUES (p_graph_case_id, p_source_case_id, p_customer_id, p_card_id,
+    p_opened_at, p_status, p_verdict, p_fraud_probability, p_pattern, p_pattern_description,
+    p_exposure, p_summary, p_stop_reason, p_actions_final, p_sar_filed);
+
+  FOREACH t IN p_txn_ids DO        INSERT INTO CASE_INVOLVES  VALUES (p_graph_case_id, t); END;
+  FOREACH c IN p_connected_cards DO INSERT INTO CASE_CONNECTED VALUES (p_graph_case_id, c); END;
+  FOREACH d IN p_devices DO        INSERT INTO CASE_DEVICE    VALUES (p_graph_case_id, d); END;
+  FOREACH k IN p_prior_cases DO    INSERT INTO CITES_PRIOR    VALUES (p_graph_case_id, k); END;
+  INSERT INTO CASE_ON_CARD VALUES (p_graph_case_id, p_card_id);
+
+  PRINT p_graph_case_id AS written;
+}
+
+INSTALL QUERY ALL

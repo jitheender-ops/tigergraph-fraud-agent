@@ -1,0 +1,151 @@
+{
+  "case_id": "HHG-019",
+  "case": {
+    "status": "closed_legitimate",
+    "verdict": "legitimate",
+    "fraud_probability": 0.18,
+    "pattern": "none",
+    "pattern_description": "",
+    "affected_txn_ids": [],
+    "first_suspicious_txn_id": "",
+    "connected_card_ids": [
+      "C06224-K2",
+      "C11309-K1"
+    ],
+    "connected_device_profiles": [
+      "Windows | other | chrome 61.0 | 1280x720"
+    ],
+    "exposure_usd": 0.0,
+    "evidence": [
+      {
+        "claim": "Model risk score 0.90. 74% of the alarms the bank cleared scored at or above 0.85 against 9% of confirmed fraud, so a score this high is evidence AGAINST fraud rather than for it. The weight is damped from the measured value because every cleared case in the history was selected from a high score to begin with",
+        "source": "graph",
+        "ref": "document:README#risk-score",
+        "entity_ids": [
+          "3503878"
+        ]
+      },
+      {
+        "claim": "The identity record marks this device New for the account. 83% of cleared alarms had a New device against 18% of confirmed fraud: on its own a new device is the signature of a cardholder who has just bought a phone, not of a compromise",
+        "source": "graph",
+        "ref": "document:README#pattern-3",
+        "entity_ids": [
+          "3503878"
+        ]
+      },
+      {
+        "claim": "Device profile 'Windows | other | chrome 61.0 | 1280x720' is shared with 2 other card(s) inside the 30-day window, across 3 customer(s). Named here because policy R6 requires the shared element to be identified; it carries no weight in the probability, because device sharing at this scale measured no better than chance against the bank's closed cases",
+        "source": "graph",
+        "ref": "query:device_neighbors",
+        "entity_ids": [
+          "C06224-K2",
+          "C11309-K1"
+        ]
+      },
+      {
+        "claim": "This exact amount ($99.92) has been charged to this card 13 times across 4 distinct months under the same product code, a median of 27 days apart. That is the cadence of a subscription, and policy R7 forbids blocking on it",
+        "source": "graph",
+        "ref": "query:card_window",
+        "entity_ids": [
+          "3503878"
+        ]
+      },
+      {
+        "claim": "The bank has 3 confirmed-fraud case(s) already closed on this card (CC-5026, CC-2860, CC-2011), pattern(s): card_not_present_fraud, out_of_region_use",
+        "source": "graph",
+        "ref": "query:prior_cases_for_card",
+        "entity_ids": [
+          "CC-5026",
+          "CC-2860",
+          "CC-2011"
+        ]
+      },
+      {
+        "claim": "Connected components place this card in the graph's giant device-sharing component (2,500 cards). Transitive device sharing percolates at every threshold tested, so membership is not evidence of a ring and carries no weight here; it is recorded because policy R6 asks for the shared element to be named.",
+        "source": "graph",
+        "ref": "query:ring_component",
+        "entity_ids": [
+          "C00001-K1",
+          "C00003-K1",
+          "C00015-K1",
+          "C00018-K1",
+          "C00032-K1",
+          "C00034-K1",
+          "C00051-K1",
+          "C00060-K1"
+        ]
+      },
+      {
+        "claim": "Policy rule R7: Disputed but legitimate: R7. Disputed but legitimate. When the customer disputes a charge that matches their own recurring pattern (same merchant, same amount, monthly), recommend `CREATE_CASE`, `VERIFY_WITH_CUSTOMER`, and `WARN_CUSTOMER`. Do not block.",
+        "source": "document",
+        "ref": "document:fraud_policy#R7",
+        "entity_ids": []
+      },
+      {
+        "claim": "Policy rule R6: Shared origin: R6. Shared origin. When several cards show fraud from the same device profile, the same billing region, or the same recipient email in one window, name the shared element, recommend `CREATE_CASE` and `FILE_REPORT`, and `MONITOR_CONNECTED_CARDS` for every card that shares it.",
+        "source": "document",
+        "ref": "document:fraud_policy#R6",
+        "entity_ids": []
+      }
+    ],
+    "similar_prior_cases": [
+      "CC-5026",
+      "CC-2860",
+      "CC-2087",
+      "CC-2011"
+    ],
+    "summary": "On 2016-12-01, card C07987-K2 was assessed as legitimate at probability 0.18 with $0.00 exposure for a $99.92 transaction. The model risk score was 0.90, and the identity record marked the device New, which is characteristic of a cardholder who recently acquired hardware. Device profile 'Windows | other | chrome 61.0 | 1280x720' was shared with 2 other card(s) across 3 customer(s), and the card resided in a giant device-sharing component of 2,500 cards. The exact amount of $99.92 had been charged 13 times across 4 distinct months under the same product code, a cadence consistent with a subscription. The bank had 3 confirmed-fraud case(s) already closed on this card (CC-5026, CC-2860, CC-2011), pattern(s): card_not_present_fraud, out_of_region_use.",
+    "written_to_graph": true,
+    "graph_case_id": "CASE-2016-019"
+  },
+  "evidence_requests": [],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "ALLOW_TRANSACTION",
+        "route": "auto",
+        "reason": "R1 and policy 6: probability 0.18 with 2 independent pieces of evidence pointing away from fraud; the transaction stands."
+      },
+      {
+        "action": "CLOSE_NO_FRAUD",
+        "route": "auto",
+        "reason": "Policy 6: the evidence settles the question; close as legitimate."
+      },
+      {
+        "action": "MONITOR_CARD",
+        "route": "auto",
+        "reason": "Residual uncertainty is low but non-zero; keep 72-hour monitoring without customer impact."
+      }
+    ],
+    "final": [
+      {
+        "action": "ALLOW_TRANSACTION",
+        "route": "auto",
+        "reason": "R1 and policy 6: probability 0.18 with 2 independent pieces of evidence pointing away from fraud; the transaction stands."
+      },
+      {
+        "action": "CLOSE_NO_FRAUD",
+        "route": "auto",
+        "reason": "Policy 6: the evidence settles the question; close as legitimate."
+      },
+      {
+        "action": "MONITOR_CARD",
+        "route": "auto",
+        "reason": "Residual uncertainty is low but non-zero; keep 72-hour monitoring without customer impact."
+      }
+    ],
+    "what_changed": "nothing"
+  },
+  "sar": {
+    "file": false,
+    "reason": "Policy 3a: a report requires fraud confirmed or strongly suspected. Assessed probability 0.18 with verdict 'legitimate' does not meet that bar.",
+    "narrative": "",
+    "subjects": [],
+    "total_amount_usd": 0,
+    "activity_dates": []
+  },
+  "stop_reason": "Policy 6: probability 0.18 on 2 independent pieces of evidence sits between the stopping thresholds. Stopping here because the remaining uncertainty is the cardholder's own intent, which only the cardholder or an analyst can resolve; the recommended actions route it to them rather than resolving it in the graph.",
+  "tool_calls": 12,
+  "tokens": 1180,
+  "latency_s": 0.07
+}

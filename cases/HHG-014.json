@@ -1,0 +1,248 @@
+{
+  "case_id": "HHG-014",
+  "case": {
+    "status": "closed_fraud",
+    "verdict": "fraud",
+    "fraud_probability": 0.9,
+    "pattern": "undocumented",
+    "pattern_description": "Several cards belonging to different customers transacted through one rare device profile inside a short window: 19 cards across 20 customers on 'SM-G935F Build/NRD90M | Android 7.0 | chrome 62.0 for android | 1920x1080', a profile seen on only 52 cards bank-wide. This is coordinated use of a single machine across unrelated accounts rather than the compromise of one cardholder, so it fits none of the five documented patterns. It was found by expanding from the flagged transaction to its device profile and back out to every other card that touched it.",
+    "affected_txn_ids": [
+      "3478561"
+    ],
+    "first_suspicious_txn_id": "3478561",
+    "connected_card_ids": [
+      "C01289-K1",
+      "C01996-K2",
+      "C02910-K1",
+      "C02975-K1",
+      "C03676-K2",
+      "C04108-K2",
+      "C04274-K1",
+      "C05448-K2",
+      "C06710-K1",
+      "C08168-K1",
+      "C09049-K1",
+      "C09906-K1",
+      "C09975-K1",
+      "C10193-K2",
+      "C10326-K1",
+      "C11082-K1",
+      "C11670-K2",
+      "C12796-K1",
+      "C13291-K1"
+    ],
+    "connected_device_profiles": [
+      "SM-G935F Build/NRD90M | Android 7.0 | chrome 62.0 for android | 1920x1080"
+    ],
+    "exposure_usd": 74.96,
+    "evidence": [
+      {
+        "claim": "The identity record marks this device New for the account. 83% of cleared alarms had a New device against 18% of confirmed fraud: on its own a new device is the signature of a cardholder who has just bought a phone, not of a compromise",
+        "source": "graph",
+        "ref": "document:README#pattern-3",
+        "entity_ids": [
+          "3478561"
+        ]
+      },
+      {
+        "claim": "A online transaction on a card whose history is 5% online. Measured on the closed cases this is mildly exculpatory (11.9% of cleared vs 4.5% of confirmed fraud)",
+        "source": "graph",
+        "ref": "query:card_baseline",
+        "entity_ids": [
+          "3478561"
+        ]
+      },
+      {
+        "claim": "Device profile 'SM-G935F Build/NRD90M | Android 7.0 | chrome 62.0 for android | 1920x1080' is shared with 19 other card(s) inside the 30-day window, across 20 customer(s). Named here because policy R6 requires the shared element to be identified; it carries no weight in the probability, because device sharing at this scale measured no better than chance against the bank's closed cases",
+        "source": "graph",
+        "ref": "query:device_neighbors",
+        "entity_ids": [
+          "C01289-K1",
+          "C01996-K2",
+          "C02910-K1",
+          "C02975-K1",
+          "C03676-K2",
+          "C04108-K2",
+          "C04274-K1",
+          "C05448-K2",
+          "C06710-K1",
+          "C08168-K1",
+          "C09049-K1",
+          "C09906-K1"
+        ]
+      },
+      {
+        "claim": "The connection came through an anonymising proxy (IP_PROXY:ANONYMOUS) from a device marked New for the account on named hardware (SM-G935F Build/NRD90M). Only 190 of the 590,742 transactions in the book carry that combination. It appears on 4 of the 9 cases the bank's analysts confirmed as fraud but could not fit to any documented pattern. The weight is damped hard because 9 cases is a thin base",
+        "source": "graph",
+        "ref": "query:card_window",
+        "entity_ids": [
+          "3478561"
+        ]
+      },
+      {
+        "claim": "A fraud analyst opened this review after seeing several cards transacting through the same unusual device profile. A trained reviewer identifying a cross-card pattern is independent evidence, not a restatement of the model score",
+        "source": "external",
+        "ref": "trigger:analyst_request",
+        "entity_ids": [
+          "3478561"
+        ]
+      },
+      {
+        "claim": "Policy rule R9: Undocumented patterns: R9. Undocumented patterns. When activity fits none of the known patterns but the evidence shows coordinated or repeated abuse across customers, recommend `CREATE_CASE`, `FILE_REPORT`, and `ESCALATE_TO_ANALYST`, and describe the pattern in your own words. Do not force it into a known category.",
+        "source": "document",
+        "ref": "document:fraud_policy#R9",
+        "entity_ids": []
+      },
+      {
+        "claim": "Policy rule R6: Shared origin: R6. Shared origin. When several cards show fraud from the same device profile, the same billing region, or the same recipient email in one window, name the shared element, recommend `CREATE_CASE` and `FILE_REPORT`, and `MONITOR_CONNECTED_CARDS` for every card that shares it.",
+        "source": "document",
+        "ref": "document:fraud_policy#R6",
+        "entity_ids": []
+      },
+      {
+        "claim": "Cardholder denies the transaction on contact",
+        "source": "customer",
+        "ref": "evidence_request:customer_validation",
+        "entity_ids": []
+      },
+      {
+        "claim": "Policy rule R2: Customer denies the transaction: R2. Customer denies the transaction. Recommend `BLOCK_CARD` and `CREATE_CASE`. Add `FILE_REPORT` if exposure exceeds $1,000 or the case connects to a shared device profile or another card's fraud.",
+        "source": "document",
+        "ref": "document:fraud_policy#R2",
+        "entity_ids": []
+      },
+      {
+        "claim": "fincen sar narrative: reported activity. When did the suspicious activity take place? If the activity takes place over a period of time, indicate the date when the suspicious activity was first noticed and describe the duration of the activity. Filers will often provide a tabular presentation of the suspicious account activities (transactions in and out).",
+        "source": "document",
+        "ref": "document:fincen_sar_narrative#chunk 8",
+        "entity_ids": []
+      },
+      {
+        "claim": "fincen sar complete: reported activity. When did the suspicious activity take place? If the activity takes place over a period of time, indicate the date when the suspicious activity was first noticed and describe the duration of the activity. Filers will often provide a tabular presentation of the suspicious account activities (transactions in and out).",
+        "source": "document",
+        "ref": "document:fincen_sar_complete#chunk 8",
+        "entity_ids": []
+      }
+    ],
+    "similar_prior_cases": [],
+    "summary": "An analyst opened this review on case ID C13487-K1 after observing several cards transacting through the same unusual device profile. The cardholder denied the $74.96 online transaction on 2016-11-22, and the connection came through an anonymising proxy (IP_PROXY:ANONYMOUS) from a device marked New for the account on named hardware (SM-G935F Build/NRD90M). The identity record marked this device New for the account, and the card's history showed 5% online transactions, yet the activity was assessed as an undocumented pattern at probability 0.90 with 1 transaction(s) and $74.96 of exposure. The device profile (SM-G935F Build/NRD90M | Android 7.0 | chrome 62.0 for android | 1920x1080) was shared with 19 other card(s) across 20 customer(s) in the 30-day window, and 190 of the 590,742 transactions in the book carried that combination. Policy R6 required naming the shared element, and 19 other card(s) transacted through the same device profile in the window and were named for monitoring.",
+    "written_to_graph": true,
+    "graph_case_id": "CASE-2016-014"
+  },
+  "evidence_requests": [
+    {
+      "type": "customer_validation",
+      "asked_after_step": 9,
+      "assumed_response": "Cardholder states they did not make the transaction and still holds the card. ASSUMPTION: no replies ship with this dataset. This one is drawn from 2 independent incriminating findings in the graph, not from the agent's own probability."
+    },
+    {
+      "type": "analyst_info",
+      "asked_after_step": 9,
+      "assumed_response": "Analyst confirms no merchant-side chargeback or law-enforcement notice is attached to these transactions, so the graph evidence stands as gathered. ASSUMPTION: simulated; no analyst replies ship with the dataset."
+    }
+  ],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "Policy 3a: probability is at or above 0.30, so a case is opened."
+      },
+      {
+        "action": "VERIFY_WITH_CUSTOMER",
+        "route": "auto",
+        "reason": "R1: probability 0.73 is below the 0.85 stopping bar in policy 6; confirm with the cardholder before any action with customer impact."
+      },
+      {
+        "action": "STEP_UP_AUTH",
+        "route": "auto",
+        "reason": "R1: require step-up authentication on further activity while verification is outstanding."
+      },
+      {
+        "action": "DECLINE_TRANSACTION",
+        "route": "L1",
+        "reason": "R4: decline the pending authorisation while the card stays active, given assessed probability 0.73."
+      },
+      {
+        "action": "MONITOR_CARD",
+        "route": "auto",
+        "reason": "R4: raise monitoring sensitivity for 72 hours."
+      },
+      {
+        "action": "MONITOR_CONNECTED_CARDS",
+        "route": "auto",
+        "reason": "R6: shared device profile 'SM-G935F Build/NRD90M | Android 7.0 | chrome 62.0 for android | 1920x1080' links 19 other card(s) to this activity; place them under monitoring."
+      },
+      {
+        "action": "ESCALATE_TO_ANALYST",
+        "route": "auto",
+        "reason": "R9: an undocumented pattern is escalated to a human analyst with the evidence."
+      },
+      {
+        "action": "FILE_REPORT",
+        "route": "L2",
+        "reason": "Policy 3a and R9: the activity fits no documented pattern and is coordinated across more than one cardholder, which requires a filing regardless of amount."
+      }
+    ],
+    "final": [
+      {
+        "action": "BLOCK_CARD",
+        "route": "L1",
+        "reason": "R2: the cardholder denies the transaction; block and reissue. Exposure $74.96 sets the approval route."
+      },
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "R2: open the internal case with the evidence attached."
+      },
+      {
+        "action": "MONITOR_CARD",
+        "route": "auto",
+        "reason": "R4: keep the card active under raised monitoring while the question is open."
+      },
+      {
+        "action": "MONITOR_CONNECTED_CARDS",
+        "route": "auto",
+        "reason": "R6: shared device profile 'SM-G935F Build/NRD90M | Android 7.0 | chrome 62.0 for android | 1920x1080' links 19 other card(s) to this activity; place them under monitoring."
+      },
+      {
+        "action": "ESCALATE_TO_ANALYST",
+        "route": "auto",
+        "reason": "R9: an undocumented pattern is escalated to a human analyst with the evidence."
+      },
+      {
+        "action": "FILE_REPORT",
+        "route": "L2",
+        "reason": "Policy 3a and R9: the activity fits no documented pattern and is coordinated across more than one cardholder, which requires a filing regardless of amount."
+      }
+    ],
+    "what_changed": "Cardholder states they did not make the transaction and still holds the card, moving assessed probability to 0.90. Added: BLOCK_CARD. Dropped: DECLINE_TRANSACTION, STEP_UP_AUTH, VERIFY_WITH_CUSTOMER."
+  },
+  "sar": {
+    "file": true,
+    "reason": "Policy 3a and R9: the activity fits no documented pattern and is coordinated across more than one cardholder, which requires a filing regardless of amount.",
+    "narrative": "Between 2016-11-22 and 2016-11-22, card C13487-K1 belonging to customer C13487 was used for 1 transaction(s) totalling $74.96, of which the transaction that triggered this investigation was $74.96 on 2016-11-22. The activity was conducted online under product code C, billed in region 191.0, from the device profile 'SM-G935F Build/NRD90M | Android 7.0 | chrome 62.0 for android | 1920x1080'. The connection came through an anonymising proxy (IP_PROXY:ANONYMOUS) from a device marked New for the account on named hardware (SM-G935F Build/NRD90M). Cardholder denies the transaction on contact. A fraud analyst opened this review after seeing several cards transacting through the same unusual device profile. The same device profile was used by 19 other card(s) in the thirty days to 2016-11-22 (C01289-K1, C01996-K2, C02910-K1, C02975-K1, C03676-K2, C04108-K2), indicating a common actor operating across more than one cardholder. On contact, cardholder states they did not make the transaction and still holds the card. That response is an assumption recorded in the case file, as no cardholder replies were available to this investigation. The activity is suspicious because it fits none of the five fraud patterns the institution documents, while showing the coordination described above. It is assessed at a 90% probability of being fraudulent on 5 independent pieces of evidence drawn from the transaction graph and the institution's closed-case history. The filing is made because the activity is coordinated across accounts and matches no documented pattern, which requires a report regardless of amount. The total amount of suspicious activity is $74.96. The card has been blocked and scheduled for reissue, an internal investigation case has been opened, the card has been placed under heightened monitoring, the cards sharing the same origin have been placed under monitoring, and the matter has been escalated to a fraud analyst.",
+    "subjects": [
+      "C13487",
+      "C13487-K1",
+      "C01289-K1",
+      "C01996-K2",
+      "C02910-K1",
+      "C02975-K1",
+      "C03676-K2",
+      "C04108-K2",
+      "C04274-K1",
+      "C05448-K2",
+      "SM-G935F Build/NRD90M | Android 7.0 | chrome 62.0 for android | 1920x1080"
+    ],
+    "total_amount_usd": 74.96,
+    "activity_dates": [
+      "2016-11-22",
+      "2016-11-22"
+    ]
+  },
+  "stop_reason": "A verification response settled the question (policy 6): probability moved to 0.90 on 5 independent pieces of evidence and the action set follows directly. Further steps would not change it.",
+  "tool_calls": 14,
+  "tokens": 3656,
+  "latency_s": 0.08
+}

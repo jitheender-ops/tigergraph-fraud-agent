@@ -1,0 +1,143 @@
+{
+  "case_id": "HHG-009",
+  "case": {
+    "status": "open",
+    "verdict": "uncertain",
+    "fraud_probability": 0.45,
+    "pattern": "card_not_present_fraud",
+    "pattern_description": "",
+    "affected_txn_ids": [
+      "3581141"
+    ],
+    "first_suspicious_txn_id": "3581141",
+    "connected_card_ids": [],
+    "connected_device_profiles": [],
+    "exposure_usd": 30.02,
+    "evidence": [
+      {
+        "claim": "This exact amount ($30.02) has been charged to this card 5 times across 3 distinct months under the same product code, a median of 34 days apart. That is the cadence of a subscription, and policy R7 forbids blocking on it",
+        "source": "graph",
+        "ref": "query:card_window",
+        "entity_ids": [
+          "3581141"
+        ]
+      },
+      {
+        "claim": "The cardholder contacted the bank stating they did not make this purchase",
+        "source": "customer",
+        "ref": "trigger:customer_report",
+        "entity_ids": [
+          "3581141"
+        ]
+      },
+      {
+        "claim": "Connected components place this card in the graph's giant device-sharing component (2,500 cards). Transitive device sharing percolates at every threshold tested, so membership is not evidence of a ring and carries no weight here; it is recorded because policy R6 asks for the shared element to be named.",
+        "source": "graph",
+        "ref": "query:ring_component",
+        "entity_ids": [
+          "C00001-K1",
+          "C00003-K1",
+          "C00015-K1",
+          "C00018-K1",
+          "C00032-K1",
+          "C00034-K1",
+          "C00051-K1",
+          "C00060-K1"
+        ]
+      },
+      {
+        "claim": "Known fraud pattern 2: Card-not-present fraud: Card-not-present fraud. The number is used online without the card. Amounts and products that don't fit the cardholder's history, often in a burst of two to four within 48 hours. On its own, one unusual online purchase is ambiguous: verify. Policy R1 to R4.",
+        "source": "document",
+        "ref": "document:fraud_patterns#Card-not-present fraud",
+        "entity_ids": []
+      },
+      {
+        "claim": "Policy rule R7: Disputed but legitimate: R7. Disputed but legitimate. When the customer disputes a charge that matches their own recurring pattern (same merchant, same amount, monthly), recommend `CREATE_CASE`, `VERIFY_WITH_CUSTOMER`, and `WARN_CUSTOMER`. Do not block.",
+        "source": "document",
+        "ref": "document:fraud_policy#R7",
+        "entity_ids": []
+      },
+      {
+        "claim": "Cardholder confirms the transaction was theirs",
+        "source": "customer",
+        "ref": "evidence_request:customer_validation",
+        "entity_ids": []
+      }
+    ],
+    "similar_prior_cases": [],
+    "summary": "The cardholder disputed the $30.02 online transaction on 2016-12-28 on card C08299-K1 under case ID 0. Against this, the cardholder later confirmed the transaction was theirs. The pattern is card_not_present_fraud with exposure of $30.02, and the $30.02 amount was charged to card C08299-K1 five times across three distinct months under the same product code. The card sits in the giant device-sharing component of 2,500 cards, and known fraud pattern 2 describes card-not-present fraud as ambiguous online purchases that require verification under policy R1 to R4. Because policy R7 forbids blocking on recurring charges matching the cardholder's own pattern, the verdict remains uncertain at probability 0.45.",
+    "written_to_graph": true,
+    "graph_case_id": "CASE-2016-009"
+  },
+  "evidence_requests": [
+    {
+      "type": "customer_validation",
+      "asked_after_step": 9,
+      "assumed_response": "Cardholder, shown the charge history, recognises the amount as a recurring charge they had forgotten and confirms it is theirs. ASSUMPTION: no replies ship with this dataset. This one is drawn from an independent feature of the data - 5 charges of this exact amount across 3 months, a median 34 days apart - not from the agent's own probability."
+    }
+  ],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "Policy 3a: probability is at or above 0.30, so a case is opened."
+      },
+      {
+        "action": "VERIFY_WITH_CUSTOMER",
+        "route": "auto",
+        "reason": "R1: probability 0.73 is below the 0.85 stopping bar in policy 6; confirm with the cardholder before any action with customer impact."
+      },
+      {
+        "action": "STEP_UP_AUTH",
+        "route": "auto",
+        "reason": "R1: require step-up authentication on further activity while verification is outstanding."
+      },
+      {
+        "action": "DECLINE_TRANSACTION",
+        "route": "L1",
+        "reason": "R4: decline the pending authorisation while the card stays active, given assessed probability 0.73."
+      },
+      {
+        "action": "MONITOR_CARD",
+        "route": "auto",
+        "reason": "R4: raise monitoring sensitivity for 72 hours."
+      }
+    ],
+    "final": [
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "R7: cardholder disputes a charge that matches their own recurring pattern; the dispute is recorded as a case."
+      },
+      {
+        "action": "VERIFY_WITH_CUSTOMER",
+        "route": "auto",
+        "reason": "R7: confirm with the cardholder that the recurring charge is theirs before any action on the card."
+      },
+      {
+        "action": "WARN_CUSTOMER",
+        "route": "auto",
+        "reason": "R7: send the recurring-charge reminder. R7 explicitly forbids blocking on this profile."
+      },
+      {
+        "action": "MONITOR_CARD",
+        "route": "auto",
+        "reason": "R7 with residual doubt: the cardholder confirms the charge but the assessment still reads 0.45, so the card stays active under monitoring rather than being closed outright."
+      }
+    ],
+    "what_changed": "Cardholder, shown the charge history, recognises the amount as a recurring charge they had forgotten and confirms it is theirs, moving assessed probability to 0.45. Added: WARN_CUSTOMER. Dropped: DECLINE_TRANSACTION, STEP_UP_AUTH."
+  },
+  "sar": {
+    "file": false,
+    "reason": "Policy 3a: a report requires fraud confirmed or strongly suspected. Assessed probability 0.45 with verdict 'uncertain' does not meet that bar.",
+    "narrative": "",
+    "subjects": [],
+    "total_amount_usd": 0,
+    "activity_dates": []
+  },
+  "stop_reason": "A verification response settled the question (policy 6): probability moved to 0.45 on 2 independent pieces of evidence and the action set follows directly. Further steps would not change it.",
+  "tool_calls": 9,
+  "tokens": 801,
+  "latency_s": 0.06
+}

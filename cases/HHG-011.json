@@ -1,0 +1,306 @@
+{
+  "case_id": "HHG-011",
+  "case": {
+    "status": "closed_fraud",
+    "verdict": "fraud",
+    "fraud_probability": 0.9,
+    "pattern": "card_testing",
+    "pattern_description": "",
+    "affected_txn_ids": [
+      "3565143",
+      "3565743",
+      "3567121",
+      "3567766",
+      "3568460",
+      "3568915",
+      "3569002",
+      "3570709",
+      "3570723",
+      "3571886",
+      "3574547",
+      "3578050",
+      "3578277",
+      "3578496",
+      "3578997",
+      "3582142",
+      "3582175",
+      "3582624",
+      "3583368",
+      "3583670",
+      "3583866",
+      "3584401",
+      "3584460",
+      "3584516",
+      "3584962"
+    ],
+    "first_suspicious_txn_id": "3565143",
+    "connected_card_ids": [
+      "C03938-K1",
+      "C05595-K1"
+    ],
+    "connected_device_profiles": [
+      "SM-G610F Build/NRD90M | unknown | chrome 66.0 for android | unknown"
+    ],
+    "exposure_usd": 2609.02,
+    "evidence": [
+      {
+        "claim": "The identity record marks this device New for the account. 83% of cleared alarms had a New device against 18% of confirmed fraud: on its own a new device is the signature of a cardholder who has just bought a phone, not of a compromise",
+        "source": "graph",
+        "ref": "document:README#pattern-3",
+        "entity_ids": [
+          "3583368"
+        ]
+      },
+      {
+        "claim": "$131.30 is 4.6x this card's median and above its 95th percentile. Counter-intuitively this is mildly exculpatory: large outliers appear on 16% of cleared alarms and 6% of confirmed fraud, because confirmed fraud tends to stay inside the cardholder's normal range to avoid attention",
+        "source": "graph",
+        "ref": "query:card_baseline",
+        "entity_ids": [
+          "3583368"
+        ]
+      },
+      {
+        "claim": "59 transactions on this card in the 48 hours ending at the flagged one. A burst of ten or more is 1.9x more likely on confirmed fraud",
+        "source": "graph",
+        "ref": "query:card_window",
+        "entity_ids": [
+          "3565143",
+          "3565743",
+          "3567121",
+          "3567766",
+          "3568460",
+          "3568915",
+          "3569002",
+          "3570709",
+          "3570723",
+          "3571886",
+          "3574547",
+          "3578050"
+        ]
+      },
+      {
+        "claim": "3 online authorisations under $5 on this card in the 24h before the flagged transaction, followed by a larger purchase - the testing sequence policy R5 describes",
+        "source": "graph",
+        "ref": "query:card_testing_probe",
+        "entity_ids": [
+          "3565143",
+          "3565743",
+          "3567121",
+          "3567766",
+          "3568460",
+          "3568915",
+          "3569002",
+          "3570709",
+          "3570723",
+          "3571886",
+          "3574547",
+          "3578050"
+        ]
+      },
+      {
+        "claim": "Device profile 'SM-G610F Build/NRD90M | unknown | chrome 66.0 for android | unknown' is shared with 2 other card(s) inside the 30-day window, across 3 customer(s). Named here because policy R6 requires the shared element to be identified; it carries no weight in the probability, because device sharing at this scale measured no better than chance against the bank's closed cases",
+        "source": "graph",
+        "ref": "query:device_neighbors",
+        "entity_ids": [
+          "C03938-K1",
+          "C05595-K1"
+        ]
+      },
+      {
+        "claim": "The bank has 10 confirmed-fraud case(s) already closed on this card (CC-4501, CC-3905, CC-3206, CC-3039), pattern(s): card_not_present_new_device, card_testing",
+        "source": "graph",
+        "ref": "query:prior_cases_for_card",
+        "entity_ids": [
+          "CC-4501",
+          "CC-3905",
+          "CC-3206",
+          "CC-3039",
+          "CC-2799",
+          "CC-2673"
+        ]
+      },
+      {
+        "claim": "The cardholder contacted the bank stating they did not make this purchase",
+        "source": "customer",
+        "ref": "trigger:customer_report",
+        "entity_ids": [
+          "3583368"
+        ]
+      },
+      {
+        "claim": "Connected components place this card in the graph's giant device-sharing component (2,500 cards). Transitive device sharing percolates at every threshold tested, so membership is not evidence of a ring and carries no weight here; it is recorded because policy R6 asks for the shared element to be named.",
+        "source": "graph",
+        "ref": "query:ring_component",
+        "entity_ids": [
+          "C00001-K1",
+          "C00003-K1",
+          "C00015-K1",
+          "C00018-K1",
+          "C00032-K1",
+          "C00034-K1",
+          "C00051-K1",
+          "C00060-K1"
+        ]
+      },
+      {
+        "claim": "Known fraud pattern 1: Card testing: Card testing. A stolen card number is checked before use: three or more tiny online authorizations, often under $5, then a larger purchase. Confirmed by the sequence itself. Policy R5.",
+        "source": "document",
+        "ref": "document:fraud_patterns#Card testing",
+        "entity_ids": []
+      },
+      {
+        "claim": "Policy rule R2: Customer denies the transaction: R2. Customer denies the transaction. Recommend `BLOCK_CARD` and `CREATE_CASE`. Add `FILE_REPORT` if exposure exceeds $1,000 or the case connects to a shared device profile or another card's fraud.",
+        "source": "document",
+        "ref": "document:fraud_policy#R2",
+        "entity_ids": []
+      },
+      {
+        "claim": "Policy rule R6: Shared origin: R6. Shared origin. When several cards show fraud from the same device profile, the same billing region, or the same recipient email in one window, name the shared element, recommend `CREATE_CASE` and `FILE_REPORT`, and `MONITOR_CONNECTED_CARDS` for every card that shares it.",
+        "source": "document",
+        "ref": "document:fraud_policy#R6",
+        "entity_ids": []
+      },
+      {
+        "claim": "Cardholder denies the transaction on contact",
+        "source": "customer",
+        "ref": "evidence_request:step_up_auth",
+        "entity_ids": []
+      },
+      {
+        "claim": "fincen sar narrative: reported activity. When did the suspicious activity take place? If the activity takes place over a period of time, indicate the date when the suspicious activity was first noticed and describe the duration of the activity. Filers will often provide a tabular presentation of the suspicious account activities (transactions in and out).",
+        "source": "document",
+        "ref": "document:fincen_sar_narrative#chunk 8",
+        "entity_ids": []
+      },
+      {
+        "claim": "fincen sar complete: reported activity. When did the suspicious activity take place? If the activity takes place over a period of time, indicate the date when the suspicious activity was first noticed and describe the duration of the activity. Filers will often provide a tabular presentation of the suspicious account activities (transactions in and out).",
+        "source": "document",
+        "ref": "document:fincen_sar_complete#chunk 8",
+        "entity_ids": []
+      }
+    ],
+    "similar_prior_cases": [
+      "CC-4743",
+      "CC-4501",
+      "CC-3905",
+      "CC-3206",
+      "CC-3039",
+      "CC-2799",
+      "CC-2673",
+      "CC-2247"
+    ],
+    "summary": "The cardholder denied the $131.30 online transaction on 2016-12-29 for card C11923-K2. The device was marked New for the account, $131.30 was 4.6x the card's median and above its 95th percentile, 59 transactions occurred in the 48 hours ending at the flagged one, and 3 online authorizations under $5 preceded the purchase in the prior 24 hours. The device profile 'SM-G610F Build/NRD90M | unknown | chrome 66.0 for android | unknown' was shared with 2 other card(s) across 3 customer(s), and the bank has 10 confirmed-fraud case(s) already closed on this card (CC-4501, CC-3905, CC-3206, CC-3039) with patterns card_not_present_new_device and card_testing. The case was assessed as fraud at probability 0.90 with $2,609.02 of exposure across 25 transaction(s), and 2 other card(s) are named for monitoring under policy R6.",
+    "written_to_graph": true,
+    "graph_case_id": "CASE-2016-011"
+  },
+  "evidence_requests": [
+    {
+      "type": "step_up_auth",
+      "asked_after_step": 9,
+      "assumed_response": "Step-up authentication was not completed; the challenge expired unanswered. ASSUMPTION: simulated; no authentication responses ship with the dataset."
+    }
+  ],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "DECLINE_TRANSACTION",
+        "route": "L1",
+        "reason": "R5: a testing sequence of small online authorisations preceded this purchase; decline the pending authorisation."
+      },
+      {
+        "action": "STEP_UP_AUTH",
+        "route": "auto",
+        "reason": "R5: require step-up authentication before any further activity on the card."
+      },
+      {
+        "action": "BLOCK_CARD",
+        "route": "L2",
+        "reason": "R5: a purchase over $100 has already cleared (exposure $2,609.02), so the card is blocked and reissued."
+      },
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "R2: open the internal case with the evidence attached."
+      },
+      {
+        "action": "VERIFY_WITH_CUSTOMER",
+        "route": "auto",
+        "reason": "R1: probability 0.73 is below 0.70; ask the cardholder before taking any action with customer impact."
+      },
+      {
+        "action": "MONITOR_CARD",
+        "route": "auto",
+        "reason": "R4: keep the card active under raised monitoring while the question is open."
+      },
+      {
+        "action": "MONITOR_CONNECTED_CARDS",
+        "route": "auto",
+        "reason": "R6: shared device profile 'SM-G610F Build/NRD90M | unknown | chrome 66.0 for android | unknown' links 2 other card(s) to this activity; place them under monitoring."
+      },
+      {
+        "action": "FILE_REPORT",
+        "route": "L2",
+        "reason": "Policy 3a: fraud established and exposure $2,609.02 exceeds $1,000."
+      }
+    ],
+    "final": [
+      {
+        "action": "DECLINE_TRANSACTION",
+        "route": "L1",
+        "reason": "R5: a testing sequence of small online authorisations preceded this purchase; decline the pending authorisation."
+      },
+      {
+        "action": "STEP_UP_AUTH",
+        "route": "auto",
+        "reason": "R5: require step-up authentication before any further activity on the card."
+      },
+      {
+        "action": "BLOCK_CARD",
+        "route": "L2",
+        "reason": "R5: a purchase over $100 has already cleared (exposure $2,609.02), so the card is blocked and reissued."
+      },
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "R2: open the internal case with the evidence attached."
+      },
+      {
+        "action": "MONITOR_CARD",
+        "route": "auto",
+        "reason": "R4: keep the card active under raised monitoring while the question is open."
+      },
+      {
+        "action": "MONITOR_CONNECTED_CARDS",
+        "route": "auto",
+        "reason": "R6: shared device profile 'SM-G610F Build/NRD90M | unknown | chrome 66.0 for android | unknown' links 2 other card(s) to this activity; place them under monitoring."
+      },
+      {
+        "action": "FILE_REPORT",
+        "route": "L2",
+        "reason": "Policy 3a: fraud established and exposure $2,609.02 exceeds $1,000."
+      }
+    ],
+    "what_changed": "Step-up authentication was not completed; the challenge expired unanswered, moving assessed probability to 0.90. Dropped: VERIFY_WITH_CUSTOMER."
+  },
+  "sar": {
+    "file": true,
+    "reason": "Policy 3a: fraud established and exposure $2,609.02 exceeds $1,000.",
+    "narrative": "Between 2016-12-22 and 2016-12-29, card C11923-K2 belonging to customer C11923 was used for 25 transaction(s) totalling $2,609.02, of which the transaction that triggered this investigation was $131.30 on 2016-12-29, and this activity was conducted online under product code C from the device profile 'SM-G610F Build/NRD90M | unknown | chrome 66.0 for android | unknown'. The cardholder contacted the bank stating they did not make this purchase, and on contact the cardholder denies the transaction, while it is assumed that step-up authentication was not completed and the challenge expired unanswered because no cardholder replies were available to this investigation. Prior to the flagged transaction, 3 online authorisations under $5 occurred in the 24h before it, followed by the larger purchase, matching the testing sequence policy R5, and 59 transactions occurred on this card in the 48 hours ending at the flagged one. The same device profile was shared by 2 other card(s) inside the 30-day window to 2016-12-29, specifically C03938-K1 and C05595-K1, indicating a common actor operating across more than one cardholder. The bank's closed investigations already record 10 confirmed fraud case(s) on this card, CC-4501, CC-3905, CC-3206, CC-3039, and the activity is suspicious because it is consistent with testing of a stolen card number before use, assessed at a 90% probability of being fraudulent on 6 independent pieces of evidence drawn from the transaction graph and the institution's closed-case history. The filing is made because the loss exposure of $2,609.02 exceeds the institution's $1,000 reporting threshold, and the total amount of suspicious activity is $2,609.02.",
+    "subjects": [
+      "C11923",
+      "C11923-K2",
+      "C03938-K1",
+      "C05595-K1",
+      "SM-G610F Build/NRD90M | unknown | chrome 66.0 for android | unknown"
+    ],
+    "total_amount_usd": 2609.02,
+    "activity_dates": [
+      "2016-12-22",
+      "2016-12-29"
+    ]
+  },
+  "stop_reason": "A verification response settled the question (policy 6): probability moved to 0.90 on 6 independent pieces of evidence and the action set follows directly. Further steps would not change it.",
+  "tool_calls": 14,
+  "tokens": 3642,
+  "latency_s": 0.09
+}

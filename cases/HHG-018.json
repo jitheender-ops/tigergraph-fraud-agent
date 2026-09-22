@@ -1,0 +1,174 @@
+{
+  "case_id": "HHG-018",
+  "case": {
+    "status": "closed_fraud",
+    "verdict": "fraud",
+    "fraud_probability": 0.95,
+    "pattern": "account_takeover",
+    "pattern_description": "",
+    "affected_txn_ids": [
+      "3487659",
+      "3488570",
+      "3489428",
+      "3489904",
+      "3491361",
+      "3491794",
+      "3491872",
+      "3492105",
+      "3492168",
+      "3493830",
+      "3494313",
+      "3495379",
+      "3495821"
+    ],
+    "first_suspicious_txn_id": "3487659",
+    "connected_card_ids": [],
+    "connected_device_profiles": [],
+    "exposure_usd": 769.01,
+    "evidence": [
+      {
+        "claim": "4 of the card-detail match flags M1-M9 came back F on this transaction. Measured across the bank's closed cases, two or more failed flags is 2.9x more likely on confirmed fraud than on a cleared alarm (22.7% vs 7.9%)",
+        "source": "graph",
+        "ref": "query:card_window",
+        "entity_ids": [
+          "3491361"
+        ]
+      },
+      {
+        "claim": "95 transactions on this card in the 48 hours ending at the flagged one. A burst of ten or more is 1.9x more likely on confirmed fraud",
+        "source": "graph",
+        "ref": "query:card_window",
+        "entity_ids": [
+          "3487659",
+          "3488570",
+          "3489428",
+          "3489904",
+          "3491361",
+          "3491794",
+          "3491872",
+          "3492105",
+          "3492168",
+          "3493830",
+          "3494313",
+          "3495379"
+        ]
+      },
+      {
+        "claim": "The bank has 19 confirmed-fraud case(s) already closed on this card (CC-5558, CC-5441, CC-4942, CC-4721), pattern(s): account_takeover, card_not_present_fraud, out_of_region_use",
+        "source": "graph",
+        "ref": "query:prior_cases_for_card",
+        "entity_ids": [
+          "CC-5558",
+          "CC-5441",
+          "CC-4942",
+          "CC-4721",
+          "CC-4436",
+          "CC-4070"
+        ]
+      },
+      {
+        "claim": "The cardholder contacted the bank stating they did not make this purchase",
+        "source": "customer",
+        "ref": "trigger:customer_report",
+        "entity_ids": [
+          "3491361"
+        ]
+      },
+      {
+        "claim": "Connected components place this card in the graph's giant device-sharing component (2,500 cards). Transitive device sharing percolates at every threshold tested, so membership is not evidence of a ring and carries no weight here; it is recorded because policy R6 asks for the shared element to be named.",
+        "source": "graph",
+        "ref": "query:ring_component",
+        "entity_ids": [
+          "C00001-K1",
+          "C00003-K1",
+          "C00015-K1",
+          "C00018-K1",
+          "C00032-K1",
+          "C00034-K1",
+          "C00051-K1",
+          "C00060-K1"
+        ]
+      },
+      {
+        "claim": "Known fraud pattern 5: Account takeover: Account takeover. Mixed-channel activity inconsistent with the cardholder, often with device and match-flag anomalies, pointing to stolen credentials rather than a stolen number.",
+        "source": "document",
+        "ref": "document:fraud_patterns#Account takeover",
+        "entity_ids": []
+      },
+      {
+        "claim": "Policy rule R2: Customer denies the transaction: R2. Customer denies the transaction. Recommend `BLOCK_CARD` and `CREATE_CASE`. Add `FILE_REPORT` if exposure exceeds $1,000 or the case connects to a shared device profile or another card's fraud.",
+        "source": "document",
+        "ref": "document:fraud_policy#R2",
+        "entity_ids": []
+      }
+    ],
+    "similar_prior_cases": [
+      "CC-5558",
+      "CC-5441",
+      "CC-4942",
+      "CC-4721",
+      "CC-4436",
+      "CC-4070",
+      "CC-3899",
+      "CC-3634"
+    ],
+    "summary": "On 2016-11-27, the cardholder reported that they did not make a $39.08 in person transaction on card C02354-K2. Against it, 4 of the card-detail match flags M1-M9 came back F, 95 transactions occurred on this card in the 48 hours ending at the flagged one, and the bank already had 19 confirmed-fraud cases closed on this card including CC-5558, CC-5441, CC-4942, and CC-4721. The case was assessed as account_takeover with probability 0.95, resulting in $769.01 of exposure.",
+    "written_to_graph": true,
+    "graph_case_id": "CASE-2016-018"
+  },
+  "evidence_requests": [],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "BLOCK_CARD",
+        "route": "L1",
+        "reason": "R2: the cardholder denies the transaction; block and reissue. Exposure $769.01 sets the approval route."
+      },
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "R2: open the internal case with the evidence attached."
+      },
+      {
+        "action": "VERIFY_WITH_CUSTOMER",
+        "route": "auto",
+        "reason": "R1: probability 0.95 is below 0.70; ask the cardholder before taking any action with customer impact."
+      },
+      {
+        "action": "MONITOR_CARD",
+        "route": "auto",
+        "reason": "R4: keep the card active under raised monitoring while the question is open."
+      }
+    ],
+    "final": [
+      {
+        "action": "BLOCK_CARD",
+        "route": "L1",
+        "reason": "R2: the cardholder denies the transaction; block and reissue. Exposure $769.01 sets the approval route."
+      },
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "R2: open the internal case with the evidence attached."
+      },
+      {
+        "action": "MONITOR_CARD",
+        "route": "auto",
+        "reason": "R4: keep the card active under raised monitoring while the question is open."
+      }
+    ],
+    "what_changed": "nothing"
+  },
+  "sar": {
+    "file": false,
+    "reason": "Policy 3a: fraud established but exposure $769.01 is under $1,000, the activity is confined to this card, and no shared origin or coordination was found. A case is opened; most cases never need a report.",
+    "narrative": "",
+    "subjects": [],
+    "total_amount_usd": 0,
+    "activity_dates": []
+  },
+  "stop_reason": "Policy 6: probability 0.95 is at or above 0.85 on 3 independent pieces of evidence, which is the bar for a defensible action.",
+  "tool_calls": 9,
+  "tokens": 856,
+  "latency_s": 0.07
+}

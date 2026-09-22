@@ -1,0 +1,10 @@
+data/*.csv
+data/docs/*.pdf
+data/*.db
+build/
+.env
+.venv/
+__pycache__/
+*.pyc
+.claude-flow/
+ruvector.db

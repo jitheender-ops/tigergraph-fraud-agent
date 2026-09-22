@@ -1,0 +1,140 @@
+// Fraud investigation graph — TigerGraph schema
+// Run: gsql -g FraudInvestigation graph/schema.gsql   (or via graph/load.py)
+
+CREATE GRAPH FraudInvestigation()
+
+USE GRAPH FraudInvestigation
+
+CREATE SCHEMA_CHANGE JOB fraud_schema FOR GRAPH FraudInvestigation {
+
+  ADD VERTEX Customer (
+    PRIMARY_ID customer_id STRING
+  ) WITH primary_id_as_attribute="true";
+
+  ADD VERTEX Card (
+    PRIMARY_ID card_id STRING,
+    customer_id STRING,
+    network STRING,
+    card_type STRING
+  ) WITH primary_id_as_attribute="true";
+
+  ADD VERTEX Transaction (
+    PRIMARY_ID txn_id STRING,
+    card_id STRING,
+    customer_id STRING,
+    ts DATETIME,
+    amount DOUBLE,
+    product_cd STRING,
+    channel STRING,
+    risk_score DOUBLE,
+    addr1 STRING,
+    addr2 STRING,
+    dist1 DOUBLE,
+    p_email STRING,
+    r_email STRING,
+    device_profile STRING,
+    device_type STRING,
+    id_15 STRING,   // device New / Found
+    id_23 STRING,   // proxy: transparent / anonymous / hidden
+    id_30 STRING,   // OS
+    id_31 STRING,   // browser
+    id_33 STRING,   // screen
+    m_flags STRING, // M1..M9 packed, e.g. "T,T,F,M0,..."
+    c_counts STRING,// C1..C14 packed
+    d_deltas STRING // D1..D15 packed
+  ) WITH primary_id_as_attribute="true";
+
+  // n_cards is how many distinct cards this profile has ever touched. It is an
+  // attribute rather than a count computed at query time because ring_component has to
+  // decide, per hop, whether a profile is a machine or a configuration, and counting
+  // 590,742 transactions inside a BFS loop is not viable.
+  ADD VERTEX DeviceProfile (
+    PRIMARY_ID device_profile STRING,
+    n_cards INT
+  ) WITH primary_id_as_attribute="true";
+
+  ADD VERTEX EmailDomain (
+    PRIMARY_ID domain STRING
+  ) WITH primary_id_as_attribute="true";
+
+  ADD VERTEX BillingRegion (
+    PRIMARY_ID region_id STRING
+  ) WITH primary_id_as_attribute="true";
+
+  // The bank's finished investigations, July-October. Agent memory.
+  ADD VERTEX ClosedCase (
+    PRIMARY_ID case_id STRING,
+    customer_id STRING,
+    card_id STRING,
+    opened_at DATETIME,
+    closed_at DATETIME,
+    outcome STRING,
+    pattern STRING,
+    first_fraud_txn_id STRING,
+    n_txns INT,
+    exposure_usd DOUBLE,
+    actions_taken STRING,
+    report_filed STRING,
+    analyst_notes STRING
+  ) WITH primary_id_as_attribute="true";
+
+  // Cases this agent opens. Written back so later investigations retrieve them.
+  ADD VERTEX Case (
+    PRIMARY_ID graph_case_id STRING,
+    source_case_id STRING,
+    customer_id STRING,
+    card_id STRING,
+    opened_at DATETIME,
+    status STRING,
+    verdict STRING,
+    fraud_probability DOUBLE,
+    pattern STRING,
+    pattern_description STRING,
+    exposure_usd DOUBLE,
+    summary STRING,
+    stop_reason STRING,
+    actions_final STRING,
+    sar_filed BOOL
+  ) WITH primary_id_as_attribute="true";
+
+  // GraphRAG, document half. The bank's fraud policy, its five documented typologies
+  // and FinCEN's SAR guidance, chunked by prep/build_corpus.py. The embedding attribute
+  // is added by the separate global job below: vector attributes cannot be declared in
+  // an ADD VERTEX clause.
+  ADD VERTEX DocChunk (
+    PRIMARY_ID doc_id STRING,
+    source STRING,
+    section STRING,
+    title STRING,
+    text STRING
+  ) WITH primary_id_as_attribute="true";
+
+  ADD DIRECTED EDGE OWNS            (FROM Customer,    TO Card)           WITH REVERSE_EDGE="OWNED_BY";
+  ADD DIRECTED EDGE MADE            (FROM Card,        TO Transaction)    WITH REVERSE_EDGE="MADE_BY";
+  ADD DIRECTED EDGE FROM_DEVICE     (FROM Transaction, TO DeviceProfile)  WITH REVERSE_EDGE="DEVICE_USED_IN";
+  ADD DIRECTED EDGE PURCHASER_EMAIL (FROM Transaction, TO EmailDomain)    WITH REVERSE_EDGE="EMAIL_USED_IN";
+  ADD DIRECTED EDGE BILLED_IN       (FROM Transaction, TO BillingRegion)  WITH REVERSE_EDGE="REGION_OF";
+  ADD DIRECTED EDGE NEXT            (FROM Transaction, TO Transaction, gap_seconds INT) WITH REVERSE_EDGE="PREV";
+
+  ADD DIRECTED EDGE INVOLVES        (FROM ClosedCase,  TO Transaction)    WITH REVERSE_EDGE="INVOLVED_IN";
+  ADD DIRECTED EDGE ON_CARD         (FROM ClosedCase,  TO Card)           WITH REVERSE_EDGE="HAS_CLOSED_CASE";
+  ADD DIRECTED EDGE CONNECTED_TO    (FROM ClosedCase,  TO Card)           WITH REVERSE_EDGE="CONNECTED_FROM";
+
+  ADD DIRECTED EDGE CASE_INVOLVES   (FROM Case,        TO Transaction)    WITH REVERSE_EDGE="IN_CASE";
+  ADD DIRECTED EDGE CASE_ON_CARD    (FROM Case,        TO Card)           WITH REVERSE_EDGE="HAS_CASE";
+  ADD DIRECTED EDGE CASE_CONNECTED  (FROM Case,        TO Card)           WITH REVERSE_EDGE="CONNECTED_IN_CASE";
+  ADD DIRECTED EDGE CASE_DEVICE     (FROM Case,        TO DeviceProfile)  WITH REVERSE_EDGE="DEVICE_IN_CASE";
+  ADD DIRECTED EDGE CITES_PRIOR     (FROM Case,        TO ClosedCase)     WITH REVERSE_EDGE="CITED_BY";
+}
+
+RUN SCHEMA_CHANGE JOB fraud_schema
+
+// Vector attributes are added by ALTER VERTEX in a GLOBAL schema change job; they
+// cannot appear in the ADD VERTEX clause above. 384 dimensions is BAAI/bge-small-en-v1.5,
+// the model prep/build_corpus.py embeds with. Cosine, because the corpus vectors are
+// L2-normalised on the way in. TigerGraph builds the HNSW index as the vectors load.
+CREATE GLOBAL SCHEMA_CHANGE JOB doc_embedding {
+  ALTER VERTEX DocChunk ADD VECTOR ATTRIBUTE embedding(DIMENSION=384, METRIC="COSINE");
+}
+
+RUN GLOBAL SCHEMA_CHANGE JOB doc_embedding

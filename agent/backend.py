@@ -1,0 +1,326 @@
+"""Graph tools the agent calls.
+
+Two backends behind one surface. TigerGraphBackend runs the installed GSQL queries in
+graph/queries.gsql; DuckDBBackend runs the same traversals in SQL so the pipeline is
+runnable and testable without a live workspace. Every tool call is counted and logged,
+which is what `tool_calls` in the answer file reports.
+"""
+from __future__ import annotations
+import datetime as dt, json, os
+
+TOOL_NAMES = [
+    "card_window", "card_baseline", "device_neighbors", "region_history",
+    "card_testing_probe", "prior_cases_for_card", "prior_cases_for_device",
+    "connected_cards", "region_cluster", "ring_component", "doc_search", "write_case",
+]
+
+
+CASE_LOG = "build/graph_cases.jsonl"
+
+
+def reset_case_log(path: str = CASE_LOG):
+    """Truncate the case log. Called by the runner that owns a sweep, not by the
+    backend: run.py owns the twenty benchmark cases and resets, monitor.py appends its
+    self-opened cases to them, because in a live deployment both land in one graph."""
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    open(path, "w").close()
+
+
+class ToolLog:
+    def __init__(self):
+        self.calls: list[dict] = []
+
+    def record(self, name, params, n_rows):
+        self.calls.append({"tool": name, "params": params, "rows": n_rows})
+
+    @property
+    def count(self):
+        return len(self.calls)
+
+
+class DuckDBBackend:
+    """Same traversals as the GSQL, expressed over the derived tables."""
+    name = "duckdb"
+
+    def __init__(self, path="build/fraud.db", log: ToolLog | None = None):
+        import duckdb
+        self.con = duckdb.connect(path, read_only=True)
+        self.log = log or ToolLog()
+
+    def _df(self, name, sql, params, rows_from=None):
+        df = self.con.execute(sql, params).df()
+        self.log.record(name, params, len(df))
+        return df
+
+    # 1 --------------------------------------------------------------------
+    def card_window(self, card_id, t_from, t_to):
+        return self._df("card_window", """
+            SELECT txn_id, ts, amount, product_cd, channel, risk_score, addr1, p_email,
+                   device_profile, id_15, id_23, M1,M2,M3,M4,M5,M6,M7,M8,M9
+            FROM tx WHERE card_id = ? AND ts BETWEEN ? AND ? ORDER BY ts
+        """, [card_id, t_from, t_to])
+
+    # 2 --------------------------------------------------------------------
+    def card_baseline(self, card_id):
+        df = self._df("card_baseline",
+                      "SELECT * FROM card_profile WHERE card_id = ?", [card_id])
+        return df.iloc[0].to_dict() if len(df) else {}
+
+    # 3 --------------------------------------------------------------------
+    def device_neighbors(self, device_profile, t_from, t_to):
+        df = self._df("device_neighbors", """
+            SELECT txn_id, card_id, customer_id, ts, amount, channel, risk_score
+            FROM tx WHERE device_profile = ? AND ts BETWEEN ? AND ? ORDER BY ts
+        """, [device_profile, t_from, t_to])
+        return {"cards": sorted(df.card_id.unique().tolist()),
+                "customers": sorted(df.customer_id.unique().tolist()),
+                "n_txns": len(df), "txns": df}
+
+    # 4 --------------------------------------------------------------------
+    def region_history(self, card_id, region, before):
+        df = self._df("region_history", """
+            SELECT count(*) AS n_prior, min(ts) AS first_use, max(ts) AS last_prior
+            FROM tx WHERE card_id = ? AND addr1 IS NOT DISTINCT FROM ? AND ts < ?
+        """, [card_id, region, before])
+        return df.iloc[0].to_dict()
+
+    # 5 --------------------------------------------------------------------
+    def card_testing_probe(self, card_id, anchor, hours=24):
+        return self._df("card_testing_probe", """
+            SELECT txn_id, ts, amount, channel, product_cd, device_profile
+            FROM tx WHERE card_id = ? AND ts BETWEEN ? - INTERVAL 1 HOUR * ? AND ?
+            ORDER BY ts
+        """, [card_id, anchor, hours, anchor])
+
+    # 6 --------------------------------------------------------------------
+    def prior_cases_for_card(self, card_id, before=None):
+        sql = """SELECT case_id, customer_id, card_id, opened_at, outcome, pattern,
+                        exposure_usd, n_txns, actions_taken, report_filed, analyst_notes
+                 FROM closed_case
+                 WHERE (card_id = ? OR connected_card_ids LIKE ?)"""
+        p = [card_id, f"%{card_id}%"]
+        if before is not None:
+            sql += " AND opened_at < ?"
+            p.append(before)
+        return self._df("prior_cases_for_card", sql + " ORDER BY opened_at DESC", p)
+
+    # 7 --------------------------------------------------------------------
+    def prior_cases_for_device(self, device_profile, before=None):
+        sql = """SELECT DISTINCT c.case_id, c.outcome, c.pattern, c.opened_at,
+                        c.exposure_usd, c.card_id, c.analyst_notes
+                 FROM closed_case c, unnest(str_split(c.txn_ids,'|')) AS u(tid)
+                 JOIN tx t ON t.txn_id = TRY_CAST(u.tid AS BIGINT)
+                 WHERE t.device_profile = ?"""
+        p = [device_profile]
+        if before is not None:
+            sql += " AND c.opened_at < ?"
+            p.append(before)
+        return self._df("prior_cases_for_device", sql + " ORDER BY c.opened_at DESC LIMIT 25", p)
+
+    # 8 --------------------------------------------------------------------
+    def connected_cards(self, card_id, t_from, t_to):
+        df = self._df("connected_cards", """
+            WITH d AS (SELECT DISTINCT device_profile FROM tx
+                       WHERE card_id = ? AND ts BETWEEN ? AND ? AND device_profile IS NOT NULL)
+            SELECT DISTINCT t.card_id, t.customer_id, t.device_profile
+            FROM tx t JOIN d ON d.device_profile = t.device_profile
+            WHERE t.ts BETWEEN ? AND ? AND t.card_id <> ?
+        """, [card_id, t_from, t_to, t_from, t_to, card_id])
+        return {"cards": sorted(df.card_id.unique().tolist()),
+                "devices": sorted(df.device_profile.unique().tolist()),
+                "customers": sorted(df.customer_id.unique().tolist())}
+
+    # 9 --------------------------------------------------------------------
+    def region_cluster(self, region, t_from, t_to):
+        df = self._df("region_cluster", """
+            SELECT card_id, count(*) n, sum(amount) total FROM tx
+            WHERE addr1 IS NOT DISTINCT FROM ? AND ts BETWEEN ? AND ? GROUP BY card_id
+        """, [region, t_from, t_to])
+        return {"cards": df.card_id.tolist(), "n_txns": int(df.n.sum()) if len(df) else 0,
+                "total": float(df.total.sum()) if len(df) else 0.0}
+
+    # helper: full feature row -------------------------------------------------
+    def features(self, card_id, txn_id):
+        from features import FEATURE_SQL
+        self.con.execute("CREATE OR REPLACE TEMP TABLE anchors AS SELECT 'x' AS key_id, ? AS txn_id",
+                         [int(txn_id)])
+        df = self.con.execute(FEATURE_SQL).df()
+        self.log.record("features", {"card_id": card_id, "txn_id": txn_id}, len(df))
+        return df.iloc[0].to_dict()
+
+    # 10 -------------------------------------------------------------------
+    def ring_component(self, card_id):
+        """Graph algorithm: the transitive device-sharing component this card sits in.
+
+        TigerGraph runs `tg_conn_comp`; here the same components are precomputed by
+        prep/rings.py. Size is reported, never weighted -- see that module for why.
+        """
+        df = self._df("ring_component",
+                      "SELECT ring_id, ring_size FROM card_ring WHERE card_id = ?", [card_id])
+        if not len(df):
+            return {"ring_id": "", "ring_size": 1, "members": []}
+        row = df.iloc[0]
+        m = self.con.execute(
+            "SELECT card_id FROM card_ring WHERE ring_id = ? AND card_id <> ? ORDER BY 1 LIMIT 25",
+            [row.ring_id, card_id]).df()
+        return {"ring_id": str(row.ring_id), "ring_size": int(row.ring_size),
+                "members": m.card_id.tolist()}
+
+    # 11 -------------------------------------------------------------------
+    def doc_search(self, query, k=2, sources=None):
+        """GraphRAG, document half: the policy and regulatory passages that govern
+        this case. Local vector search over build/corpus.npz."""
+        import retrieve
+        hits = retrieve.search(query, k, sources)
+        self.log.record("doc_search", {"query": query, "sources": list(sources or ())}, len(hits))
+        return hits
+
+    # 12 -------------------------------------------------------------------
+    def write_case(self, payload):
+        """No live graph: persist to build/graph_cases.jsonl so the write is still
+        auditable and the UI can show what would land in TigerGraph."""
+        os.makedirs("build", exist_ok=True)
+        with open(CASE_LOG, "a") as fh:
+            fh.write(json.dumps(payload, default=str) + "\n")
+        self.log.record("write_case", {"graph_case_id": payload["graph_case_id"]}, 1)
+        return payload["graph_case_id"]
+
+
+class TigerGraphBackend:
+    """Runs the installed GSQL queries in graph/queries.gsql."""
+    name = "tigergraph"
+
+    def __init__(self, conn, log: ToolLog | None = None):
+        self.conn = conn
+        self.log = log or ToolLog()
+
+    def _run(self, name, params):
+        res = self.conn.runInstalledQuery(name, params)
+        self.log.record(name, params, sum(len(r.get(k, [])) for r in res for k in r))
+        return res
+
+    @staticmethod
+    def _ts(x):
+        return x.strftime("%Y-%m-%d %H:%M:%S") if isinstance(x, (dt.datetime, dt.date)) else str(x)
+
+    def card_window(self, card_id, t_from, t_to):
+        import pandas as pd
+        r = self._run("card_window", {"p_card_id": card_id, "p_from": self._ts(t_from),
+                                      "p_to": self._ts(t_to)})
+        rows = [v["attributes"] for blk in r for v in blk.get("txns", [])]
+        return pd.DataFrame(rows)
+
+    def card_baseline(self, card_id):
+        r = self._run("card_baseline", {"p_card_id": card_id})
+        out = {}
+        for blk in r:
+            out.update(blk)
+        return out
+
+    def device_neighbors(self, device_profile, t_from, t_to):
+        import pandas as pd
+        r = self._run("device_neighbors", {"p_device_profile": device_profile,
+                                           "p_from": self._ts(t_from), "p_to": self._ts(t_to)})
+        cards, custs, txns = [], [], []
+        for blk in r:
+            cards += blk.get("card_ids", [])
+            custs += blk.get("customer_ids", [])
+            txns += [v["attributes"] for v in blk.get("txns", [])]
+        return {"cards": sorted(set(cards)), "customers": sorted(set(custs)),
+                "n_txns": len(txns), "txns": pd.DataFrame(txns)}
+
+    def region_history(self, card_id, region, before):
+        r = self._run("region_history", {"p_card_id": card_id, "p_region": str(region),
+                                         "p_before": self._ts(before)})
+        out = {}
+        for blk in r:
+            out.update(blk)
+        return {"n_prior": out.get("n_prior_txns_in_region", 0),
+                "first_use": out.get("first_ever_use"), "last_prior": out.get("last_prior_use")}
+
+    def card_testing_probe(self, card_id, anchor, hours=24):
+        import pandas as pd
+        r = self._run("card_testing_probe", {"p_card_id": card_id, "p_anchor": self._ts(anchor),
+                                             "p_hours": hours})
+        rows = [v["attributes"] for blk in r for v in blk.get("sequence", [])]
+        return pd.DataFrame(rows)
+
+    def prior_cases_for_card(self, card_id, before=None):
+        import pandas as pd
+        r = self._run("prior_cases_for_card", {"p_card_id": card_id})
+        rows = [v["attributes"] for blk in r for v in blk.get("prior_cases", [])]
+        df = pd.DataFrame(rows)
+        if before is not None and len(df):
+            df = df[df.opened_at < str(before)]
+        return df
+
+    def prior_cases_for_device(self, device_profile, before=None):
+        import pandas as pd
+        r = self._run("prior_cases_for_device", {"p_device_profile": device_profile})
+        rows = [v["attributes"] for blk in r for v in blk.get("device_cases", [])]
+        df = pd.DataFrame(rows)
+        if before is not None and len(df):
+            df = df[df.opened_at < str(before)]
+        return df
+
+    def connected_cards(self, card_id, t_from, t_to):
+        r = self._run("connected_cards", {"p_card_id": card_id, "p_from": self._ts(t_from),
+                                          "p_to": self._ts(t_to)})
+        cards, devs = [], []
+        for blk in r:
+            cards += blk.get("connected_card_ids", [])
+            devs += blk.get("shared_device_profiles", [])
+        return {"cards": sorted(set(cards)), "devices": sorted(set(devs)), "customers": []}
+
+    def region_cluster(self, region, t_from, t_to):
+        r = self._run("region_cluster", {"p_region": str(region), "p_from": self._ts(t_from),
+                                         "p_to": self._ts(t_to)})
+        out = {}
+        for blk in r:
+            out.update(blk)
+        return {"cards": out.get("card_ids", []), "n_txns": out.get("n_txns", 0),
+                "total": out.get("total_amount", 0.0)}
+
+    def ring_component(self, card_id):
+        r = self._run("ring_component", {"p_card_id": card_id})
+        out = {}
+        for blk in r:
+            out.update(blk)
+        members = [c for c in out.get("members", []) if c != card_id]
+        return {"ring_id": out.get("ring_id", ""),
+                "ring_size": int(out.get("ring_size", 1) or 1), "members": members[:25]}
+
+    def doc_search(self, query, k=2, sources=None):
+        """TigerGraph vector search over the DocChunk vertices loaded by
+        graph/load.py --docs. Same embedding model as the local mirror, so the two
+        return the same passages."""
+        import retrieve
+        r = self.conn.runInstalledQuery("doc_search", {
+            "p_query": retrieve.embed(query).tolist(), "p_k": k,
+            "p_sources": list(sources or ())})
+        hits = [v["attributes"] for blk in r for v in blk.get("hits", [])]
+        self.log.record("doc_search", {"query": query, "sources": list(sources or ())}, len(hits))
+        return [{"source": h["source"], "section": h["section"], "title": h["title"],
+                 "text": h["text"], "doc_id": h["doc_id"],
+                 "score": round(float(h.get("score", 0.0)), 4)} for h in hits]
+
+    def features(self, card_id, txn_id):
+        raise NotImplementedError("features() is computed by the loader-side DuckDB mirror")
+
+    def write_case(self, payload):
+        self._run("write_case", {
+            "p_graph_case_id": payload["graph_case_id"],
+            "p_source_case_id": payload["source_case_id"],
+            "p_customer_id": payload["customer_id"], "p_card_id": payload["card_id"],
+            "p_opened_at": self._ts(payload["opened_at"]), "p_status": payload["status"],
+            "p_verdict": payload["verdict"],
+            "p_fraud_probability": payload["fraud_probability"],
+            "p_pattern": payload["pattern"],
+            "p_pattern_description": payload["pattern_description"],
+            "p_exposure": payload["exposure_usd"], "p_summary": payload["summary"],
+            "p_stop_reason": payload["stop_reason"],
+            "p_actions_final": payload["actions_final"], "p_sar_filed": payload["sar_filed"],
+            "p_txn_ids": payload["txn_ids"], "p_connected_cards": payload["connected_cards"],
+            "p_devices": payload["devices"], "p_prior_cases": payload["prior_cases"],
+        })
+        return payload["graph_case_id"]

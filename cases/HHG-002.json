@@ -1,0 +1,132 @@
+{
+  "case_id": "HHG-002",
+  "case": {
+    "status": "open",
+    "verdict": "uncertain",
+    "fraud_probability": 0.35,
+    "pattern": "card_not_present_fraud",
+    "pattern_description": "",
+    "affected_txn_ids": [
+      "3478782"
+    ],
+    "first_suspicious_txn_id": "3478782",
+    "connected_card_ids": [],
+    "connected_device_profiles": [],
+    "exposure_usd": 292.36,
+    "evidence": [
+      {
+        "claim": "Model risk score 0.79. In the 0.70-0.85 band the bank's closed history holds 817 confirmed frauds against 234 cleared alarms, a likelihood ratio of 0.67 - mildly exculpatory, consistent with the dataset note that above 0.70 most flagged transactions turn out to be legitimate",
+        "source": "graph",
+        "ref": "document:README#risk-score",
+        "entity_ids": [
+          "3478782"
+        ]
+      },
+      {
+        "claim": "$292.36 is 7.9x this card's median and above its 95th percentile. Counter-intuitively this is mildly exculpatory: large outliers appear on 16% of cleared alarms and 6% of confirmed fraud, because confirmed fraud tends to stay inside the cardholder's normal range to avoid attention",
+        "source": "graph",
+        "ref": "query:card_baseline",
+        "entity_ids": [
+          "3478782"
+        ]
+      },
+      {
+        "claim": "The bank has 1 confirmed-fraud case(s) already closed on this card (CC-4160), pattern(s): card_not_present_fraud",
+        "source": "graph",
+        "ref": "query:prior_cases_for_card",
+        "entity_ids": [
+          "CC-4160"
+        ]
+      },
+      {
+        "claim": "Connected components place this card in the graph's giant device-sharing component (2,500 cards). Transitive device sharing percolates at every threshold tested, so membership is not evidence of a ring and carries no weight here; it is recorded because policy R6 asks for the shared element to be named.",
+        "source": "graph",
+        "ref": "query:ring_component",
+        "entity_ids": [
+          "C00001-K1",
+          "C00003-K1",
+          "C00015-K1",
+          "C00018-K1",
+          "C00032-K1",
+          "C00034-K1",
+          "C00051-K1",
+          "C00060-K1"
+        ]
+      },
+      {
+        "claim": "Known fraud pattern 2: Card-not-present fraud: Card-not-present fraud. The number is used online without the card. Amounts and products that don't fit the cardholder's history, often in a burst of two to four within 48 hours. On its own, one unusual online purchase is ambiguous: verify. Policy R1 to R4.",
+        "source": "document",
+        "ref": "document:fraud_patterns#Card-not-present fraud",
+        "entity_ids": []
+      },
+      {
+        "claim": "Policy rule R1: Verify before you block on a weak signal: R1. Verify before you block on a weak signal. If the case rests on a single signal (including a risk score alone) and your assessed fraud probability is below 0.70, recommend `VERIFY_WITH_CUSTOMER` or `STEP_UP_AUTH` before any block. Blocking a legitimate customer on one signal is a policy breach.",
+        "source": "document",
+        "ref": "document:fraud_policy#R1",
+        "entity_ids": []
+      }
+    ],
+    "similar_prior_cases": [
+      "CC-4160"
+    ],
+    "summary": "Risk score on card C11891-K1 over a $292.36 online transaction on 2016-11-22 was 0.79, and the evidence conflicts with probability 0.35. The bank has 1 confirmed-fraud case(s) already closed on this card (CC-4160), pattern(s): card_not_present_fraud. For the cardholder, $292.36 is 7.9x this card's median and above its 95th percentile. The case is not decided in the graph, and exposure if the activity is fraudulent is $292.36.",
+    "written_to_graph": true,
+    "graph_case_id": "CASE-2016-002"
+  },
+  "evidence_requests": [
+    {
+      "type": "customer_validation",
+      "asked_after_step": 9,
+      "assumed_response": "No reply within 24 hours. ASSUMPTION: no replies ship with this dataset, and nothing independent in the evidence points to what the cardholder would say. Inventing an answer here would manufacture certainty, so the agent assumes the case policy R4 is written for - the customer does not respond - and acts accordingly."
+    }
+  ],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "Policy 3a: probability is at or above 0.30 with the verdict still uncertain."
+      },
+      {
+        "action": "VERIFY_WITH_CUSTOMER",
+        "route": "auto",
+        "reason": "R1: probability 0.35 is below 0.70; ask the cardholder before taking any action with customer impact."
+      },
+      {
+        "action": "MONITOR_CARD",
+        "route": "auto",
+        "reason": "R4: keep the card active under raised monitoring while the question is open."
+      }
+    ],
+    "final": [
+      {
+        "action": "MONITOR_CARD",
+        "route": "auto",
+        "reason": "R4: no reply within 24 hours; keep the card active under raised monitoring."
+      },
+      {
+        "action": "DECLINE_TRANSACTION",
+        "route": "L1",
+        "reason": "R4: decline pending authorisations while the verification is unanswered."
+      },
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "Policy 3a: a case is opened because evidence was requested."
+      }
+    ],
+    "what_changed": "No reply within 24 hours, moving assessed probability to 0.35. Added: DECLINE_TRANSACTION. Dropped: VERIFY_WITH_CUSTOMER."
+  },
+  "sar": {
+    "file": false,
+    "reason": "Policy 3a: a report requires fraud confirmed or strongly suspected. Assessed probability 0.35 with verdict 'uncertain' does not meet that bar.",
+    "narrative": "",
+    "subjects": [],
+    "total_amount_usd": 0,
+    "activity_dates": []
+  },
+  "stop_reason": "A verification response settled the question (policy 6): probability moved to 0.35 on 2 independent pieces of evidence and the action set follows directly. Further steps would not change it.",
+  "tool_calls": 8,
+  "tokens": 957,
+  "latency_s": 0.06
+}

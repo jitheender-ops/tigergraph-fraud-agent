@@ -1,0 +1,127 @@
+{
+  "case_id": "HHG-006",
+  "case": {
+    "status": "escalated",
+    "verdict": "uncertain",
+    "fraud_probability": 0.27,
+    "pattern": "account_takeover",
+    "pattern_description": "",
+    "affected_txn_ids": [
+      "3476602",
+      "3476633",
+      "3476665",
+      "3476682"
+    ],
+    "first_suspicious_txn_id": "3476602",
+    "connected_card_ids": [],
+    "connected_device_profiles": [
+      "Trident/7.0 | Windows 7 | ie 11.0 for desktop | 1920x1080"
+    ],
+    "exposure_usd": 1906.07,
+    "evidence": [
+      {
+        "claim": "The identity record marks this device New for the account. 83% of cleared alarms had a New device against 18% of confirmed fraud: on its own a new device is the signature of a cardholder who has just bought a phone, not of a compromise",
+        "source": "graph",
+        "ref": "document:README#pattern-3",
+        "entity_ids": [
+          "3476682"
+        ]
+      },
+      {
+        "claim": "$482.12 is 8.2x this card's median and above its 95th percentile. Counter-intuitively this is mildly exculpatory: large outliers appear on 16% of cleared alarms and 6% of confirmed fraud, because confirmed fraud tends to stay inside the cardholder's normal range to avoid attention",
+        "source": "graph",
+        "ref": "query:card_baseline",
+        "entity_ids": [
+          "3476682"
+        ]
+      },
+      {
+        "claim": "A online transaction on a card whose history is 2% online. Measured on the closed cases this is mildly exculpatory (11.9% of cleared vs 4.5% of confirmed fraud)",
+        "source": "graph",
+        "ref": "query:card_baseline",
+        "entity_ids": [
+          "3476682"
+        ]
+      },
+      {
+        "claim": "The cardholder contacted the bank stating they did not make this purchase",
+        "source": "customer",
+        "ref": "trigger:customer_report",
+        "entity_ids": [
+          "3476682"
+        ]
+      },
+      {
+        "claim": "Known fraud pattern 5: Account takeover: Account takeover. Mixed-channel activity inconsistent with the cardholder, often with device and match-flag anomalies, pointing to stolen credentials rather than a stolen number.",
+        "source": "document",
+        "ref": "document:fraud_patterns#Account takeover",
+        "entity_ids": []
+      },
+      {
+        "claim": "Policy rule R2: Customer denies the transaction: R2. Customer denies the transaction. Recommend `BLOCK_CARD` and `CREATE_CASE`. Add `FILE_REPORT` if exposure exceeds $1,000 or the case connects to a shared device profile or another card's fraud.",
+        "source": "document",
+        "ref": "document:fraud_policy#R2",
+        "entity_ids": []
+      }
+    ],
+    "similar_prior_cases": [],
+    "summary": "The customer denied a $482.12 online transaction on 2016-11-21 on card C07297-K1, and the identity record marks this device New for the account. Against this, $482.12 is 8.2x this card's median and above its 95th percentile, and the cardholder's history is 2% online, which is mildly exculpatory. The evidence conflicts and the probability is 0.27, so the case, ID unknown, is uncertain with exposure of $1,906.07.",
+    "written_to_graph": true,
+    "graph_case_id": "CASE-2016-006"
+  },
+  "evidence_requests": [],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "ALLOW_TRANSACTION",
+        "route": "auto",
+        "reason": "R1 and policy 6: probability 0.27 with 3 independent pieces of evidence pointing away from fraud; the transaction stands."
+      },
+      {
+        "action": "CLOSE_NO_FRAUD",
+        "route": "auto",
+        "reason": "Policy 6: the evidence settles the question; close as legitimate."
+      },
+      {
+        "action": "MONITOR_CARD",
+        "route": "auto",
+        "reason": "Residual uncertainty is low but non-zero; keep 72-hour monitoring without customer impact."
+      }
+    ],
+    "final": [
+      {
+        "action": "BLOCK_CARD",
+        "route": "L1",
+        "reason": "R2: the cardholder denies the transaction; block and reissue. Exposure $1,906.07 sets the approval route."
+      },
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "R2: open the internal case with the evidence attached."
+      },
+      {
+        "action": "MONITOR_CARD",
+        "route": "auto",
+        "reason": "R4: keep the card active under raised monitoring while the question is open."
+      },
+      {
+        "action": "ESCALATE_TO_ANALYST",
+        "route": "auto",
+        "reason": "R8: the verdict is uncertain and exposure $1,906.07 exceeds $500 or the evidence conflicts; hand to a human analyst."
+      }
+    ],
+    "what_changed": "nothing"
+  },
+  "sar": {
+    "file": false,
+    "reason": "Policy 3a: a report requires fraud confirmed or strongly suspected. Assessed probability 0.27 with verdict 'uncertain' does not meet that bar.",
+    "narrative": "",
+    "subjects": [],
+    "total_amount_usd": 0,
+    "activity_dates": []
+  },
+  "stop_reason": "Policy 6: probability 0.27 on 3 independent pieces of evidence sits between the stopping thresholds. Stopping here because the remaining uncertainty is the cardholder's own intent, which only the cardholder or an analyst can resolve; the recommended actions route it to them rather than resolving it in the graph.",
+  "tool_calls": 9,
+  "tokens": 793,
+  "latency_s": 0.07
+}

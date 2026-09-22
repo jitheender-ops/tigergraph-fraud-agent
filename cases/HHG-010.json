@@ -1,0 +1,109 @@
+{
+  "case_id": "HHG-010",
+  "case": {
+    "status": "closed_legitimate",
+    "verdict": "legitimate",
+    "fraud_probability": 0.07,
+    "pattern": "none",
+    "pattern_description": "",
+    "affected_txn_ids": [],
+    "first_suspicious_txn_id": "",
+    "connected_card_ids": [],
+    "connected_device_profiles": [
+      "Windows | Windows 10 | edge 16.0 | 1366x768"
+    ],
+    "exposure_usd": 0.0,
+    "evidence": [
+      {
+        "claim": "Model risk score 0.90. 74% of the alarms the bank cleared scored at or above 0.85 against 9% of confirmed fraud, so a score this high is evidence AGAINST fraud rather than for it. The weight is damped from the measured value because every cleared case in the history was selected from a high score to begin with",
+        "source": "graph",
+        "ref": "document:README#risk-score",
+        "entity_ids": [
+          "3506725"
+        ]
+      },
+      {
+        "claim": "The identity record marks this device New for the account. 83% of cleared alarms had a New device against 18% of confirmed fraud: on its own a new device is the signature of a cardholder who has just bought a phone, not of a compromise",
+        "source": "graph",
+        "ref": "document:README#pattern-3",
+        "entity_ids": [
+          "3506725"
+        ]
+      },
+      {
+        "claim": "$1,000.03 is 11.1x this card's median and above its 95th percentile. Counter-intuitively this is mildly exculpatory: large outliers appear on 16% of cleared alarms and 6% of confirmed fraud, because confirmed fraud tends to stay inside the cardholder's normal range to avoid attention",
+        "source": "graph",
+        "ref": "query:card_baseline",
+        "entity_ids": [
+          "3506725"
+        ]
+      },
+      {
+        "claim": "1 previous alarm(s) on this card were investigated and cleared (CC-0873)",
+        "source": "graph",
+        "ref": "query:prior_cases_for_card",
+        "entity_ids": [
+          "CC-0873"
+        ]
+      },
+      {
+        "claim": "Known fraud pattern 3: Card-not-present fraud from a new device: Card-not-present fraud from a new device. Same as above, with the identity record marking the device as `New` for this account, sometimes behind a proxy. Stronger than pattern 2, still not proof: people buy new phones.",
+        "source": "document",
+        "ref": "document:fraud_patterns#Card-not-present fraud from a new device",
+        "entity_ids": []
+      },
+      {
+        "claim": "Fraud Policy - 6. Stopping: Stop investigating when one of these holds: - Fraud probability is at or above 0.85, or at or below 0.15, supported by at least two independent pieces of evidence - A verification response settles the question - Further steps are unlikely to change the decision. Say so in `stop_reason` Investigations that continue past a defensible decision waste time. Investigations that stop before one create risk.",
+        "source": "document",
+        "ref": "document:fraud_policy#6. Stopping",
+        "entity_ids": []
+      }
+    ],
+    "similar_prior_cases": [
+      "CC-0873"
+    ],
+    "summary": "The identity record marked this device New for account C10434-K1 during a $1,000.03 online transaction on 2016-12-02 under case CC-0873, and the model risk score was 0.90. The card had 1 previous alarm(s) that were investigated and cleared, and the transaction was assessed as legitimate at fraud probability 0.07 with exposure of $0.00. This pattern was card_not_present_new_device, and the large amount was 11.1x the card's median and above its 95th percentile.",
+    "written_to_graph": true,
+    "graph_case_id": "CASE-2016-010"
+  },
+  "evidence_requests": [],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "ALLOW_TRANSACTION",
+        "route": "auto",
+        "reason": "R1 and policy 6: probability 0.07 with 3 independent pieces of evidence pointing away from fraud; the transaction stands."
+      },
+      {
+        "action": "CLOSE_NO_FRAUD",
+        "route": "auto",
+        "reason": "Policy 6: the evidence settles the question; close as legitimate."
+      }
+    ],
+    "final": [
+      {
+        "action": "ALLOW_TRANSACTION",
+        "route": "auto",
+        "reason": "R1 and policy 6: probability 0.07 with 3 independent pieces of evidence pointing away from fraud; the transaction stands."
+      },
+      {
+        "action": "CLOSE_NO_FRAUD",
+        "route": "auto",
+        "reason": "Policy 6: the evidence settles the question; close as legitimate."
+      }
+    ],
+    "what_changed": "nothing"
+  },
+  "sar": {
+    "file": false,
+    "reason": "Policy 3a: a report requires fraud confirmed or strongly suspected. Assessed probability 0.07 with verdict 'legitimate' does not meet that bar.",
+    "narrative": "",
+    "subjects": [],
+    "total_amount_usd": 0,
+    "activity_dates": []
+  },
+  "stop_reason": "Policy 6: probability 0.07 is at or below 0.15 on 3 independent pieces of evidence; the alarm is explained and further investigation would not change the outcome.",
+  "tool_calls": 9,
+  "tokens": 856,
+  "latency_s": 0.07
+}

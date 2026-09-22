@@ -1,0 +1,147 @@
+{
+  "case_id": "HHG-013",
+  "case": {
+    "status": "closed_legitimate",
+    "verdict": "legitimate",
+    "fraud_probability": 0.27,
+    "pattern": "none",
+    "pattern_description": "",
+    "affected_txn_ids": [],
+    "first_suspicious_txn_id": "",
+    "connected_card_ids": [],
+    "connected_device_profiles": [
+      "Windows | unknown | chrome 66.0 | unknown"
+    ],
+    "exposure_usd": 0.0,
+    "evidence": [
+      {
+        "claim": "Model risk score 0.76. In the 0.70-0.85 band the bank's closed history holds 817 confirmed frauds against 234 cleared alarms, a likelihood ratio of 0.67 - mildly exculpatory, consistent with the dataset note that above 0.70 most flagged transactions turn out to be legitimate",
+        "source": "graph",
+        "ref": "document:README#risk-score",
+        "entity_ids": [
+          "3526826"
+        ]
+      },
+      {
+        "claim": "The identity record marks this device New for the account. 83% of cleared alarms had a New device against 18% of confirmed fraud: on its own a new device is the signature of a cardholder who has just bought a phone, not of a compromise",
+        "source": "graph",
+        "ref": "document:README#pattern-3",
+        "entity_ids": [
+          "3526826"
+        ]
+      },
+      {
+        "claim": "A online transaction on a card whose history is 1% online. Measured on the closed cases this is mildly exculpatory (11.9% of cleared vs 4.5% of confirmed fraud)",
+        "source": "graph",
+        "ref": "query:card_baseline",
+        "entity_ids": [
+          "3526826"
+        ]
+      },
+      {
+        "claim": "25 transactions on this card in the 48 hours ending at the flagged one. A burst of ten or more is 1.9x more likely on confirmed fraud",
+        "source": "graph",
+        "ref": "query:card_window",
+        "entity_ids": [
+          "3526826"
+        ]
+      },
+      {
+        "claim": "The bank has 3 confirmed-fraud case(s) already closed on this card (CC-4294, CC-3216, CC-1475), pattern(s): account_takeover, card_not_present_new_device",
+        "source": "graph",
+        "ref": "query:prior_cases_for_card",
+        "entity_ids": [
+          "CC-4294",
+          "CC-3216",
+          "CC-1475"
+        ]
+      },
+      {
+        "claim": "Connected components place this card in the graph's giant device-sharing component (2,500 cards). Transitive device sharing percolates at every threshold tested, so membership is not evidence of a ring and carries no weight here; it is recorded because policy R6 asks for the shared element to be named.",
+        "source": "graph",
+        "ref": "query:ring_component",
+        "entity_ids": [
+          "C00001-K1",
+          "C00003-K1",
+          "C00015-K1",
+          "C00018-K1",
+          "C00032-K1",
+          "C00034-K1",
+          "C00051-K1",
+          "C00060-K1"
+        ]
+      },
+      {
+        "claim": "Known fraud pattern 5: Account takeover: Account takeover. Mixed-channel activity inconsistent with the cardholder, often with device and match-flag anomalies, pointing to stolen credentials rather than a stolen number.",
+        "source": "document",
+        "ref": "document:fraud_patterns#Account takeover",
+        "entity_ids": []
+      },
+      {
+        "claim": "Fraud Policy - 6. Stopping: Stop investigating when one of these holds: - Fraud probability is at or above 0.85, or at or below 0.15, supported by at least two independent pieces of evidence - A verification response settles the question - Further steps are unlikely to change the decision. Say so in `stop_reason` Investigations that continue past a defensible decision waste time. Investigations that stop before one create risk.",
+        "source": "document",
+        "ref": "document:fraud_policy#6. Stopping",
+        "entity_ids": []
+      }
+    ],
+    "similar_prior_cases": [
+      "CC-4294",
+      "CC-3761",
+      "CC-3216",
+      "CC-1475"
+    ],
+    "summary": "Risk score on card C07671-K2 over a $35.66 online transaction on 2016-12-09 was assessed as legitimate at fraud probability 0.27. The identity record marked this device New for the account, and the transaction occurred on a card whose history is 1% online, while 25 transactions appeared on this card in the 48 hours ending at the flagged one. The bank had 3 confirmed-fraud case(s) already closed on this card (CC-4294, CC-3216, CC-1475), pattern(s): account_takeover, card_not_present_new_device, and the model risk score was 0.76. Exposure was $0.00.",
+    "written_to_graph": true,
+    "graph_case_id": "CASE-2016-013"
+  },
+  "evidence_requests": [],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "ALLOW_TRANSACTION",
+        "route": "auto",
+        "reason": "R1 and policy 6: probability 0.27 with 4 independent pieces of evidence pointing away from fraud; the transaction stands."
+      },
+      {
+        "action": "CLOSE_NO_FRAUD",
+        "route": "auto",
+        "reason": "Policy 6: the evidence settles the question; close as legitimate."
+      },
+      {
+        "action": "MONITOR_CARD",
+        "route": "auto",
+        "reason": "Residual uncertainty is low but non-zero; keep 72-hour monitoring without customer impact."
+      }
+    ],
+    "final": [
+      {
+        "action": "ALLOW_TRANSACTION",
+        "route": "auto",
+        "reason": "R1 and policy 6: probability 0.27 with 4 independent pieces of evidence pointing away from fraud; the transaction stands."
+      },
+      {
+        "action": "CLOSE_NO_FRAUD",
+        "route": "auto",
+        "reason": "Policy 6: the evidence settles the question; close as legitimate."
+      },
+      {
+        "action": "MONITOR_CARD",
+        "route": "auto",
+        "reason": "Residual uncertainty is low but non-zero; keep 72-hour monitoring without customer impact."
+      }
+    ],
+    "what_changed": "nothing"
+  },
+  "sar": {
+    "file": false,
+    "reason": "Policy 3a: a report requires fraud confirmed or strongly suspected. Assessed probability 0.27 with verdict 'legitimate' does not meet that bar.",
+    "narrative": "",
+    "subjects": [],
+    "total_amount_usd": 0,
+    "activity_dates": []
+  },
+  "stop_reason": "Policy 6: probability 0.27 on 4 independent pieces of evidence sits between the stopping thresholds. Stopping here because the remaining uncertainty is the cardholder's own intent, which only the cardholder or an analyst can resolve; the recommended actions route it to them rather than resolving it in the graph.",
+  "tool_calls": 8,
+  "tokens": 1053,
+  "latency_s": 0.07
+}

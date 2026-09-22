@@ -1,0 +1,135 @@
+{
+  "case_id": "HHG-005",
+  "case": {
+    "status": "open",
+    "verdict": "uncertain",
+    "fraud_probability": 0.33,
+    "pattern": "card_not_present_new_device",
+    "pattern_description": "",
+    "affected_txn_ids": [
+      "3523199"
+    ],
+    "first_suspicious_txn_id": "3523199",
+    "connected_card_ids": [],
+    "connected_device_profiles": [
+      "iOS Device | iOS 9.3.5 | mobile safari 9.0 | 1024x768"
+    ],
+    "exposure_usd": 100.07,
+    "evidence": [
+      {
+        "claim": "The identity record marks this device New for the account. 83% of cleared alarms had a New device against 18% of confirmed fraud: on its own a new device is the signature of a cardholder who has just bought a phone, not of a compromise",
+        "source": "graph",
+        "ref": "document:README#pattern-3",
+        "entity_ids": [
+          "3523199"
+        ]
+      },
+      {
+        "claim": "The bank has 3 confirmed-fraud case(s) already closed on this card (CC-2857, CC-2717, CC-2400), pattern(s): account_takeover",
+        "source": "graph",
+        "ref": "query:prior_cases_for_card",
+        "entity_ids": [
+          "CC-2857",
+          "CC-2717",
+          "CC-2400"
+        ]
+      },
+      {
+        "claim": "Connected components place this card in the graph's giant device-sharing component (2,500 cards). Transitive device sharing percolates at every threshold tested, so membership is not evidence of a ring and carries no weight here; it is recorded because policy R6 asks for the shared element to be named.",
+        "source": "graph",
+        "ref": "query:ring_component",
+        "entity_ids": [
+          "C00001-K1",
+          "C00003-K1",
+          "C00015-K1",
+          "C00018-K1",
+          "C00032-K1",
+          "C00034-K1",
+          "C00051-K1",
+          "C00060-K1"
+        ]
+      },
+      {
+        "claim": "Known fraud pattern 3: Card-not-present fraud from a new device: Card-not-present fraud from a new device. Same as above, with the identity record marking the device as `New` for this account, sometimes behind a proxy. Stronger than pattern 2, still not proof: people buy new phones.",
+        "source": "document",
+        "ref": "document:fraud_patterns#Card-not-present fraud from a new device",
+        "entity_ids": []
+      },
+      {
+        "claim": "Policy rule R1: Verify before you block on a weak signal: R1. Verify before you block on a weak signal. If the case rests on a single signal (including a risk score alone) and your assessed fraud probability is below 0.70, recommend `VERIFY_WITH_CUSTOMER` or `STEP_UP_AUTH` before any block. Blocking a legitimate customer on one signal is a policy breach.",
+        "source": "document",
+        "ref": "document:fraud_policy#R1",
+        "entity_ids": []
+      }
+    ],
+    "similar_prior_cases": [
+      "CC-2857",
+      "CC-2717",
+      "CC-2400"
+    ],
+    "summary": "The risk score on card C02923-K1 for transaction 2016-12-07 on a $100.07 online purchase yielded a verdict of uncertain at probability 0.33 with pattern card_not_present_new_device. The bank has 3 confirmed-fraud case(s) already closed on this card (CC-2857, CC-2717, CC-2400), pattern(s): account_takeover, while the identity record marks this device New for the account and connected components placed this card in the graph's giant device-sharing component (2,500 cards). Policy rule R1 recommends `VERIFY_WITH_CUSTOMER` or `STEP_UP_AUTH` before any block because the assessed fraud probability is below 0.70, and the exposure if the activity is fraudulent is $100.07.",
+    "written_to_graph": true,
+    "graph_case_id": "CASE-2016-005"
+  },
+  "evidence_requests": [
+    {
+      "type": "customer_validation",
+      "asked_after_step": 9,
+      "assumed_response": "No reply within 24 hours. ASSUMPTION: no replies ship with this dataset, and nothing independent in the evidence points to what the cardholder would say. Inventing an answer here would manufacture certainty, so the agent assumes the case policy R4 is written for - the customer does not respond - and acts accordingly."
+    }
+  ],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "VERIFY_WITH_CUSTOMER",
+        "route": "auto",
+        "reason": "R1: the case rests on a single signal and assessed probability is 0.33, below 0.70. Verify before any block."
+      },
+      {
+        "action": "STEP_UP_AUTH",
+        "route": "auto",
+        "reason": "R1: require step-up authentication on further activity while the verification is outstanding."
+      },
+      {
+        "action": "MONITOR_CARD",
+        "route": "auto",
+        "reason": "R1: raise monitoring sensitivity for 72 hours while the card stays active."
+      },
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "Policy 3a: a case is opened because evidence has been requested."
+      }
+    ],
+    "final": [
+      {
+        "action": "MONITOR_CARD",
+        "route": "auto",
+        "reason": "R4: no reply within 24 hours; keep the card active under raised monitoring."
+      },
+      {
+        "action": "DECLINE_TRANSACTION",
+        "route": "L1",
+        "reason": "R4: decline pending authorisations while the verification is unanswered."
+      },
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "Policy 3a: a case is opened because evidence was requested."
+      }
+    ],
+    "what_changed": "No reply within 24 hours, moving assessed probability to 0.33. Added: DECLINE_TRANSACTION. Dropped: STEP_UP_AUTH, VERIFY_WITH_CUSTOMER."
+  },
+  "sar": {
+    "file": false,
+    "reason": "Policy 3a: a report requires fraud confirmed or strongly suspected. Assessed probability 0.33 with verdict 'uncertain' does not meet that bar.",
+    "narrative": "",
+    "subjects": [],
+    "total_amount_usd": 0,
+    "activity_dates": []
+  },
+  "stop_reason": "A verification response settled the question (policy 6): probability moved to 0.33 on 1 independent pieces of evidence and the action set follows directly. Further steps would not change it.",
+  "tool_calls": 9,
+  "tokens": 892,
+  "latency_s": 0.07
+}
