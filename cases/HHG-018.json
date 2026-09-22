@@ -112,7 +112,7 @@
       "CC-3899",
       "CC-3634"
     ],
-    "summary": "On 2016-11-27, the cardholder reported that they did not make an in person transaction for $39.08 on card C02354-K2, which generated case CC-5558. Against this transaction, 4 of the card-detail match flags M1-M9 came back F, and the card was linked to 95 transactions in the 48 hours ending at the flagged one. This activity was assessed as account_takeover with probability 0.95, yielding $769.01 in exposure, and it connected to 19 previously closed confirmed-fraud cases including CC-5558, CC-5441, CC-4942, and CC-4721. The card also shared a device component with 2,500 other cards, though transitive device sharing percolated at every threshold tested and therefore carried no weight. Per document rule R2, the cardholder denied the transaction, recommending BLOCK_CARD and CREATE_CASE.",
+    "summary": "On 2016-11-27, the cardholder reported that they did not make an in-person transaction of $39.08 on card C02354-K2. Four of the card-detail match flags M1-M9 came back F on this transaction, 95 transactions occurred on this card in the 48 hours ending at the flagged one, and the card is linked to 19 confirmed-fraud cases including CC-5558, CC-5441, CC-4942, and CC-4721. The transaction is assessed as fraud at probability 0.95 with pattern account_takeover and exposure of $769.01.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-018"
   },
@@ -169,6 +169,6 @@
   },
   "stop_reason": "Policy 6: probability 0.95 is at or above 0.85 on 3 independent pieces of evidence, which is the bar for a defensible action.",
   "tool_calls": 9,
-  "tokens": 921,
-  "latency_s": 1.08
+  "tokens": 855,
+  "latency_s": 1.12
 }

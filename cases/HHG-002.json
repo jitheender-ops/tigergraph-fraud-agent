@@ -69,7 +69,7 @@
     "similar_prior_cases": [
       "CC-4160"
     ],
-    "summary": "The risk score for card C11891-K1 on transaction 2016-11-22 was 0.79 against a $292.36 exposure. The amount is 7.9x the card's median and above its 95th percentile, and the bank has 1 confirmed-fraud case already closed on this card, case CC-4160, pattern(s): card_not_present_fraud. The conflicting evidence leaves the verdict uncertain at probability 0.35, so the case is not decided in the graph.",
+    "summary": "The risk score for card C11891-K1 on transaction 2016-11-22 was 0.79 against a $292.36 online purchase. The bank has 1 confirmed-fraud case(s) already closed on this card (CC-4160), pattern(s): card_not_present_fraud, and $292.36 is 7.9x this card's median and above its 95th percentile. The evidence conflicts and the verdict is uncertain at probability 0.35, so the case is not decided in the graph; exposure if the activity is fraudulent is $292.36.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-002"
   },
@@ -127,6 +127,6 @@
   },
   "stop_reason": "A verification response settled the question (policy 6): probability moved to 0.35 on 2 independent pieces of evidence and the action set follows directly. Further steps would not change it.",
   "tool_calls": 8,
-  "tokens": 935,
-  "latency_s": 0.67
+  "tokens": 959,
+  "latency_s": 0.53
 }

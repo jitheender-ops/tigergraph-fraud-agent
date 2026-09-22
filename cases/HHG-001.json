@@ -52,7 +52,7 @@
       "CC-1673",
       "CC-1066"
     ],
-    "summary": "The risk score on card C12382-K1 for case CC-XXXX over a $77.07 in person transaction on 2016-12-04 was assessed at probability 0.79. One card-detail match flag (M1-M9) came back F on this transaction, and the bank has 4 confirmed-fraud case(s) already closed on this card (CC-3587, CC-2964, CC-1673, CC-1066), pattern(s): card_not_present_new_device, out_of_region_use. The activity was assessed as mixed-channel consistent with stolen credentials, 1 transaction(s), with $77.07 of exposure.",
+    "summary": "The risk score on card C12382-K1 for case CC-XXXX over a $77.07 in person transaction on 2016-12-04 assessed fraud at probability 0.79. One card-detail match flag (M1-M9) came back F on this transaction, and the bank has 4 confirmed-fraud case(s) already closed on this card (CC-3587, CC-2964, CC-1673, CC-1066), pattern(s): card_not_present_new_device, out_of_region_use. The activity was assessed as mixed-channel activity consistent with stolen credentials, involving 1 transaction(s) and $77.07 of exposure.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-001"
   },
@@ -120,6 +120,6 @@
   },
   "stop_reason": "A verification response settled the question (policy 6): probability moved to 0.79 on 1 independent pieces of evidence and the action set follows directly. Further steps would not change it.",
   "tool_calls": 9,
-  "tokens": 787,
-  "latency_s": 0.37
+  "tokens": 789,
+  "latency_s": 0.34
 }

@@ -1,32 +1,30 @@
-# React + TypeScript + Vite
+# The analyst console
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+The front end of the fraud investigation agent. It is not a report viewer: three of the
+things it does re-run the investigation on the server, so a human can withdraw a premise
+and watch the probability move.
 
-Currently, two official plugins are available:
-
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+../run.sh          # from the repo root: API on :8000, this on :5180
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+It needs `server.py` running — the case data comes from `/api/cases`, not from a file in
+`public/`. Started on its own with `npm run dev`, it will say so rather than render an
+empty page.
+
+| | |
+|---|---|
+| `src/App.tsx` | the desk: queue, case detail, keyboard navigation |
+| `src/components/Steering.tsx` | challenge, look wider, step-up, undo |
+| `src/components/Decide.tsx` | approve, override, close, blacklist |
+| `src/components/Views.tsx` | the log-odds waterfall, the ego-network, the episode timeline, a prior case |
+| `src/api.ts` | every endpoint, in one place |
+
+The waterfall is the one worth understanding. `fraud_probability` is a logistic over
+summed log-odds, and the submission spec fixes the shape of `evidence` with no room for a
+signal's name or weight — so the API returns those separately and the waterfall draws
+each contribution and the running probability after it. That is what makes the challenge
+box honest: you see which bar disappears.
+
+The port is pinned to 5180 in `vite.config.ts`. Vite silently moves to the next free port
+otherwise, and a dev proxy on a port the README does not name is a confusing ten minutes.

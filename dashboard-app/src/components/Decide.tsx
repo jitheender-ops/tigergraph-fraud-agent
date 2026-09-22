@@ -2,6 +2,17 @@ import { useState } from 'react';
 import { Check, X, Gavel, ScanLine, Loader2 } from 'lucide-react';
 import { api, ACTIONS } from '../api';
 
+/** Say what actually happened.
+ *
+ *  On the DuckDB mirror there is no graph to write to, and a console that reports a
+ *  ClosedCase vertex it did not create is doing the same thing the answer files used to
+ *  do when `written_to_graph` was hardcoded true.
+ */
+const wrote = (r: { closed_case_id: string; written_to_graph: boolean }) =>
+  r.written_to_graph
+    ? `Written to the graph as ${r.closed_case_id}, where the next investigation on this card retrieves it.`
+    : `Recorded as ${r.closed_case_id}, but NOT written to a graph — this console is on the DuckDB mirror.`;
+
 const ROUTE_STYLE: Record<string, string> = {
   auto: 'bg-emerald-100 text-emerald-800',
   L1: 'bg-amber-100 text-amber-800',
@@ -64,20 +75,20 @@ export function Decide({ caseId, device, closed, onEvent }: {
         </Primary>
         <Primary busy={busy === 'fraud'} tone="crimson" icon={<Gavel className="w-4 h-4" />}
           onClick={() => run('fraud', () => api.close(caseId, 'confirmed_fraud', note),
-            (r) => `Closed as confirmed fraud. Written to the graph as ${r.closed_case_id}.`,
+            (r) => `Closed as confirmed fraud. ${wrote(r)}`,
             'confirmed_fraud')}>
           Close: confirmed fraud
         </Primary>
         <Primary busy={busy === 'cleared'} tone="muted" icon={<X className="w-4 h-4" />}
           onClick={() => run('cleared', () => api.close(caseId, 'cleared', note),
-            (r) => `Closed as a false positive. Written to the graph as ${r.closed_case_id}.`,
+            (r) => `Closed as a false positive. ${wrote(r)}`,
             'cleared')}>
           Close: false positive
         </Primary>
         {device && (
           <Primary busy={busy === 'bl'} tone="muted" icon={<ScanLine className="w-4 h-4" />}
             onClick={() => run('bl', () => api.blacklist(device, note || 'Blacklisted from the console.'),
-              (r) => `Device blacklisted as ${r.closed_case_id}. ` +
+              (r) => `Device blacklisted. ${wrote(r)} ` +
                      `${r.cards_now_flagged.length} card(s) on that profile now reach a confirmed-fraud case.`)}>
             Blacklist device
           </Primary>

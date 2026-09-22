@@ -70,7 +70,7 @@
       "CC-2370",
       "CC-0003"
     ],
-    "summary": "The case for transaction 2016-12-18, case ID CC-2370, card C05876-K2, and $30.91 exposure was assessed as fraud at probability 0.87 with pattern account_takeover. One card-detail match flag (M1-M9) came back F, 13 transactions occurred on this card in the 48 hours ending at the flagged one, and the bank has 1 confirmed-fraud case(s) already closed on this card. The card resides in the graph's giant device-sharing component of 2,500 cards, and policy R1 was considered. The assessment reflects mixed-channel activity consistent with stolen credentials.",
+    "summary": "The risk score on card C05876-K2 for a $30.91 in-person transaction on 2016-12-18 supports a fraud verdict at probability 0.87 with pattern account_takeover and exposure of $30.91. One card-detail match flag (M1-M9) came back F on this transaction, 13 transactions occurred on this card in the 48 hours ending at the flagged one, and the bank has 1 confirmed-fraud case (CC-2370) already closed on this card with pattern card_not_present_fraud. This card resides in the graph's giant device-sharing component (2,500 cards), and known fraud pattern 5 indicates mixed-channel activity inconsistent with the cardholder, often with device and match-flag anomalies, pointing to stolen credentials. Policy rule R1 advises verifying before blocking on a weak signal when the assessed fraud probability is below 0.70, so no action was taken under this rule.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-012"
   },
@@ -112,6 +112,6 @@
   },
   "stop_reason": "Policy 6: probability 0.87 is at or above 0.85 on 2 independent pieces of evidence, which is the bar for a defensible action.",
   "tool_calls": 9,
-  "tokens": 806,
-  "latency_s": 0.63
+  "tokens": 871,
+  "latency_s": 0.66
 }

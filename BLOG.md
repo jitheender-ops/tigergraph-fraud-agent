@@ -236,6 +236,51 @@ window, discards any touching a benchmark card, and runs the same investigation 
 same policy engine over each. The top five move $6.9k–$17.5k apiece; one files a SAR. A
 fraud agent that only answers the doorbell misses everything nobody thought to flag.
 
+## Letting a human argue with it
+
+An agent that only files a verdict is a report generator. The console is where an analyst
+disagrees, and three of its endpoints **re-run the investigation** rather than editing its
+output.
+
+The blueprint I started from asked the LLM to "re-evaluate the evidence and generate a
+new risk score". That would have destroyed the one property the whole thing rests on, so
+it does something else. The analyst's objection *withdraws the premise it names*:
+
+```
+"ignore the out-of-region flag, the customer is on holiday"
+  → withdrawn: region_new_travel
+  → probability   0.05 → 0.17        (the same log-odds sum, one term short)
+  → actions       ALLOW, CLOSE → ALLOW, CLOSE, MONITOR_CARD
+```
+
+The model's only job is mapping free text onto a signal *name* — a classification, not a
+judgement — and its answer is intersected with the signals really present, so it can only
+choose among them. An answer naming more than two is discarded as not having understood
+the question. The withdrawn claims stay in the case file marked WITHDRAWN BY ANALYST,
+because a case that quietly loses evidence is not auditable. And the steering is
+reversible: the first cut let `suppressed` only ever grow, which makes a mis-aimed
+challenge a trap rather than a control.
+
+The console also had to show the arithmetic, because a probability you cannot decompose
+is a probability nobody can argue with. The answer spec fixes `evidence` at
+claim/source/ref/entity_ids — no room for a signal's name or weight — so the API returns
+those separately rather than bending the spec to fit a screen, and a waterfall draws each
+contribution and the running probability after it. Green bars are the exculpatory
+signals. On a card-testing case it walks 0.27 → 0.18 → 0.29 → … → 0.90, and after a
+challenge you watch the bar that was carrying the case disappear.
+
+Two other things were being rendered as text that are really shapes: the ego-network the
+investigation walked (card → device → sibling cards → the closed cases those reach), and
+the episode itself — card testing is three authorisations under $5 and then a purchase,
+which is something you see, not something you read off 25 identifiers.
+
+Closing a case writes a `ClosedCase` vertex, and that is the memory loop rather than a
+metaphor: `prior_cases_for_card` and `prior_cases_for_device` read `ClosedCase`, so the
+next investigation touching that card or device retrieves what the analyst just decided.
+Blacklisting a device profile attaches the case to the transactions that ran on it —
+verified end to end, all four cards that had used one profile now reach a confirmed-fraud
+case. Nothing is retrained. The evidence set grows.
+
 ## What I learned
 
 **Measure the weights, then distrust the measurement.** Getting the log-likelihood ratios
@@ -256,6 +301,13 @@ implementations of one definition drift the moment nobody checks.
 **Installed queries make an agent tractable.** Twelve named parameterised queries are a
 contract. The agent cannot drift, the routing is auditable, and swapping pyTigerGraph for
 MCP became a twenty-line shim instead of a rewrite.
+
+**A UI is where you find out whether your explanation is real.** The probability had been
+"explained" by a list of claims for weeks. Drawing it as an arithmetic decomposition took
+an afternoon and immediately exposed that the API was throwing away the two fields that
+do the explaining. It also caught a console that reported writing a `ClosedCase` vertex
+while running on the mirror, where there is no graph to write to — the same lie
+`written_to_graph` used to tell before the live database made it checkable.
 
 **Keep the negative results in the source.** Two of the most useful comments in this
 codebase say "this was measured at −0.32, so it is named but not weighted, and here is

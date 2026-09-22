@@ -88,7 +88,7 @@
       "CC-1313",
       "CC-0615"
     ],
-    "summary": "Risk score on card C03042-K1 over a $599.94 online transaction on 2016-11-17. Against it: The bank has 2 confirmed-fraud case(s) already closed on this card (CC-3886, CC-0615), pattern(s): card_not_present_new_device. For the cardholder: The card has no billing history in region 327.0, but every card-detail match flag passed. The identity record marks this device New for the account. Assessed as legitimate at fraud probability 0.05; no transaction is treated as part of a fraud episode and exposure is zero.",
+    "summary": "Risk score on card C03042-K1 over a $599.94 online transaction on 2016-11-17 was 0.77, placing it in the 0.70-0.85 band where the bank's closed history holds 817 confirmed frauds against 234 cleared alarms, yielding a likelihood ratio of 0.67. The identity record marks this device New for the account, 83% of cleared alarms had a New device against 18% of confirmed fraud, and the card has no billing history in region 327.0, yet every card-detail match flag passed. Although $599.94 is 6.0x this card's median and above its 95th percentile, large outliers appear on 16% of cleared alarms and 6% of confirmed fraud, and connected components placed this card in the graph's giant device-sharing component (2,500 cards) with transitive device sharing percolating at every threshold tested. The bank has 2 confirmed-fraud case(s) already closed on this card (CC-3886, CC-0615), pattern(s): card_not_present_new_device, and the case was assessed as legitimate at fraud probability 0.05 with exposure of $0.00. Known fraud pattern 3, Card-not-present fraud from a new device, was noted as stronger than pattern 2 but still not proof because people buy new phones.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-015"
   },
@@ -130,6 +130,6 @@
   },
   "stop_reason": "Policy 6: probability 0.05 is at or below 0.15 on 4 independent pieces of evidence; the alarm is explained and further investigation would not change the outcome.",
   "tool_calls": 12,
-  "tokens": 1155,
+  "tokens": 1259,
   "latency_s": 0.62
 }

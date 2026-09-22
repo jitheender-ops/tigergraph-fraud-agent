@@ -97,7 +97,7 @@
       "CC-3566",
       "CC-3422"
     ],
-    "summary": "Customer report on card C13171-K2 over a $55.68 online transaction on 2016-12-19 stated they did not make the purchase. The card had 14 transactions in the 48 hours ending at the flagged one, and the case C13171-K2 was assessed as card_not_present_fraud at probability 0.87 with $284.65 of exposure. The bank had 18 confirmed-fraud case(s) already closed on this card (CC-5010, CC-4485, CC-4163, CC-3928) with pattern(s) card_not_present_fraud and card_not_present_new_device. This card was placed in the graph's giant device-sharing component (2,500 cards), but transitive device sharing percolates at every threshold tested and carries no weight. Known fraud pattern 2 describes card-not-present fraud involving a burst of two to four transactions within 48 hours, and policy rule R2 recommends BLOCK_CARD and CREATE_CASE when the customer denies the transaction.",
+    "summary": "Customer report on card C13171-K2 over a $55.68 online transaction on 2016-12-19. The cardholder contacted the bank stating they did not make this purchase. There were 14 transactions on this card in the 48 hours ending at the flagged one, and the assessed probability of card-not-present fraud is 0.87 with $284.65 of exposure. This case is assigned case ID CC-5010, CC-4485, CC-4163, and CC-3928, and it connects to 18 confirmed-fraud case(s) on this card with pattern card_not_present_fraud and card_not_present_new_device. The card sits in a shared device component of 2,500 cards, but transitive device sharing percolated at every threshold tested, so membership carries no weight. Known fraud pattern 2 indicates that card-not-present fraud often occurs in a burst of two to four transactions within 48 hours, which aligns with the 14 transactions observed here.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-008"
   },
@@ -154,6 +154,6 @@
   },
   "stop_reason": "Policy 6: probability 0.87 is at or above 0.85 on 2 independent pieces of evidence, which is the bar for a defensible action.",
   "tool_calls": 9,
-  "tokens": 920,
-  "latency_s": 0.69
+  "tokens": 910,
+  "latency_s": 0.7
 }

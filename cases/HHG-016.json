@@ -61,7 +61,7 @@
       }
     ],
     "similar_prior_cases": [],
-    "summary": "On 2016-12-11, the cardholder reported that they did not make an online purchase of $59.67 on card C09988-K1. The identity record marks this device New for the account, and 83% of cleared alarms had a New device against 18% of confirmed fraud, while connected components placed this card in a giant device-sharing component of 2,500 cards with transitive device sharing percolating at every threshold tested. Policy rule R2 applies because the customer denied the transaction, and known fraud pattern 3 describes card-not-present fraud from a new device. The evidence conflicts and the probability sits at 0.50, so the case, ID unspecified, is not decided in the graph and the exposure if the activity is fraudulent is $59.67.",
+    "summary": "The customer reported that they did not make a $59.67 online transaction on 2016-12-11 on card C09988-K1 under case ID 0. The identity record marks this device New for the account, and 83% of cleared alarms had a New device against 18% of confirmed fraud, while connected components placed this card in the giant device-sharing component (2,500 cards). Known fraud pattern 3 and policy rule R2 both indicate that a customer denial supports a `BLOCK_CARD`, `CREATE_CASE`, and `FILE_REPORT` recommendation when exposure exceeds $1,000 or the case connects to a shared device profile. The evidence conflicts and the verdict remains uncertain at probability 0.50 with exposure of $59.67.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-016"
   },
@@ -134,6 +134,6 @@
   },
   "stop_reason": "A verification response settled the question (policy 6): probability moved to 0.50 on 2 independent pieces of evidence and the action set follows directly. Further steps would not change it.",
   "tool_calls": 9,
-  "tokens": 777,
-  "latency_s": 0.6
+  "tokens": 774,
+  "latency_s": 0.58
 }

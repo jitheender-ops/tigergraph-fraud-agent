@@ -93,7 +93,7 @@
       "CC-4196",
       "CC-3821"
     ],
-    "summary": "On 2016-12-05, card C09933-K2 was used for a $111.92 in-person transaction. The case file for case ID CC-XXXX shows a verdict of fraud at probability 0.76 with $241.87 of exposure, assessed as mixed-channel activity consistent with stolen credentials. Against the transaction, 3 of the card-detail match flags M1-M9 came back F, 24 transactions occurred on this card in the 48 hours ending at the flagged one, and the model risk score was 0.87. The bank has 18 confirmed-fraud case(s) already closed on this card (CC-5521, CC-5092, CC-4787, CC-4597) with pattern(s) account_takeover and out_of_region_use, and the connected components analysis placed this card in a giant device-sharing component of 2,500 cards.",
+    "summary": "The case for CC-5521 concerned card C09933-K2 over a $111.92 in person transaction on 2016-12-05. Against fraud, 3 of the card-detail match flags M1-M9 came back F, the model risk score was 0.87, and 24 transactions occurred on this card in the 48 hours ending at the flagged one. The cardholder was assessed as mixed-channel activity consistent with stolen credentials at probability 0.76, with 3 transaction(s) and $241.87 of exposure. The bank has 18 confirmed-fraud case(s) already closed on this card, specifically CC-5521, CC-5092, CC-4787, and CC-4597, with pattern(s) account_takeover and out_of_region_use. Connected components placed this card in the graph's giant device-sharing component of 2,500 cards, but transitive device sharing percolated at every threshold tested and carries no weight. Policy R1 states that if the case rests on a single signal and the assessed fraud probability is below 0.70, the analyst should recommend VERIFY_WITH_CUSTOMER or STEP_UP_AUTH before any block.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-007"
   },
@@ -161,6 +161,6 @@
   },
   "stop_reason": "A verification response settled the question (policy 6): probability moved to 0.76 on 3 independent pieces of evidence and the action set follows directly. Further steps would not change it.",
   "tool_calls": 9,
-  "tokens": 1019,
-  "latency_s": 0.83
+  "tokens": 1084,
+  "latency_s": 0.79
 }

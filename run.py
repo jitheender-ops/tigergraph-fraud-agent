@@ -46,9 +46,13 @@ def main():
     reset_case_log()          # this run owns the case log; monitor.py appends to it
     # the console re-runs investigations when an analyst steers one, and needs the
     # trigger to do it. It does not belong in the answer files, so it goes beside them.
+    # Merged rather than overwritten: monitor.py writes its own triggers here, and a
+    # bare `run.py` used to wipe them, which quietly emptied the console's second tab.
     pathlib.Path("build").mkdir(exist_ok=True)
-    pathlib.Path("build/triggers.json").write_text(
-        json.dumps({t["case_id"]: t for t in triggers}, indent=1, default=str))
+    tp = pathlib.Path("build/triggers.json")
+    have = json.loads(tp.read_text()) if tp.exists() else {}
+    tp.write_text(json.dumps({**have, **{t["case_id"]: t for t in triggers}},
+                             indent=1, default=str))
 
     rows = []
     for t in triggers:
