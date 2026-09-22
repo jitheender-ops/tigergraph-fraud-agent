@@ -2,12 +2,13 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   AlertCircle, FileText, CheckCircle2, AlertTriangle, Briefcase, ChevronLeft,
-  User, Landmark, History,
+  User, Landmark, History, Download, Network as NetIcon, Activity, Scale,
 } from 'lucide-react';
 import { ScrambleText } from './components/ScrambleText';
 import { SpotlightCard } from './components/SpotlightCard';
 import { Steering, DiffBanner } from './components/Steering';
 import { Decide, RouteChip } from './components/Decide';
+import { Waterfall, Network, Timeline, PriorCase } from './components/Views';
 import { api, type Diff } from './api';
 
 const SOURCE_ICON: Record<string, React.ReactNode> = {
@@ -24,6 +25,9 @@ export default function App() {
   const [diff, setDiff] = useState<{ diff?: Diff; note?: string } | null>(null);
   const [events, setEvents] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [detail, setDetail] = useState<any>(null);     // the open case, in full
+  const [prior, setPrior] = useState<string | null>(null);
+  const [busiest, setBusiest] = useState(true);        // queue order vs case order
 
   useEffect(() => {
     api.cases().then(setData).catch((e) =>
@@ -31,14 +35,50 @@ export default function App() {
         `\`uv run uvicorn server:app --port 8000\`. (${e})`));
   }, []);
 
-  const filteredData = data.filter((d) => d.source === tab);
-  const activeCase = data.find((d) => d.case_id === selectedCase);
+  // The desk works the money, not the case numbers: exposure x probability is the
+  // order an analyst would pick up, and it is the order the queue defaults to.
+  const filteredData = data.filter((d) => d.source === tab).slice().sort((a, b) =>
+    busiest
+      ? (b.case.exposure_usd * b.case.fraud_probability)
+        - (a.case.exposure_usd * a.case.fraud_probability)
+      : a.case_id.localeCompare(b.case_id));
+  const activeCase = detail && detail.case_id === selectedCase
+    ? detail : data.find((d) => d.case_id === selectedCase);
 
-  const replaceCase = (updated: any) =>
+  const replaceCase = (updated: any, signals?: any[]) => {
     setData((prev) => prev.map((d) =>
       d.case_id === selectedCase ? { ...d, ...updated } : d));
+    setDetail((prev: any) => prev ? { ...prev, ...updated,
+      ...(signals ? { signals } : {}) } : prev);
+  };
 
-  const open = (id: string) => { setSelectedCase(id); setDiff(null); setEvents([]); };
+  const open = (id: string) => {
+    setSelectedCase(id); setDiff(null); setEvents([]); setDetail(null);
+    api.case(id).then(setDetail).catch(() => {});
+  };
+
+  // Analysts work queues with their hands on the keyboard: j/k to move, Enter to open,
+  // Escape to come back, / to start arguing.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const typing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(
+        (e.target as HTMLElement)?.tagName ?? '');
+      if (e.key === '/' && !typing) {
+        e.preventDefault();
+        document.querySelector<HTMLInputElement>('input[placeholder*="holiday"]')?.focus();
+        return;
+      }
+      if (typing) return;
+      if (e.key === 'Escape') return setSelectedCase(null);
+      if (e.key !== 'j' && e.key !== 'k') return;
+      const ids = filteredData.map((d) => d.case_id);
+      const at = selectedCase ? ids.indexOf(selectedCase) : -1;
+      const next = e.key === 'j' ? Math.min(at + 1, ids.length - 1) : Math.max(at - 1, 0);
+      if (ids[next]) open(ids[next]);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [filteredData, selectedCase]);
 
   const verdictColor = (v: string) =>
     v === 'fraud' ? 'text-crimson' : v === 'legitimate' ? 'text-emerald-700' : 'text-amber-600';
@@ -70,6 +110,12 @@ export default function App() {
             ))}
           </div>
         </div>
+
+        <button onClick={() => setBusiest((b) => !b)}
+          className="px-8 py-3 text-left text-[10px] font-mono uppercase tracking-widest
+                     text-muted hover:text-ink border-b border-line">
+          {busiest ? 'Ordered by exposure x probability' : 'Ordered by case id'} · click to swap
+        </button>
 
         <div className="flex-1 overflow-y-auto">
           {error && <div className="p-6 text-sm text-crimson leading-relaxed">{error}</div>}
@@ -141,15 +187,45 @@ export default function App() {
 
               <Stats c={activeCase} />
 
+              {activeCase.case.pattern_description && (
+                <div className="border-l-4 border-amber-500 bg-amber-50 px-6 py-4 mb-10">
+                  <div className="text-[10px] font-bold uppercase tracking-widest text-amber-700 mb-2">
+                    Undocumented pattern — described by the agent
+                  </div>
+                  <p className="font-serif text-lg leading-relaxed text-ink/80">
+                    {activeCase.case.pattern_description}
+                  </p>
+                </div>
+              )}
+
               <AnimatePresence>
                 {diff && <DiffBanner diff={diff.diff} note={diff.note} />}
               </AnimatePresence>
 
               <Steering caseId={activeCase.case_id}
-                onResult={({ case: updated, changed, note }) => {
-                  if (updated) replaceCase(updated);
-                  setDiff({ diff: changed, note });
+                steered={Boolean(activeCase.suppressed?.length || activeCase.ring_cap)}
+                onResult={(r: any) => {
+                  if (r.case) replaceCase(r.case, r.signals);
+                  setDiff({ diff: r.changed, note: r.note });
+                  api.case(activeCase.case_id).then(setDetail).catch(() => {});
                 }} />
+
+              {activeCase.signals && (
+                <Section title="How the probability was reached"
+                  icon={<Scale className="w-7 h-7 text-muted" />}>
+                  <Waterfall signals={activeCase.signals}
+                    final={activeCase.case.fraud_probability} />
+                </Section>
+              )}
+
+              <Section title="The graph the investigation walked"
+                icon={<NetIcon className="w-7 h-7 text-muted" />}>
+                <Network caseId={activeCase.case_id} onPickCase={setPrior} />
+              </Section>
+
+              <Section title="The episode" icon={<Activity className="w-7 h-7 text-muted" />}>
+                <Timeline caseId={activeCase.case_id} />
+              </Section>
 
               <Section title="Case summary" icon={<Briefcase className="w-7 h-7 text-muted" />}>
                 <p className="text-xl leading-relaxed text-ink/80 font-serif border-l-4
@@ -240,12 +316,29 @@ export default function App() {
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {activeCase.case.similar_prior_cases.map((id: string) => (
-                        <span key={id} className="font-mono text-xs bg-paper border border-line px-2 py-1">{id}</span>
+                        <button key={id} onClick={() => setPrior(id)}
+                          className="font-mono text-xs bg-paper border border-line px-2 py-1
+                                     hover:border-ink hover:text-ink text-muted transition-colors">
+                          {id}
+                        </button>
                       ))}
                     </div>
                   </>
                 )}
               </Section>
+
+              <div className="flex flex-wrap items-center gap-4 mb-6 font-mono text-xs text-muted">
+                <span className={activeCase.case.written_to_graph ? 'text-emerald-700' : ''}>
+                  {activeCase.case.written_to_graph
+                    ? `written to the graph as ${activeCase.case.graph_case_id}`
+                    : 'not written to the graph (duckdb mirror)'}
+                </span>
+                <button onClick={() => download(activeCase)}
+                  className="ml-auto flex items-center gap-2 border border-line px-3 py-2
+                             uppercase tracking-widest hover:text-ink hover:border-ink transition-colors">
+                  <Download className="w-4 h-4" /> Download case file
+                </button>
+              </div>
 
               <Decide caseId={activeCase.case_id} closed={activeCase.closed ?? null}
                 device={activeCase.case.connected_device_profiles?.[0]}
@@ -267,8 +360,21 @@ export default function App() {
           )}
         </AnimatePresence>
       </div>
+
+      {prior && <PriorCase id={prior} onClose={() => setPrior(null)} />}
     </div>
   );
+}
+
+/** The exact JSON that goes in the submission, minus the console's own bookkeeping. */
+function download(c: any) {
+  const { source, closed, trigger, events, signals, suppressed, ring_cap, ...answer } = c;
+  const blob = new Blob([JSON.stringify(answer, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${c.case_id}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
 function Stats({ c }: { c: any }) {

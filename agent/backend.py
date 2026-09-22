@@ -192,6 +192,14 @@ class DuckDBBackend:
         members = [c for c in df.card_id.tolist() if c != card_id]
         return {"ring_id": card_id, "ring_size": len(members) + 1, "members": members[:25]}
 
+    def closed_case(self, case_id):
+        """One closed investigation, for the console's memory drill-down."""
+        df = self._df("closed_case", """
+            SELECT case_id, customer_id, card_id, opened_at, closed_at, outcome, pattern,
+                   n_txns, exposure_usd, actions_taken, report_filed, analyst_notes
+            FROM closed_case WHERE case_id = ?""", [case_id])
+        return df.iloc[0].to_dict() if len(df) else {}
+
     # 11 -------------------------------------------------------------------
     def doc_search(self, query, k=2, sources=None):
         """GraphRAG, document half: the policy and regulatory passages that govern
@@ -353,6 +361,11 @@ class TigerGraphBackend:
         members = sorted(c for c in out.get("members", []) if c != card_id)
         return {"ring_id": out.get("ring_id", ""),
                 "ring_size": int(out.get("ring_size", 1) or 1), "members": members[:25]}
+
+    def closed_case(self, case_id):
+        v = self.conn.getVerticesById("ClosedCase", case_id)
+        self.log.record("closed_case", {"case_id": case_id}, len(v))
+        return v[0]["attributes"] if v else {}
 
     def doc_search(self, query, k=2, sources=None):
         """TigerGraph vector search over the DocChunk vertices loaded by

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Layers, ShieldQuestion, Loader2 } from 'lucide-react';
+import { Send, Layers, ShieldQuestion, Loader2, Undo2 } from 'lucide-react';
 import { api, type Diff } from '../api';
 
 /** What changed, in the agent's own numbers.
@@ -43,8 +43,9 @@ const fmt = (v: unknown) =>
       : String(v);
 
 /** Challenge / deepen / step-up: the three ways an analyst changes the question. */
-export function Steering({ caseId, onResult }: {
+export function Steering({ caseId, steered, onResult }: {
   caseId: string;
+  steered: boolean;
   onResult: (payload: { case?: any; changed?: Diff; note?: string }) => void;
 }) {
   const [text, setText] = useState('');
@@ -59,9 +60,12 @@ export function Steering({ caseId, onResult }: {
       } else if (r.passed !== undefined) {
         onResult({ case: r.case, changed: r.changed,
           note: `Step-up ${r.passed ? 'completed' : 'not completed'} — simulated, and weighted as such.` });
+      } else if (r.restored) {
+        onResult({ case: r.case, changed: r.changed,
+          note: `Restored: ${r.restored.join(', ')} — back to the agent's own assessment.` });
       } else {
         onResult({ case: r.case, changed: r.changed,
-          note: r.matched ? `Withdrawn: ${r.matched.join(', ')}` : undefined });
+          note: r.note ?? (r.matched ? `Withdrawn: ${r.matched.join(', ')}` : undefined) });
       }
     } catch (e) {
       onResult({ note: String(e).slice(0, 200) });
@@ -108,6 +112,12 @@ export function Steering({ caseId, onResult }: {
           onClick={() => run('stepup', () => api.stepup(caseId))}>
           Send step-up auth
         </Secondary>
+        {steered && (
+          <Secondary busy={busy === 'reset'} icon={<Undo2 className="w-4 h-4" />}
+            onClick={() => run('reset', () => api.reset(caseId))}>
+            Undo steering
+          </Secondary>
+        )}
       </div>
     </div>
   );

@@ -18,6 +18,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "agent"))
 
 from dotenv import load_dotenv
 load_dotenv()
+import math
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -67,6 +69,11 @@ def load():
     for t in triggers.values():
         if isinstance(t.get("opened_at"), str):
             t["opened_at"] = dt.datetime.fromisoformat(t["opened_at"])
+        # a customer_report trigger has no model score, and pandas spells that NaN,
+        # which json.dumps refuses. None is what the wire means by "no score".
+        for k, v in list(t.items()):
+            if isinstance(v, float) and v != v:
+                t[k] = None
     for folder, source in ((CASES, "cases"), (MONITORING, "monitoring")):
         for p in sorted(folder.glob("*.json")):
             a = json.loads(p.read_text())
@@ -97,6 +104,7 @@ def rerun(c: Case) -> dict:
     c.answer = out
     return {
         "case": out,
+        "signals": _signals(c),
         "changed": {
             "probability": [before["case"]["fraud_probability"],
                             out["case"]["fraud_probability"]],
@@ -126,9 +134,30 @@ def list_cases():
 @app.get("/api/case/{cid}")
 def one_case(cid: str):
     c = get(cid)
+    if c.signals is None:
+        rerun(c)
     return {"case_id": cid, "source": c.source, "closed": c.closed,
-            "trigger": c.trigger, "events": c.events,
+            "trigger": c.trigger, "events": c.events, "signals": _signals(c),
             "suppressed": sorted(c.suppressed), "ring_cap": c.ring_cap, **c.answer}
+
+
+def _signals(c: Case) -> list[dict]:
+    """The probability decomposed.
+
+    The answer file carries `evidence`, whose shape the submission spec fixes: claim,
+    source, ref, entity_ids. It has no room for the two things that explain the number --
+    the signal's name and its log-odds weight -- so the console gets them here instead of
+    the spec being bent to fit a screen. The running total is what the waterfall draws:
+    a probability you cannot decompose is a probability nobody can argue with.
+    """
+    out, total = [], 0.0
+    for sg in (c.signals or []):
+        total += sg.weight
+        out.append({"name": sg.name, "weight": round(sg.weight, 3),
+                    "running": round(1 / (1 + math.exp(-total)), 4),
+                    "source": sg.source, "claim": sg.claim,
+                    "withdrawn": sg.name.startswith("withdrawn:")})
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -163,6 +192,27 @@ def challenge(cid: str, body: Challenge):
     c.log("challenge", body.text.strip(), withdrew=sorted(hit),
           moved=res["changed"]["probability"])
     return {"matched": sorted(hit), **res}
+
+
+@app.post("/api/case/{cid}/reset")
+def reset(cid: str):
+    """Withdraw the withdrawal.
+
+    An analyst who challenges the wrong signal had no way back: `suppressed` only ever
+    grew. Steering a case is a judgement, and a judgement you cannot take back is a trap,
+    not a control.
+    """
+    c = get(cid)
+    if c.closed:
+        raise HTTPException(409, "case is closed")
+    if not (c.suppressed or c.analyst_signals or c.ring_cap):
+        return {"note": "Nothing to reset -- this case is as the agent left it."}
+    undone = sorted(c.suppressed)
+    c.suppressed, c.analyst_signals, c.ring_cap = set(), [], None
+    res = rerun(c)
+    c.log("reset", "analyst steering cleared; back to the agent's own assessment",
+          restored=undone)
+    return {"restored": undone, **res}
 
 
 class Deepen(BaseModel):
@@ -207,6 +257,73 @@ def stepup(cid: str):
     c.log("stepup", "passed" if passed else "not completed",
           moved=res["changed"]["probability"])
     return {"passed": passed, **res}
+
+
+@app.get("/api/case/{cid}/episode")
+def episode(cid: str):
+    """The transactions around the flagged one, so the pattern can be seen rather than
+    asserted. Card testing is three sub-$5 authorisations and then a purchase; that is a
+    shape, and a list of 25 identifiers is not."""
+    c = get(cid)
+    b = get_backend(BACKEND, ToolLog())
+    t = c.trigger
+    anchor = dt.datetime.fromisoformat(str(t["opened_at"]))
+    lo, hi = anchor - dt.timedelta(hours=72), anchor + dt.timedelta(hours=24)
+    df = b.card_window(t["card_id"], lo, hi)
+    if not len(df):
+        return {"anchor": str(t["flagged_txn_id"]), "txns": []}
+    affected = set(c.answer["case"]["affected_txn_ids"])
+    rows = []
+    for _, r in df.iterrows():
+        rows.append({
+            "txn_id": str(r.txn_id), "ts": str(r.ts), "amount": float(r.amount),
+            "channel": r.channel, "product_cd": r.product_cd or "",
+            "risk_score": None if r.risk_score != r.risk_score else float(r.risk_score),
+            "in_episode": str(r.txn_id) in affected,
+            "anchor": str(r.txn_id) == str(t["flagged_txn_id"]),
+        })
+    return {"anchor": str(t["flagged_txn_id"]), "window": [str(lo), str(hi)], "txns": rows}
+
+
+@app.get("/api/case/{cid}/network")
+def network(cid: str):
+    """The ego-network the investigation actually walked: this card, the device profiles
+    it used, the other cards on them, and the closed cases those reach. Assembled from
+    what the case already found -- it is a view of the traversal, not a second one."""
+    c = get(cid)
+    a, t = c.answer, c.trigger
+    card = t["card_id"]
+    nodes = [{"id": card, "kind": "card", "label": card, "center": True},
+             {"id": t["customer_id"], "kind": "customer", "label": t["customer_id"]}]
+    edges = [{"from": t["customer_id"], "to": card, "kind": "OWNS"}]
+
+    for d in a["case"]["connected_device_profiles"]:
+        nodes.append({"id": d, "kind": "device", "label": d.split(" | ")[0] or "unknown"})
+        edges.append({"from": card, "to": d, "kind": "FROM_DEVICE"})
+        for other in a["case"]["connected_card_ids"]:
+            if not any(n["id"] == other for n in nodes):
+                nodes.append({"id": other, "kind": "card", "label": other})
+            edges.append({"from": other, "to": d, "kind": "FROM_DEVICE"})
+
+    for pc in a["case"]["similar_prior_cases"][:8]:
+        nodes.append({"id": pc, "kind": "closed_case", "label": pc})
+        edges.append({"from": card, "to": pc, "kind": "HAS_CLOSED_CASE"})
+
+    ring = getattr(c, "ring_size", None)
+    return {"nodes": nodes, "edges": edges, "ring_size": ring,
+            "ring_cap": c.ring_cap or 8}
+
+
+@app.get("/api/closed/{case_id}")
+def closed_case(case_id: str):
+    """One prior investigation, in full. The chips under `similar_prior_cases` are the
+    bank's own closed cases; this is what they actually said."""
+    b = get_backend(BACKEND, ToolLog())
+    row = b.closed_case(case_id)
+    if not row:
+        raise HTTPException(404, f"no closed case {case_id}")
+    return {k: (str(v) if isinstance(v, (dt.datetime, dt.date)) else v)
+            for k, v in row.items()}
 
 
 # ---------------------------------------------------------------------------

@@ -19,6 +19,8 @@ export const api = {
     call<{ matched: string[]; case?: any; changed?: Diff; note?: string }>(
       `/case/${id}/challenge`, { text }),
   deepen: (id: string, cap: number) => call<{ case: any; changed: Diff }>(`/case/${id}/deepen`, { cap }),
+  reset: (id: string) => call<{ restored?: string[]; case?: any; changed?: Diff; note?: string }>(
+    `/case/${id}/reset`, {}),
   stepup: (id: string) => call<{ passed: boolean; case: any; changed: Diff }>(`/case/${id}/stepup`, {}),
   decide: (id: string, decision: 'approve' | 'override', action?: string, note?: string) =>
     call<any>(`/case/${id}/decision`, { decision, action, note }),

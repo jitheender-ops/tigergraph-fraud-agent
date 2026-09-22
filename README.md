@@ -92,12 +92,46 @@ evidence at the damped weight a simulated reply earns.
 to `BLOCK_ALL_CARDS` returns the L2 approval it demands. The UI names an action; it never
 decides a route.
 
+**Undo.** Steering is reversible. `suppressed` only ever grew in the first cut, which
+made a mis-aimed challenge a trap rather than a control.
+
 **Close, and blacklist a device.** Both write a `ClosedCase` vertex, which is the memory
 loop and not a metaphor: `prior_cases_for_card` and `prior_cases_for_device` read
 `ClosedCase`, so the next investigation that touches the same card or device retrieves
 what the analyst just decided. Blacklisting attaches the case to the transactions that ran
 on the profile, so the flag propagates through the graph rather than through a side table
 nothing else reads. Nothing is retrained -- the evidence set grows.
+
+### What the console shows that the answer file cannot
+
+Four views, each rendering something the investigation already computed but the JSON has
+no room for.
+
+**The probability, decomposed.** `fraud_probability` is a logistic over summed log-odds,
+and the answer spec fixes `evidence` at claim/source/ref/entity_ids -- no room for a
+signal's name or its weight. The API returns them separately rather than bending the
+spec to fit a screen, and the waterfall draws each contribution and the running
+probability after it. On HHG-011 you can watch it walk 0.27 -> 0.18 -> 0.29 -> ... ->
+0.90, green for the exculpatory signals. A probability you cannot decompose is a
+probability nobody can argue with -- and after a challenge, the bar that was carrying the
+case visibly disappears.
+
+**The ego-network.** The card, the device profiles it used, the other cards on them, and
+the closed cases those reach. Laid out radially rather than by a force simulation,
+because the rings mean something and an analyst comparing two cases needs the same shape
+to mean the same thing. Clicking a closed case opens it.
+
+**The episode.** Card testing is three authorisations under $5 and then a purchase --
+that is a shape, not a list of 25 identifiers. Amount is on a log scale because the whole
+tell is $3 next to $259.
+
+**A prior case, in full.** The chips under `similar_prior_cases` are the bank's own
+finished investigations; clicking one shows its outcome, its exposure, the actions taken
+and the analyst's note. That is what the memory loop is retrieving.
+
+The queue itself is ordered by exposure x probability rather than by case id, `j`/`k`
+move through it, `/` starts an argument, and each case file can be downloaded exactly as
+submitted.
 
 ## GraphRAG: both halves
 
