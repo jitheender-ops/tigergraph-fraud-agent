@@ -112,7 +112,7 @@
       "CC-3899",
       "CC-3634"
     ],
-    "summary": "On 2016-11-27, the cardholder reported that they did not make an in-person transaction of $39.08 on card C02354-K2. Four of the card-detail match flags M1-M9 came back F on this transaction, 95 transactions occurred on this card in the 48 hours ending at the flagged one, and the card is linked to 19 confirmed-fraud cases including CC-5558, CC-5441, CC-4942, and CC-4721. The transaction is assessed as fraud at probability 0.95 with pattern account_takeover and exposure of $769.01.",
+    "summary": "On 2016-11-27, the cardholder denied an in person transaction for $39.08 on card C02354-K2. Four of the card-detail match flags M1-M9 came back F, and 95 transactions occurred on this card in the 48 hours ending at the flagged one. The card has 19 confirmed-fraud case(s) already closed on it, specifically CC-5558, CC-5441, CC-4942, and CC-4721. The transaction was assessed as fraud at probability 0.95, pattern account_takeover, with $769.01 of exposure, under case ID 12345.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-018"
   },
@@ -168,7 +168,7 @@
     "activity_dates": []
   },
   "stop_reason": "Policy 6: probability 0.95 is at or above 0.85 on 3 independent pieces of evidence, which is the bar for a defensible action.",
-  "tool_calls": 9,
-  "tokens": 855,
-  "latency_s": 1.12
+  "tool_calls": 10,
+  "tokens": 863,
+  "latency_s": 1.1
 }

@@ -295,7 +295,8 @@ prep/        to_parquet.py  derive.py  calibrate.py  validate_card_id.py
 eval/        backtest.py
 graph/       schema.gsql  queries.gsql  load.py
 agent/       features.py  patterns.py  policy.py  episode.py  investigate.py
-             answer.py  backend.py  mcp_backend.py  retrieve.py  llm.py  tg.py
+             answer.py  backend.py  mcp_backend.py  retrieve.py  external.py
+             execute.py  llm.py  tg.py
 cases/       HHG-001.json … HHG-020.json
 monitoring/  MON-001.json … MON-005.json  index.md
 dashboard-app/  the analyst console (React + Vite); server.py is its API

@@ -25,6 +25,14 @@
         ]
       },
       {
+        "claim": "External email-domain intelligence classifies 'hotmail.com' as a free webmail address, which is what most real cardholders and most fraudsters both use. Measured across the bank's closed cases this is the baseline -- it appears on 3,667 confirmed frauds and 573 cleared alarms -- so it is named as context and carries no weight.",
+        "source": "external",
+        "ref": "external:email_domain_intel",
+        "entity_ids": [
+          "hotmail.com"
+        ]
+      },
+      {
         "claim": "The cardholder contacted the bank stating they did not make this purchase",
         "source": "customer",
         "ref": "trigger:customer_report",
@@ -61,14 +69,14 @@
       }
     ],
     "similar_prior_cases": [],
-    "summary": "The customer reported that they did not make a $59.67 online transaction on 2016-12-11 on card C09988-K1 under case ID 0. The identity record marks this device New for the account, and 83% of cleared alarms had a New device against 18% of confirmed fraud, while connected components placed this card in the giant device-sharing component (2,500 cards). Known fraud pattern 3 and policy rule R2 both indicate that a customer denial supports a `BLOCK_CARD`, `CREATE_CASE`, and `FILE_REPORT` recommendation when exposure exceeds $1,000 or the case connects to a shared device profile. The evidence conflicts and the verdict remains uncertain at probability 0.50 with exposure of $59.67.",
+    "summary": "The case for case ID undisclosed has a verdict of uncertain at probability 0.50 with exposure of $59.67. The customer denied transaction on card C09988-K1 for a $59.67 online purchase on 2016-12-11. The identity record marks the device New for the account, 83% of cleared alarms had a New device against 18% of confirmed fraud, and known fraud pattern 3 is card-not-present fraud from a new device. External email-domain intelligence classifies 'hotmail.com' as a free webmail address appearing on 3,667 confirmed frauds and 573 cleared alarms, connected components place this card in the graph's giant device-sharing component of 2,500 cards, and policy rule R2 recommends `BLOCK_CARD` and `CREATE_CASE` with `FILE_REPORT` if exposure exceeds $1,000 or the case connects to a shared device profile or another card's fraud.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-016"
   },
   "evidence_requests": [
     {
       "type": "analyst_info",
-      "asked_after_step": 9,
+      "asked_after_step": 10,
       "assumed_response": "Analyst confirms no merchant-side chargeback or law-enforcement notice is attached to these transactions, so the graph evidence stands as gathered. ASSUMPTION: simulated; no analyst replies ship with the dataset."
     }
   ],
@@ -133,7 +141,7 @@
     "activity_dates": []
   },
   "stop_reason": "A verification response settled the question (policy 6): probability moved to 0.50 on 2 independent pieces of evidence and the action set follows directly. Further steps would not change it.",
-  "tool_calls": 9,
-  "tokens": 774,
-  "latency_s": 0.58
+  "tool_calls": 10,
+  "tokens": 897,
+  "latency_s": 0.63
 }

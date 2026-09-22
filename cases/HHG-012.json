@@ -39,6 +39,14 @@
         ]
       },
       {
+        "claim": "External email-domain intelligence classifies 'gmail.com' as a free webmail address, which is what most real cardholders and most fraudsters both use. Measured across the bank's closed cases this is the baseline -- it appears on 3,667 confirmed frauds and 573 cleared alarms -- so it is named as context and carries no weight.",
+        "source": "external",
+        "ref": "external:email_domain_intel",
+        "entity_ids": [
+          "gmail.com"
+        ]
+      },
+      {
         "claim": "Connected components place this card in the graph's giant device-sharing component (2,500 cards). Transitive device sharing percolates at every threshold tested, so membership is not evidence of a ring and carries no weight here; it is recorded because policy R6 asks for the shared element to be named.",
         "source": "graph",
         "ref": "query:ring_component",
@@ -70,7 +78,7 @@
       "CC-2370",
       "CC-0003"
     ],
-    "summary": "The risk score on card C05876-K2 for a $30.91 in-person transaction on 2016-12-18 supports a fraud verdict at probability 0.87 with pattern account_takeover and exposure of $30.91. One card-detail match flag (M1-M9) came back F on this transaction, 13 transactions occurred on this card in the 48 hours ending at the flagged one, and the bank has 1 confirmed-fraud case (CC-2370) already closed on this card with pattern card_not_present_fraud. This card resides in the graph's giant device-sharing component (2,500 cards), and known fraud pattern 5 indicates mixed-channel activity inconsistent with the cardholder, often with device and match-flag anomalies, pointing to stolen credentials. Policy rule R1 advises verifying before blocking on a weak signal when the assessed fraud probability is below 0.70, so no action was taken under this rule.",
+    "summary": "The risk score for card C05876-K2 on case CC-2370 for a $30.91 in person transaction on 2016-12-18 was assessed as fraud at probability 0.87 with pattern account_takeover. One card-detail match flag (M1-M9) came back F on this transaction, 13 transactions on this card occurred in the 48 hours ending at the flagged one, and the bank has 1 confirmed-fraud case(s) already closed on this card (CC-2370), pattern(s): card_not_present_fraud. The activity was assessed as mixed-channel activity consistent with stolen credentials, 1 transaction(s) and $30.91 of exposure.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-012"
   },
@@ -111,7 +119,7 @@
     "activity_dates": []
   },
   "stop_reason": "Policy 6: probability 0.87 is at or above 0.85 on 2 independent pieces of evidence, which is the bar for a defensible action.",
-  "tool_calls": 9,
-  "tokens": 871,
-  "latency_s": 0.66
+  "tool_calls": 10,
+  "tokens": 897,
+  "latency_s": 0.62
 }

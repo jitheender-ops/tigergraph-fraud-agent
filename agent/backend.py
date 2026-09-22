@@ -12,7 +12,7 @@ TOOL_NAMES = [
     "card_window", "card_baseline", "device_neighbors", "region_history",
     "card_testing_probe", "prior_cases_for_card", "prior_cases_for_device",
     "connected_cards", "region_cluster", "device_reach", "ring_component",
-    "doc_search", "write_case",
+    "doc_search", "email_intel", "cross_case_entities", "write_case",
 ]
 
 
@@ -192,6 +192,47 @@ class DuckDBBackend:
         members = [c for c in df.card_id.tolist() if c != card_id]
         return {"ring_id": card_id, "ring_size": len(members) + 1, "members": members[:25]}
 
+    def email_intel(self, domain):
+        """The one evidence source outside the institution. Shared by both backends: it
+        is a vendor lookup, not a graph traversal, so there is nothing to express twice."""
+        import external
+        hit = external.lookup(domain)
+        self.log.record("email_intel", {"domain": domain}, 1 if hit["class"] != "unknown" else 0)
+        return hit
+
+    def cross_case_entities(self, min_cases=2):
+        """Entities recurring across investigations. The SQL mirror reads the same two
+        case tables the GSQL walks, so the two answer alike."""
+        df = self._df("cross_case_entities", """
+            WITH closed AS (
+              SELECT card_id AS entity, 'card' AS kind, case_id, pattern FROM closed_case
+              UNION ALL
+              SELECT trim(u.cid), 'card', c.case_id, c.pattern FROM closed_case c,
+                     unnest(str_split(c.connected_card_ids,'|')) AS u(cid)
+              WHERE c.connected_card_ids IS NOT NULL AND trim(u.cid) <> ''
+              UNION ALL
+              -- same ring-grade filter the GSQL applies: a profile on hundreds of
+              -- cards recurs across cases because it is Chrome, not because it is a ring
+              SELECT t.device_profile, 'device', c.case_id, c.pattern
+              FROM closed_case c, unnest(str_split(c.txn_ids,'|')) AS u(tid)
+              JOIN tx t ON t.txn_id = TRY_CAST(u.tid AS BIGINT)
+              JOIN (SELECT device_profile FROM tx
+                    WHERE device_profile IS NOT NULL AND device_profile <> ''
+                      AND device_profile NOT LIKE 'unknown | unknown | unknown%'
+                    GROUP BY 1 HAVING count(DISTINCT card_id) BETWEEN 2 AND 80) rd
+                ON rd.device_profile = t.device_profile
+              WHERE t.device_profile IS NOT NULL AND t.device_profile <> ''
+            )
+            SELECT entity, any_value(kind) AS kind,
+                   count(DISTINCT case_id) AS n_cases,
+                   string_agg(DISTINCT case_id, '|') AS cases,
+                   string_agg(DISTINCT pattern, '|') AS patterns
+            FROM closed WHERE entity IS NOT NULL AND entity <> ''
+            GROUP BY entity HAVING n_cases >= ?
+            ORDER BY n_cases DESC LIMIT 60
+        """, [int(min_cases)])
+        return df.to_dict("records")
+
     def closed_case(self, case_id):
         """One closed investigation, for the console's memory drill-down."""
         df = self._df("closed_case", """
@@ -361,6 +402,33 @@ class TigerGraphBackend:
         members = sorted(c for c in out.get("members", []) if c != card_id)
         return {"ring_id": out.get("ring_id", ""),
                 "ring_size": int(out.get("ring_size", 1) or 1), "members": members[:25]}
+
+    def email_intel(self, domain):
+        """The one evidence source outside the institution. Shared by both backends: it
+        is a vendor lookup, not a graph traversal, so there is nothing to express twice."""
+        import external
+        hit = external.lookup(domain)
+        self.log.record("email_intel", {"domain": domain}, 1 if hit["class"] != "unknown" else 0)
+        return hit
+
+    def cross_case_entities(self, min_cases=2):
+        r = self._run("cross_case_entities", {"p_min_cases": int(min_cases)})
+        blk = {}
+        for b in r:
+            blk.update(b)
+        rows = []
+        for kind, ck, pk in (("card", "card_cases", "card_patterns"),
+                             ("device", "dev_cases", "dev_patterns")):
+            pats = blk.get(pk, {})
+            for entity, ids in blk.get(ck, {}).items():
+                if len(ids) < min_cases:
+                    continue
+                rows.append({
+                    "entity": entity, "kind": kind, "n_cases": len(ids),
+                    "cases": "|".join(sorted(ids)),
+                    "patterns": "|".join(sorted({p for p in pats.get(entity, []) if p}))})
+        rows.sort(key=lambda x: -x["n_cases"])
+        return rows[:60]
 
     def closed_case(self, case_id):
         # getVerticesById RAISES for an id that does not exist rather than returning

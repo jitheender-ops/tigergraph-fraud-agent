@@ -57,6 +57,14 @@
         ]
       },
       {
+        "claim": "External email-domain intelligence classifies 'gmail.com' as a free webmail address, which is what most real cardholders and most fraudsters both use. Measured across the bank's closed cases this is the baseline -- it appears on 3,667 confirmed frauds and 573 cleared alarms -- so it is named as context and carries no weight.",
+        "source": "external",
+        "ref": "external:email_domain_intel",
+        "entity_ids": [
+          "gmail.com"
+        ]
+      },
+      {
         "claim": "Connected components place this card in the graph's giant device-sharing component (2,500 cards). Transitive device sharing percolates at every threshold tested, so membership is not evidence of a ring and carries no weight here; it is recorded because policy R6 asks for the shared element to be named.",
         "source": "graph",
         "ref": "query:ring_component",
@@ -90,7 +98,7 @@
       "CC-3216",
       "CC-1475"
     ],
-    "summary": "Risk score on card C07671-K2 over a $35.66 online transaction on 2016-12-09 was 0.76, and the identity record marked this device New. The card's history was 1% online, 25 transactions occurred in the 48 hours ending at the flagged one, and the bank had 3 closed confirmed-fraud case(s) on the card (CC-4294, CC-3216, CC-1475) with pattern(s): account_takeover, card_not_present_new_device. The device-sharing component contained 2,500 cards. Assessed as legitimate at fraud probability 0.27, the case ID is unstated, pattern is account_takeover, and exposure is $0.00.",
+    "summary": "Risk score on card C07671-K2 over a $35.66 online transaction on 2016-12-09 was 0.76, and 25 transactions occurred on this card in the 48 hours ending at the flagged one. The identity record marks this device New for the account, and the card's history is 1% online. The bank has 3 confirmed-fraud case(s) already closed on this card (CC-4294, CC-3216, CC-1475), pattern(s): account_takeover, card_not_present_new_device. Model risk score 0.76 falls in the 0.70-0.85 band where the bank's closed history holds 817 confirmed frauds against 234 cleared alarms, a likelihood ratio of 0.67. A burst of ten or more transactions is 1.9x more likely on confirmed fraud, whereas 83% of cleared alarms had a New device against 18% of confirmed fraud, and 11.9% of cleared alarms were 1% online against 4.5% of confirmed fraud. Assessed as legitimate at probability 0.27 with exposure of $0.00, the case ID is not provided.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-013"
   },
@@ -141,7 +149,7 @@
     "activity_dates": []
   },
   "stop_reason": "Policy 6: probability 0.27 on 4 independent pieces of evidence sits between the stopping thresholds. Stopping here because the remaining uncertainty is the cardholder's own intent, which only the cardholder or an analyst can resolve; the recommended actions route it to them rather than resolving it in the graph.",
-  "tool_calls": 9,
-  "tokens": 1068,
-  "latency_s": 0.71
+  "tool_calls": 10,
+  "tokens": 1249,
+  "latency_s": 0.73
 }

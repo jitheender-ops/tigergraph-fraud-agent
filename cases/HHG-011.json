@@ -120,6 +120,14 @@
         ]
       },
       {
+        "claim": "External email-domain intelligence classifies 'gmail.com' as a free webmail address, which is what most real cardholders and most fraudsters both use. Measured across the bank's closed cases this is the baseline -- it appears on 3,667 confirmed frauds and 573 cleared alarms -- so it is named as context and carries no weight.",
+        "source": "external",
+        "ref": "external:email_domain_intel",
+        "entity_ids": [
+          "gmail.com"
+        ]
+      },
+      {
         "claim": "The cardholder contacted the bank stating they did not make this purchase",
         "source": "customer",
         "ref": "trigger:customer_report",
@@ -189,14 +197,14 @@
       "CC-2673",
       "CC-2247"
     ],
-    "summary": "The customer reported card C11923-K2 for the $131.30 online transaction on 2016-12-29, and the cardholder denied making the purchase upon contact. The identity record marks the device as New for the account, $131.30 is 4.6x this card's median and above its 95th percentile, and 59 transactions occurred on this card in the 48 hours ending at the flagged one. Three online authorisations under $5 happened in the 24h before the flagged transaction, matching the testing sequence described in policy R5. The device profile 'SM-G610F Build/NRD90M | unknown | chrome 66.0 for android | unknown' is shared with 2 other card(s) across 3 customer(s), and the bank has 10 confirmed-fraud case(s) already closed on this card (CC-4501, CC-3905, CC-3206, CC-3039). This activity was assessed as fraud at probability 0.90 with pattern card_testing and $2,609.02 of exposure, and 2 other card(s) transacted through the same device profile in the window and are named for monitoring per policy R6.",
+    "summary": "The customer reported that they did not make the $131.30 online transaction on 2016-12-29 on card C11923-K2. The case was assessed as fraud at probability 0.90 with exposure of $2,609.02. The $131.30 amount was 4.6x the card's median and above its 95th percentile. Three online authorizations under $5 occurred in the 24h before the flagged transaction, matching the card_testing pattern. The device profile 'SM-G610F Build/NRD90M | unknown | chrome 66.0 for android | unknown' was shared with 2 other card(s) across 3 customer(s). The card is linked to 10 closed confirmed-fraud cases including CC-4501, CC-3905, CC-3206, and CC-3039. Under policy R2, the cardholder denial triggers a `BLOCK_CARD` and `CREATE_CASE` recommendation, and under policy R6 the shared device profile must be named for monitoring.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-011"
   },
   "evidence_requests": [
     {
       "type": "step_up_auth",
-      "asked_after_step": 9,
+      "asked_after_step": 10,
       "assumed_response": "Step-up authentication was not completed; the challenge expired unanswered. ASSUMPTION: simulated; no authentication responses ship with the dataset."
     }
   ],
@@ -285,7 +293,7 @@
   "sar": {
     "file": true,
     "reason": "Policy 3a: fraud established and exposure $2,609.02 exceeds $1,000.",
-    "narrative": "Between 2016-12-22 and 2016-12-29, card C11923-K2 belonging to customer C11923 was used for 25 transaction(s) totalling $2,609.02, of which the transaction that triggered this investigation was $131.30 on 2016-12-29, and this activity was conducted online under product code C from the device profile 'SM-G610F Build/NRD90M | unknown | chrome 66.0 for android | unknown'. The cardholder denies the transaction on contact, and the cardholder contacted the bank stating they did not make this purchase, while it is assumed that on contact, step-up authentication was not completed because the challenge expired unanswered, as no cardholder replies were available to this investigation. Prior to the flagged transaction, there were 3 online authorisations under $5 in the 24h before the flagged transaction on this card, followed by a larger purchase, which matches the testing sequence described in policy R5, and 59 transactions on this card occurred in the 48 hours ending at the flagged one, a burst of ten or more being 1.9x more likely on confirmed fraud. The same device profile was used by 2 other card(s) within the thirty days to 2016-12-29, specifically C03938-K1 and C05595-K1, indicating a common actor operating across more than one cardholder. The bank's closed investigations already record 10 confirmed fraud case(s) on this card, specifically CC-4501, CC-3905, CC-3206, CC-3039, with patterns including card_not_present_new_device and card_testing. The activity is suspicious because it is consistent with testing of a stolen card number before use, assessed at a 90% probability of being fraudulent based on 6 independent pieces of evidence drawn from the transaction graph and the institution's closed-case history, and the filing is made because the loss exposure of $2,609.02 exceeds the institution's $1,000 reporting threshold.",
+    "narrative": "Between 2016-12-22 and 2016-12-29, online product code C card C11923-K2 belonging to customer C11923 was used for 25 transactions totalling $2,609.02, including the flagged $131.30 transaction on 2016-12-29. During the 48 hours ending at that flagged transaction, 59 transactions occurred on the card, and in the preceding 24 hours there were 3 online authorizations under $5 followed by the larger purchase, which aligns with the card testing sequence described in policy R5. The activity was conducted from the device profile 'SM-G610F Build/NRD90M | unknown | chrome 66.0 for android | unknown', which was also used within 30 days to 2016-12-29 by cards C03938-K1 and C05595-K1, indicating a common actor operating across more than one cardholder. The bank's closed investigations already record 10 confirmed fraud cases on this card (CC-4743, CC-4501, CC-3905, CC-3206), and the card is linked to the giant device-sharing component containing 2,500 cards. The cardholder denied the transaction on contact, and it is assumed in the case file that step-up authentication was not completed because the challenge expired unanswered, as no cardholder replies were available to this investigation. The activity is suspicious because it is consistent with testing of a stolen card number before use, assessed at a 0.90 probability of being fraudulent on 6 independent pieces of evidence, and the filing is made because the $2,609.02 loss exposure exceeds the $1,000 reporting threshold.",
     "subjects": [
       "C11923",
       "C11923-K2",
@@ -300,7 +308,7 @@
     ]
   },
   "stop_reason": "A verification response settled the question (policy 6): probability moved to 0.90 on 6 independent pieces of evidence and the action set follows directly. Further steps would not change it.",
-  "tool_calls": 15,
-  "tokens": 3690,
-  "latency_s": 1.55
+  "tool_calls": 16,
+  "tokens": 3728,
+  "latency_s": 1.46
 }

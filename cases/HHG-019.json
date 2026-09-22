@@ -3,7 +3,7 @@
   "case": {
     "status": "closed_legitimate",
     "verdict": "legitimate",
-    "fraud_probability": 0.18,
+    "fraud_probability": 0.06,
     "pattern": "none",
     "pattern_description": "",
     "affected_txn_ids": [],
@@ -61,6 +61,14 @@
         ]
       },
       {
+        "claim": "External email-domain intelligence classifies 'verizon.net' as an address tied to a paid internet, cable or phone subscription, which means a billing relationship and a credit check stand behind it. Measured against the bank's closed cases that points away from fraud (log-likelihood ratio -1.24). The domain is in the transaction; what kind of domain it is, is not -- that is the one piece of evidence here the institution does not own.",
+        "source": "external",
+        "ref": "external:email_domain_intel",
+        "entity_ids": [
+          "verizon.net"
+        ]
+      },
+      {
         "claim": "Connected components place this card in the graph's giant device-sharing component (2,500 cards). Transitive device sharing percolates at every threshold tested, so membership is not evidence of a ring and carries no weight here; it is recorded because policy R6 asks for the shared element to be named.",
         "source": "graph",
         "ref": "query:ring_component",
@@ -94,7 +102,7 @@
       "CC-2087",
       "CC-2011"
     ],
-    "summary": "The risk score on card C07987-K2 for the $99.92 transaction on 2016-12-01 was 0.90, and the identity record marked the device New for the account. The bank had 3 confirmed-fraud case(s) already closed on this card (CC-5026, CC-2860, CC-2011), pattern(s): card_not_present_fraud, out_of_region_use. The exact amount ($99.92) had been charged to this card 13 times across 4 distinct months under the same product code, a median of 27 days apart. Device profile 'Windows | other | chrome 61.0 | 1280x720' was shared with 2 other card(s) inside the 30-day window, across 3 customer(s), and the card sat in a giant device-sharing component of 2,500 cards. The transaction was assessed as legitimate at probability 0.18, no transaction is treated as part of a fraud episode, and exposure is $0.00.",
+    "summary": "The risk score on card C07987-K2 for the $99.92 online transaction on 2016-12-01 was 0.90. The identity record marked the device as New, 2 other card(s) transacted through the same device profile within the 30-day window, and external email-domain intelligence classified 'verizon.net' as tied to a paid subscription. Against this, 74% of cleared alarms scored at or above 0.85 versus 9% of confirmed fraud, 83% of cleared alarms involved a New device versus 18% of confirmed fraud, and the exact amount had been charged 13 times across 4 distinct months. The bank also had 3 confirmed-fraud case(s) already closed on this card (CC-5026, CC-2860, CC-2011), pattern(s): card_not_present_fraud, out_of_region_use. The card was assessed as legitimate at probability 0.06, no transaction is treated as part of a fraud episode, and exposure is $0.00.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-019"
   },
@@ -104,48 +112,38 @@
       {
         "action": "ALLOW_TRANSACTION",
         "route": "auto",
-        "reason": "R1 and policy 6: probability 0.18 with 2 independent pieces of evidence pointing away from fraud; the transaction stands."
+        "reason": "R1 and policy 6: probability 0.06 with 3 independent pieces of evidence pointing away from fraud; the transaction stands."
       },
       {
         "action": "CLOSE_NO_FRAUD",
         "route": "auto",
         "reason": "Policy 6: the evidence settles the question; close as legitimate."
-      },
-      {
-        "action": "MONITOR_CARD",
-        "route": "auto",
-        "reason": "Residual uncertainty is low but non-zero; keep 72-hour monitoring without customer impact."
       }
     ],
     "final": [
       {
         "action": "ALLOW_TRANSACTION",
         "route": "auto",
-        "reason": "R1 and policy 6: probability 0.18 with 2 independent pieces of evidence pointing away from fraud; the transaction stands."
+        "reason": "R1 and policy 6: probability 0.06 with 3 independent pieces of evidence pointing away from fraud; the transaction stands."
       },
       {
         "action": "CLOSE_NO_FRAUD",
         "route": "auto",
         "reason": "Policy 6: the evidence settles the question; close as legitimate."
-      },
-      {
-        "action": "MONITOR_CARD",
-        "route": "auto",
-        "reason": "Residual uncertainty is low but non-zero; keep 72-hour monitoring without customer impact."
       }
     ],
     "what_changed": "nothing"
   },
   "sar": {
     "file": false,
-    "reason": "Policy 3a: a report requires fraud confirmed or strongly suspected. Assessed probability 0.18 with verdict 'legitimate' does not meet that bar.",
+    "reason": "Policy 3a: a report requires fraud confirmed or strongly suspected. Assessed probability 0.06 with verdict 'legitimate' does not meet that bar.",
     "narrative": "",
     "subjects": [],
     "total_amount_usd": 0,
     "activity_dates": []
   },
-  "stop_reason": "Policy 6: probability 0.18 on 2 independent pieces of evidence sits between the stopping thresholds. Stopping here because the remaining uncertainty is the cardholder's own intent, which only the cardholder or an analyst can resolve; the recommended actions route it to them rather than resolving it in the graph.",
-  "tool_calls": 13,
-  "tokens": 1199,
-  "latency_s": 0.67
+  "stop_reason": "Policy 6: probability 0.06 is at or below 0.15 on 3 independent pieces of evidence; the alarm is explained and further investigation would not change the outcome.",
+  "tool_calls": 14,
+  "tokens": 1324,
+  "latency_s": 0.65
 }

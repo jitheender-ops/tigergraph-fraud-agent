@@ -1,20 +1,18 @@
 {
   "case_id": "HHG-005",
   "case": {
-    "status": "open",
-    "verdict": "uncertain",
-    "fraud_probability": 0.33,
-    "pattern": "card_not_present_new_device",
+    "status": "closed_legitimate",
+    "verdict": "legitimate",
+    "fraud_probability": 0.13,
+    "pattern": "none",
     "pattern_description": "",
-    "affected_txn_ids": [
-      "3523199"
-    ],
-    "first_suspicious_txn_id": "3523199",
+    "affected_txn_ids": [],
+    "first_suspicious_txn_id": "",
     "connected_card_ids": [],
     "connected_device_profiles": [
       "iOS Device | iOS 9.3.5 | mobile safari 9.0 | 1024x768"
     ],
-    "exposure_usd": 100.07,
+    "exposure_usd": 0.0,
     "evidence": [
       {
         "claim": "The identity record marks this device New for the account. 83% of cleared alarms had a New device against 18% of confirmed fraud: on its own a new device is the signature of a cardholder who has just bought a phone, not of a compromise",
@@ -32,6 +30,14 @@
           "CC-2857",
           "CC-2717",
           "CC-2400"
+        ]
+      },
+      {
+        "claim": "External email-domain intelligence classifies 'icloud.com' as an address tied to a paid internet, cable or phone subscription, which means a billing relationship and a credit check stand behind it. Measured against the bank's closed cases that points away from fraud (log-likelihood ratio -1.24). The domain is in the transaction; what kind of domain it is, is not -- that is the one piece of evidence here the institution does not own.",
+        "source": "external",
+        "ref": "external:email_domain_intel",
+        "entity_ids": [
+          "icloud.com"
         ]
       },
       {
@@ -56,9 +62,9 @@
         "entity_ids": []
       },
       {
-        "claim": "Policy rule R1: Verify before you block on a weak signal: R1. Verify before you block on a weak signal. If the case rests on a single signal (including a risk score alone) and your assessed fraud probability is below 0.70, recommend `VERIFY_WITH_CUSTOMER` or `STEP_UP_AUTH` before any block. Blocking a legitimate customer on one signal is a policy breach.",
+        "claim": "Fraud Policy - 6. Stopping: Stop investigating when one of these holds: - Fraud probability is at or above 0.85, or at or below 0.15, supported by at least two independent pieces of evidence - A verification response settles the question - Further steps are unlikely to change the decision. Say so in `stop_reason` Investigations that continue past a defensible decision waste time. Investigations that stop before one create risk.",
         "source": "document",
-        "ref": "document:fraud_policy#R1",
+        "ref": "document:fraud_policy#6. Stopping",
         "entity_ids": []
       }
     ],
@@ -67,69 +73,48 @@
       "CC-2717",
       "CC-2400"
     ],
-    "summary": "The risk score for card C02923-K1 on a $100.07 online transaction on 2016-12-07 yielded a verdict of uncertain at probability 0.33 with pattern card_not_present_new_device. The identity record marked the device New for the account, 83% of cleared alarms showed a New device versus 18% of confirmed fraud, and the bank had 3 confirmed-fraud cases already closed on this card (CC-2857, CC-2717, CC-2400), pattern(s): account_takeover. Connected components placed the card in the graph's giant device-sharing component (2,500 cards) with no weight, and known fraud pattern 3 noted that card-not-present fraud from a new device is not proof because people buy new phones. Policy rule R1 required verify before block on a weak signal because the assessed fraud probability was below 0.70. Exposure if the activity is fraudulent remained $100.07, and case ID CC-2857 was among the prior closed cases.",
+    "summary": "Risk score on card C02923-K1 over a $100.07 online transaction on 2016-12-07. Against it: The bank has 3 confirmed-fraud case(s) already closed on this card (CC-2857, CC-2717, CC-2400), pattern(s): account_takeover. For the cardholder: External email-domain intelligence classifies 'icloud.com' as an address tied to a paid internet, cable or phone subscription, which means a billing relationship and a credit check stand behind it. The identity record marks this device New for the account. Assessed as legitimate at fraud probability 0.13; no transaction is treated as part of a fraud episode and exposure is zero.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-005"
   },
-  "evidence_requests": [
-    {
-      "type": "customer_validation",
-      "asked_after_step": 9,
-      "assumed_response": "No reply within 24 hours. ASSUMPTION: no replies ship with this dataset, and nothing independent in the evidence points to what the cardholder would say. Inventing an answer here would manufacture certainty, so the agent assumes the case policy R4 is written for - the customer does not respond - and acts accordingly."
-    }
-  ],
+  "evidence_requests": [],
   "next_best_actions": {
     "initial": [
       {
-        "action": "VERIFY_WITH_CUSTOMER",
+        "action": "ALLOW_TRANSACTION",
         "route": "auto",
-        "reason": "R1: the case rests on a single signal and assessed probability is 0.33, below 0.70. Verify before any block."
+        "reason": "R1 and policy 6: probability 0.13 with 2 independent pieces of evidence pointing away from fraud; the transaction stands."
       },
       {
-        "action": "STEP_UP_AUTH",
+        "action": "CLOSE_NO_FRAUD",
         "route": "auto",
-        "reason": "R1: require step-up authentication on further activity while the verification is outstanding."
-      },
-      {
-        "action": "MONITOR_CARD",
-        "route": "auto",
-        "reason": "R1: raise monitoring sensitivity for 72 hours while the card stays active."
-      },
-      {
-        "action": "CREATE_CASE",
-        "route": "auto",
-        "reason": "Policy 3a: a case is opened because evidence has been requested."
+        "reason": "Policy 6: the evidence settles the question; close as legitimate."
       }
     ],
     "final": [
       {
-        "action": "MONITOR_CARD",
+        "action": "ALLOW_TRANSACTION",
         "route": "auto",
-        "reason": "R4: no reply within 24 hours; keep the card active under raised monitoring."
+        "reason": "R1 and policy 6: probability 0.13 with 2 independent pieces of evidence pointing away from fraud; the transaction stands."
       },
       {
-        "action": "DECLINE_TRANSACTION",
-        "route": "L1",
-        "reason": "R4: decline pending authorisations while the verification is unanswered."
-      },
-      {
-        "action": "CREATE_CASE",
+        "action": "CLOSE_NO_FRAUD",
         "route": "auto",
-        "reason": "Policy 3a: a case is opened because evidence was requested."
+        "reason": "Policy 6: the evidence settles the question; close as legitimate."
       }
     ],
-    "what_changed": "No reply within 24 hours, moving assessed probability to 0.33. Added: DECLINE_TRANSACTION. Dropped: STEP_UP_AUTH, VERIFY_WITH_CUSTOMER."
+    "what_changed": "nothing"
   },
   "sar": {
     "file": false,
-    "reason": "Policy 3a: a report requires fraud confirmed or strongly suspected. Assessed probability 0.33 with verdict 'uncertain' does not meet that bar.",
+    "reason": "Policy 3a: a report requires fraud confirmed or strongly suspected. Assessed probability 0.13 with verdict 'legitimate' does not meet that bar.",
     "narrative": "",
     "subjects": [],
     "total_amount_usd": 0,
     "activity_dates": []
   },
-  "stop_reason": "A verification response settled the question (policy 6): probability moved to 0.33 on 1 independent pieces of evidence and the action set follows directly. Further steps would not change it.",
-  "tool_calls": 10,
-  "tokens": 941,
-  "latency_s": 0.61
+  "stop_reason": "Policy 6: probability 0.13 is at or below 0.15 on 2 independent pieces of evidence; the alarm is explained and further investigation would not change the outcome.",
+  "tool_calls": 11,
+  "tokens": 1050,
+  "latency_s": 0.59
 }

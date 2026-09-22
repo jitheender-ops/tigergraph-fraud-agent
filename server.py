@@ -25,6 +25,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 import answer as ans
+import execute as X
 import patterns as P
 import policy as pol
 from backend import ToolLog
@@ -81,7 +82,9 @@ def health():
     except Exception as e:                       # noqa: BLE001 - reported, not raised
         n, ok = str(e)[:200], False
     return {"backend": BACKEND, "graph_reachable": ok, "probe": n,
-            "cases": len(STORE), "closed": sum(1 for c in STORE.values() if c.closed)}
+            "cases": len(STORE), "closed": sum(1 for c in STORE.values() if c.closed),
+            "actions_executed": sum(r["status"] == "executed" for r in X.history()),
+            "actions_awaiting_approval": sum(r["status"] != "executed" for r in X.history())}
 
 
 # ---------------------------------------------------------------------------
@@ -347,6 +350,44 @@ def stepup(cid: str):
     return {"passed": passed, **res}
 
 
+@app.get("/api/intelligence")
+def intelligence(min_cases: int = 2):
+    """What recurs across cases, rather than what is known about one.
+
+    prior_cases_for_card and prior_cases_for_device are lookups: they answer "what does
+    the bank already know about THIS card". A lookup cannot see a pattern. This walks
+    every closed case and every case the agent opened and reports the cards and device
+    profiles that appear in more than one -- which is the difference between memory you
+    can query and memory that tells you something.
+    """
+    rows = backend().cross_case_entities(min_cases)
+    for r in rows:
+        r["cases"] = [x for x in str(r.get("cases", "")).split("|") if x]
+        r["patterns"] = [x for x in str(r.get("patterns", "")).split("|") if x]
+        r["n_cases"] = int(r["n_cases"])
+    return {"min_cases": min_cases, "entities": rows,
+            "devices": sum(r["kind"] == "device" for r in rows),
+            "cards": sum(r["kind"] == "card" for r in rows)}
+
+
+@app.get("/api/case/{cid}/ledger")
+def ledger(cid: str):
+    """Everything this case actually did to the world, and everything it is still waiting
+    on a human for. Read from build/action_ledger.jsonl, which survives a restart."""
+    rows = X.history(cid)
+    return {"ledger": rows,
+            "executed": sum(r["status"] == "executed" for r in rows),
+            "awaiting_approval": sum(r["status"] != "executed" for r in rows)}
+
+
+def _ctx(c: Case) -> dict:
+    """The substitutions the simulated systems fill their messages with."""
+    a, t = c.answer, c.trigger
+    return {"txn": str(t["flagged_txn_id"]), "card": t["card_id"],
+            "customer": t["customer_id"], "case": c.answer["case_id"],
+            "n_connected": len(a["case"]["connected_card_ids"])}
+
+
 @app.get("/api/case/{cid}/episode")
 def episode(cid: str):
     """The transactions around the flagged one, so the pattern can be seen rather than
@@ -434,10 +475,13 @@ def decide(cid: str, body: Decision):
     c = get(cid)
     final = c.answer["next_best_actions"]["final"]
     if body.decision == "approve":
-        c.log("approve", "analyst approved the recommended action set",
+        done = [X.execute(cid, a, _ctx(c)) for a in final]
+        ran = [r for r in done if r["status"] == "executed"]
+        held = [r for r in done if r["status"] != "executed"]
+        c.log("approve",
+              f"{len(ran)} action(s) executed, {len(held)} held for approval",
               actions=[a["action"] for a in final])
-        return {"executed": [a for a in final if a["route"] == "auto"],
-                "pending_approval": [a for a in final if a["route"] != "auto"],
+        return {"executed": ran, "pending_approval": held, "ledger": X.history(cid),
                 "events": c.events}
     if not body.action:
         raise HTTPException(400, "an override needs an action")
@@ -445,10 +489,13 @@ def decide(cid: str, body: Decision):
         route = pol.route_for(body.action, c.answer["case"]["exposure_usd"])
     except ValueError:
         raise HTTPException(400, f"{body.action} is not a policy action")
+    rec = X.execute(cid, {"action": body.action, "route": route,
+                          "reason": body.note or "analyst override"}, _ctx(c))
     c.log("override", body.note or f"analyst overrode to {body.action}",
           action=body.action, route=route,
           replaced=[a["action"] for a in final])
-    return {"action": body.action, "route": route, "events": c.events}
+    return {"action": body.action, "route": route, "result": rec,
+            "ledger": X.history(cid), "events": c.events}
 
 
 class Close(BaseModel):

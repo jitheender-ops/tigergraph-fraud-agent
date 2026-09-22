@@ -3,7 +3,7 @@
   "case": {
     "status": "closed_legitimate",
     "verdict": "legitimate",
-    "fraud_probability": 0.07,
+    "fraud_probability": 0.02,
     "pattern": "none",
     "pattern_description": "",
     "affected_txn_ids": [],
@@ -47,6 +47,14 @@
         ]
       },
       {
+        "claim": "External email-domain intelligence classifies 'anonymous.com' as a masked address -- the processor withheld it rather than the cardholder choosing an anonymous one. Measured against the bank's closed cases that points away from fraud (log-likelihood ratio -1.39). The domain is in the transaction; what kind of domain it is, is not -- that is the one piece of evidence here the institution does not own.",
+        "source": "external",
+        "ref": "external:email_domain_intel",
+        "entity_ids": [
+          "anonymous.com"
+        ]
+      },
+      {
         "claim": "Known fraud pattern 3: Card-not-present fraud from a new device: Card-not-present fraud from a new device. Same as above, with the identity record marking the device as `New` for this account, sometimes behind a proxy. Stronger than pattern 2, still not proof: people buy new phones.",
         "source": "document",
         "ref": "document:fraud_patterns#Card-not-present fraud from a new device",
@@ -62,7 +70,7 @@
     "similar_prior_cases": [
       "CC-0873"
     ],
-    "summary": "On 2016-12-02, card C10434-K1 was used for a $1,000.03 online transaction under case CC-0873. The model risk score was 0.90, and the identity record marked the device as New for the account. The transaction was assessed as legitimate at fraud probability 0.07, resulting in $0.00 exposure, because the large amount is an outlier that appears on 16% of cleared alarms and 6% of confirmed fraud, while the high risk score and new device are more characteristic of cleared cases than of confirmed fraud.",
+    "summary": "Risk score on card C10434-K1 over a $1,000.03 online transaction on 2016-12-02 was assessed as legitimate at fraud probability 0.02 with case ID CC-0873, and exposure was $0.00. The identity record marked this device New for the account, and external email-domain intelligence classified 'anonymous.com' as a masked address with a log-likelihood ratio of -1.39. The model risk score was 0.90, 1 previous alarm on this card was investigated and cleared under CC-0873, and $1,000.03 represented 11.1x this card's median and was above its 95th percentile.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-010"
   },
@@ -72,7 +80,7 @@
       {
         "action": "ALLOW_TRANSACTION",
         "route": "auto",
-        "reason": "R1 and policy 6: probability 0.07 with 3 independent pieces of evidence pointing away from fraud; the transaction stands."
+        "reason": "R1 and policy 6: probability 0.02 with 4 independent pieces of evidence pointing away from fraud; the transaction stands."
       },
       {
         "action": "CLOSE_NO_FRAUD",
@@ -84,7 +92,7 @@
       {
         "action": "ALLOW_TRANSACTION",
         "route": "auto",
-        "reason": "R1 and policy 6: probability 0.07 with 3 independent pieces of evidence pointing away from fraud; the transaction stands."
+        "reason": "R1 and policy 6: probability 0.02 with 4 independent pieces of evidence pointing away from fraud; the transaction stands."
       },
       {
         "action": "CLOSE_NO_FRAUD",
@@ -96,14 +104,14 @@
   },
   "sar": {
     "file": false,
-    "reason": "Policy 3a: a report requires fraud confirmed or strongly suspected. Assessed probability 0.07 with verdict 'legitimate' does not meet that bar.",
+    "reason": "Policy 3a: a report requires fraud confirmed or strongly suspected. Assessed probability 0.02 with verdict 'legitimate' does not meet that bar.",
     "narrative": "",
     "subjects": [],
     "total_amount_usd": 0,
     "activity_dates": []
   },
-  "stop_reason": "Policy 6: probability 0.07 is at or below 0.15 on 3 independent pieces of evidence; the alarm is explained and further investigation would not change the outcome.",
-  "tool_calls": 10,
-  "tokens": 853,
+  "stop_reason": "Policy 6: probability 0.02 is at or below 0.15 on 4 independent pieces of evidence; the alarm is explained and further investigation would not change the outcome.",
+  "tool_calls": 11,
+  "tokens": 996,
   "latency_s": 0.11
 }

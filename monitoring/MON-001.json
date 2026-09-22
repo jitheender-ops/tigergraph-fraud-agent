@@ -3,7 +3,7 @@
   "case": {
     "status": "escalated",
     "verdict": "uncertain",
-    "fraud_probability": 0.69,
+    "fraud_probability": 0.39,
     "pattern": "account_takeover",
     "pattern_description": "",
     "affected_txn_ids": [
@@ -45,6 +45,14 @@
         ]
       },
       {
+        "claim": "External email-domain intelligence classifies 'icloud.com' as an address tied to a paid internet, cable or phone subscription, which means a billing relationship and a credit check stand behind it. Measured against the bank's closed cases that points away from fraud (log-likelihood ratio -1.24). The domain is in the transaction; what kind of domain it is, is not -- that is the one piece of evidence here the institution does not own.",
+        "source": "external",
+        "ref": "external:email_domain_intel",
+        "entity_ids": [
+          "icloud.com"
+        ]
+      },
+      {
         "claim": "Connected components over the device-sharing graph place this card in a bounded component of 4 cards (C00066-K1, C04742-K1, C13015-K2), linked transitively through device profiles each used by no more than 8 cards. A component this small is a genuine shared origin rather than a common configuration.",
         "source": "graph",
         "ref": "query:ring_component",
@@ -78,19 +86,19 @@
       "CC-3384",
       "CC-0575"
     ],
-    "summary": "A monitoring sweep on card C03999-K1 flagged an in-person transaction of $2,294.91 on 2016-11-22. One card-detail match flag (M1-M9) came back F on this transaction, while $2,294.91 is 17.0x this card's median and above its 95th percentile. The bank has 2 confirmed-fraud case(s) already closed on this card (CC-4268, CC-3384), pattern(s): card_not_present_fraud, and connected components over the device-sharing graph place this card in a bounded component of 4 cards (C00066-K1, C04742-K1, C13015-K2). The verdict is uncertain at probability 0.69, the evidence conflicts, and exposure if the activity is fraudulent is $2,394.82, so case ID CC-XXXX was escalated per policy rule R8. Policy rule R6 was also triggered because 3 other card(s) transacted through the same device profile in the window and are named for monitoring.",
+    "summary": "Monitoring sweep on card C03999-K1 over a $2,294.91 in person transaction on 2016-11-22 returned a verdict of uncertain at probability 0.39 with exposure of $2,394.82. Against the transaction, one card-detail match flag (M1-M9) came back F, and $2,294.91 is 17.0x this card's median and above its 95th percentile. The bank has 2 confirmed-fraud case(s) already closed on this card (CC-4268, CC-3384), pattern(s): card_not_present_fraud, while external email-domain intelligence classifies 'icloud.com' as an address tied to a paid internet, cable or phone subscription. Connected components over the device-sharing graph placed this card in a bounded component of 4 cards (C00066-K1, C04742-K1, C13015-K2), and 3 other card(s) transacted through the same device profile in the window and are named for monitoring. Because the evidence conflicts and exposure exceeds $500, policy rule R8 recommended `ESCALATE_TO_ANALYST`, and policy rule R6 recommended naming the shared element, `CREATE_CASE`, `FILE_REPORT`, and `MONITOR_CONNECTED_CARDS` for every card that shares it.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-001"
   },
   "evidence_requests": [
     {
       "type": "customer_validation",
-      "asked_after_step": 9,
+      "asked_after_step": 10,
       "assumed_response": "No reply within 24 hours. ASSUMPTION: no replies ship with this dataset, and nothing independent in the evidence points to what the cardholder would say. Inventing an answer here would manufacture certainty, so the agent assumes the case policy R4 is written for - the customer does not respond - and acts accordingly."
     },
     {
       "type": "analyst_info",
-      "asked_after_step": 9,
+      "asked_after_step": 10,
       "assumed_response": "Analyst confirms no merchant-side chargeback or law-enforcement notice is attached to these transactions, so the graph evidence stands as gathered. ASSUMPTION: simulated; no analyst replies ship with the dataset."
     }
   ],
@@ -104,7 +112,7 @@
       {
         "action": "VERIFY_WITH_CUSTOMER",
         "route": "auto",
-        "reason": "R1: probability 0.69 is below 0.70; ask the cardholder before taking any action with customer impact."
+        "reason": "R1: probability 0.39 is below 0.70; ask the cardholder before taking any action with customer impact."
       },
       {
         "action": "MONITOR_CARD",
@@ -149,20 +157,20 @@
         "reason": "R6: shared device-sharing component of 4 cards links 3 other card(s); place them under monitoring."
       }
     ],
-    "what_changed": "No reply within 24 hours, moving assessed probability to 0.69. Added: DECLINE_TRANSACTION. Dropped: VERIFY_WITH_CUSTOMER."
+    "what_changed": "No reply within 24 hours, moving assessed probability to 0.39. Added: DECLINE_TRANSACTION. Dropped: VERIFY_WITH_CUSTOMER."
   },
   "sar": {
     "file": false,
-    "reason": "Policy 3a: a report requires fraud confirmed or strongly suspected. Assessed probability 0.69 with verdict 'uncertain' does not meet that bar.",
+    "reason": "Policy 3a: a report requires fraud confirmed or strongly suspected. Assessed probability 0.39 with verdict 'uncertain' does not meet that bar.",
     "narrative": "",
     "subjects": [],
     "total_amount_usd": 0,
     "activity_dates": []
   },
-  "stop_reason": "A verification response settled the question (policy 6): probability moved to 0.69 on 2 independent pieces of evidence and the action set follows directly. Further steps would not change it.",
-  "tool_calls": 9,
-  "tokens": 1120,
-  "latency_s": 0.33,
+  "stop_reason": "A verification response settled the question (policy 6): probability moved to 0.39 on 3 independent pieces of evidence and the action set follows directly. Further steps would not change it.",
+  "tool_calls": 10,
+  "tokens": 1317,
+  "latency_s": 0.36,
   "trigger": {
     "type": "monitoring_sweep",
     "text": "Self-directed sweep. Connected components over the device-sharing graph put card C03999-K1 in a bounded component of 4 cards sharing 7 device profile(s), moving $17,539.13 across 114 transactions since 2016-11-02. No model score, cardholder report or analyst request opened this."

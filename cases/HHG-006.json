@@ -44,6 +44,14 @@
         ]
       },
       {
+        "claim": "External email-domain intelligence classifies 'gmail.com' as a free webmail address, which is what most real cardholders and most fraudsters both use. Measured across the bank's closed cases this is the baseline -- it appears on 3,667 confirmed frauds and 573 cleared alarms -- so it is named as context and carries no weight.",
+        "source": "external",
+        "ref": "external:email_domain_intel",
+        "entity_ids": [
+          "gmail.com"
+        ]
+      },
+      {
         "claim": "The cardholder contacted the bank stating they did not make this purchase",
         "source": "customer",
         "ref": "trigger:customer_report",
@@ -65,7 +73,7 @@
       }
     ],
     "similar_prior_cases": [],
-    "summary": "On 2016-11-21, the customer reported an unrecognized $482.12 online transaction on card C07297-K1, and case ID [REDACTED] was opened with an uncertain verdict at probability 0.27 under pattern account_takeover. The cardholder denied making the purchase, yet the identity record marks the device as New for the account, $482.12 is 8.2x the card's median and above its 95th percentile, and the card's history is 2% online. The evidence conflicts, so the case remains undecided in the graph, with exposure of $1,906.07 if the activity is fraudulent.",
+    "summary": "Customer C07297-K1 disputed an online transaction of $482.12 on 2016-11-21 on card C07297-K1, yielding case C07297-K1 with exposure of $1,906.07. The cardholder denied making the purchase, while graph evidence showed a New device, an amount 8.2x the card's median and above its 95th percentile, and a card history of 2% online. The conflicting evidence produced an uncertain verdict at probability 0.27 under pattern account_takeover.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-006"
   },
@@ -121,7 +129,7 @@
     "activity_dates": []
   },
   "stop_reason": "Policy 6: probability 0.27 on 3 independent pieces of evidence sits between the stopping thresholds. Stopping here because the remaining uncertainty is the cardholder's own intent, which only the cardholder or an analyst can resolve; the recommended actions route it to them rather than resolving it in the graph.",
-  "tool_calls": 10,
-  "tokens": 816,
-  "latency_s": 0.13
+  "tool_calls": 11,
+  "tokens": 875,
+  "latency_s": 0.14
 }

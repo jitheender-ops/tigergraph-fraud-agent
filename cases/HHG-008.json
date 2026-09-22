@@ -52,6 +52,14 @@
         ]
       },
       {
+        "claim": "External email-domain intelligence classifies 'hotmail.com' as a free webmail address, which is what most real cardholders and most fraudsters both use. Measured across the bank's closed cases this is the baseline -- it appears on 3,667 confirmed frauds and 573 cleared alarms -- so it is named as context and carries no weight.",
+        "source": "external",
+        "ref": "external:email_domain_intel",
+        "entity_ids": [
+          "hotmail.com"
+        ]
+      },
+      {
         "claim": "The cardholder contacted the bank stating they did not make this purchase",
         "source": "customer",
         "ref": "trigger:customer_report",
@@ -97,7 +105,7 @@
       "CC-3566",
       "CC-3422"
     ],
-    "summary": "Customer report on card C13171-K2 over a $55.68 online transaction on 2016-12-19. The cardholder contacted the bank stating they did not make this purchase. There were 14 transactions on this card in the 48 hours ending at the flagged one, and the assessed probability of card-not-present fraud is 0.87 with $284.65 of exposure. This case is assigned case ID CC-5010, CC-4485, CC-4163, and CC-3928, and it connects to 18 confirmed-fraud case(s) on this card with pattern card_not_present_fraud and card_not_present_new_device. The card sits in a shared device component of 2,500 cards, but transitive device sharing percolated at every threshold tested, so membership carries no weight. Known fraud pattern 2 indicates that card-not-present fraud often occurs in a burst of two to four transactions within 48 hours, which aligns with the 14 transactions observed here.",
+    "summary": "The cardholder denied the $55.68 online transaction on 2016-12-19 on card C13171-K2. The case was assessed as card_not_present_fraud at probability 0.87 with $284.65 of exposure across 8 transaction(s). The 48 hours preceding the flagged event contained 14 transactions on this card, and the bank had 18 confirmed-fraud case(s) already closed on this card, specifically CC-5010, CC-4485, CC-4163, and CC-3928. The device-sharing component contained 2,500 cards, and known fraud pattern 2 describes card-not-present fraud involving a burst of two to four transactions within 48 hours. Per policy rule R2, `BLOCK_CARD` and `CREATE_CASE` were recommended, with `FILE_REPORT` to be added if exposure exceeds $1,000 or the case connects to a shared device profile or another card's fraud.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-008"
   },
@@ -153,7 +161,7 @@
     "activity_dates": []
   },
   "stop_reason": "Policy 6: probability 0.87 is at or above 0.85 on 2 independent pieces of evidence, which is the bar for a defensible action.",
-  "tool_calls": 9,
-  "tokens": 910,
-  "latency_s": 0.7
+  "tool_calls": 10,
+  "tokens": 980,
+  "latency_s": 0.71
 }

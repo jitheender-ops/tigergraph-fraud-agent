@@ -99,6 +99,14 @@ def main(out="cases"):
         if "BLOCK_ALL_CARDS" in final: warns.append(f"{cid}: BLOCK_ALL_CARDS used (R10)")
 
         # contradictions
+        # A verdict of legitimate that still declines or blocks is a contradiction the
+        # answer file cannot defend: exposure is zero and no transaction is named, yet
+        # the cardholder is refused. Caught only after an external signal moved a case
+        # into the legitimate band while R4 was still firing on it.
+        if c["verdict"] == "legitimate" and any(
+                x in final for x in ("BLOCK_CARD", "BLOCK_ALL_CARDS", "DECLINE_TRANSACTION")):
+            err(cid, f"verdict is legitimate but the final actions include "
+                     f"{sorted({'BLOCK_CARD','BLOCK_ALL_CARDS','DECLINE_TRANSACTION'} & set(final))}")
         if "CLOSE_NO_FRAUD" in final and any(x in final for x in ("BLOCK_CARD","BLOCK_ALL_CARDS")):
             E("final actions both close the alert and block the card")
         if "ALLOW_TRANSACTION" in final and "DECLINE_TRANSACTION" in final:

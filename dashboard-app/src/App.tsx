@@ -6,6 +6,7 @@ import { SpotlightCard } from './components/SpotlightCard';
 import { Waterfall, Network, Timeline, PriorCase } from './components/Views';
 import { RouteChip } from './components/Decide';
 import { ACTIONS } from './api';
+import { Intelligence, Ledger } from './components/Intel';
 
 const API = 'http://localhost:8000/api';
 
@@ -13,7 +14,8 @@ export default function App() {
   const [data, setData] = useState<any[]>([]);
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
   const [activeCase, setActiveCase] = useState<any | null>(null);
-  const [tab, setTab] = useState<'cases' | 'monitoring'>('cases');
+  const [tab, setTab] = useState<'cases' | 'monitoring' | 'intel'>('cases');
+  const [ledgerTick, setLedgerTick] = useState(0);
   
   // Interactions
   const [challengeText, setChallengeText] = useState('');
@@ -70,6 +72,7 @@ export default function App() {
     }
     setLoading(false);
     setChallengeText('');
+    setLedgerTick(t => t + 1);
   };
 
   // The desk works the money, not the case numbers: exposure x probability is the order
@@ -194,6 +197,12 @@ export default function App() {
             >
               Monitoring
             </button>
+            <button
+              onClick={() => {setTab('intel'); setSelectedCaseId(null);}}
+              className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider transition-colors ${tab === 'intel' ? 'bg-white shadow-sm text-ink' : 'text-muted hover:text-ink'}`}
+            >
+              Recurring
+            </button>
           </div>
         </div>
 
@@ -240,7 +249,14 @@ export default function App() {
         </div>
 
         <AnimatePresence mode="wait">
-          {!activeCase ? (
+          {tab === 'intel' ? (
+            <Intelligence key="intel" onPickCase={(id) => {
+              // A closed case opens in the drill-down; one of ours opens as a case.
+              const mine = data.find(d => d.case?.graph_case_id === id || d.case_id === id);
+              if (mine) { setTab(mine.source); setSelectedCaseId(mine.case_id); }
+              else setPrior(id);
+            }} />
+          ) : !activeCase ? (
             <motion.div 
               key="summary"
               initial={{ opacity: 0, y: 20 }}
@@ -553,6 +569,9 @@ export default function App() {
                     <Download className="w-4 h-4" /> Download case file
                   </button>
                 </div>
+
+                <h3 className="font-serif text-3xl font-bold mb-8 border-b-2 border-ink pb-4">Actions Taken</h3>
+                <div className="mb-16"><Ledger caseId={activeCase.case_id} refresh={ledgerTick} /></div>
 
                 {/* Audit Log / Events */}
                 {activeCase.events?.length > 0 && (

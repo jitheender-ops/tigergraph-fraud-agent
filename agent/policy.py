@@ -67,6 +67,7 @@ def independent_evidence_count(signals) -> int:
             "recurring": "history", "amount_outlier": "history", "channel_odd": "history",
             "episode": "episode", "card_testing": "episode",
             "prior_fraud": "memory", "prior_cleared": "memory",
+            "email_domain_intel": "external",
         }.get(s.name, s.name))
     return len(families)
 
@@ -148,8 +149,12 @@ def decide_actions(*, prob, verdict, exposure, signals, pattern, trigger_type,
             _add(a, MONITOR_CARD, exposure, f"R7 with residual doubt: the cardholder confirms the charge but the assessment still reads {prob:.2f}, so the card stays active under monitoring rather than being closed outright.")
         return a
 
-    # ---- R5: card testing
-    if pattern == "card_testing":
+    # ---- R5: card testing.
+    # Guarded on the verdict for the same reason R4 is. investigate.py already passes
+    # pattern="none" when it concludes legitimate, so this cannot fire through the
+    # pipeline -- but a rule engine that is only correct because its caller normalises
+    # the input is not a rule engine, it is a coincidence.
+    if pattern == "card_testing" and verdict != "legitimate":
         _add(a, DECLINE_TRANSACTION, exposure, "R5: a testing sequence of small online authorisations preceded this purchase; decline the pending authorisation.")
         _add(a, STEP_UP_AUTH, exposure, "R5: require step-up authentication before any further activity on the card.")
         if exposure > 100:
@@ -165,8 +170,11 @@ def decide_actions(*, prob, verdict, exposure, signals, pattern, trigger_type,
             _add(a, CREATE_CASE, exposure, "Policy 3a: a case is opened because evidence has been requested.")
         return r9(a)
 
-    # ---- R4: asked and heard nothing back
-    if no_reply:
+    # ---- R4: asked and heard nothing back.
+    # Not when the graph has independently settled it. R4 is written for the state where
+    # the question is still open; declining a transaction the evidence says is legitimate
+    # because the cardholder did not answer the phone punishes them for our uncertainty.
+    if no_reply and verdict != "legitimate":
         _add(a, MONITOR_CARD, exposure, "R4: no reply within 24 hours; keep the card active under raised monitoring.")
         _add(a, DECLINE_TRANSACTION, exposure, "R4: decline pending authorisations while the verification is unanswered.")
         if exposure > 500:
@@ -351,6 +359,15 @@ def demo():
     assert ESCALATE_TO_ANALYST in acts(pattern="undocumented", no_reply=True,
                                        exposure=100.0, connected_cards=["C1"],
                                        phase="final"), "R9 lost to R4's return"
+
+    # --- a legitimate verdict never blocks or declines, whatever else happened ---
+    for kw in ({}, {"no_reply": True, "phase": "final"}, {"customer_denied": True},
+               {"recurring": True}, {"connected_cards": ["C1"], "shared_element": "d"},
+               {"pattern": "card_testing"}, {"pattern": "undocumented",
+                                             "connected_cards": ["C1"]}):
+        a = acts(verdict="legitimate", prob=0.10, exposure=0.0, **kw)
+        assert not ({BLOCK_CARD, BLOCK_ALL_CARDS, DECLINE_TRANSACTION} & a), (kw, a)
+        assert ALLOW_TRANSACTION in a, (kw, a)
 
     # --- R10: never block every card without two confirmed ---
     assert BLOCK_ALL_CARDS not in acts(verdict="fraud", prob=0.99, n_confirmed_cards=1)

@@ -65,14 +65,14 @@
       }
     ],
     "similar_prior_cases": [],
-    "summary": "Customer report on card C08299-K1 over a $30.02 online transaction on 2016-12-28 generated case C001 with verdict uncertain at probability 0.45 and pattern card_not_present_fraud. The cardholder first contacted the bank stating they did not make the purchase, yet later confirmed the transaction was theirs. The $30.02 amount was charged to this card 5 times across 3 distinct months under the same product code, a median of 34 days apart, which policy R7 forbids blocking. Connected components placed this card in the graph's giant device-sharing component (2,500 cards), and known fraud pattern 2 indicates that a single unusual online purchase is ambiguous and requires verification under policy R1 to R4. Exposure if the activity is fraudulent is $30.02.",
+    "summary": "Customer report on card C08299-K1 over a $30.02 online transaction on 2016-12-28 yielded a verdict of uncertain at probability 0.45 with pattern card_not_present_fraud and exposure of $30.02. The cardholder initially contacted the bank stating they did not make the purchase, yet later confirmed the transaction was theirs. The $30.02 amount was charged to the card 5 times across 3 distinct months under the same product code, a median of 34 days apart, and the card sits in a giant device-sharing component of 2,500 cards. Per document policy R7, because the charge matches the cardholder's recurring pattern, the recommended actions are `CREATE_CASE`, `VERIFY_WITH_CUSTOMER`, and `WARN_CUSTOMER`, and blocking is forbidden. Case ID was not provided.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-009"
   },
   "evidence_requests": [
     {
       "type": "customer_validation",
-      "asked_after_step": 9,
+      "asked_after_step": 10,
       "assumed_response": "Cardholder, shown the charge history, recognises the amount as a recurring charge they had forgotten and confirms it is theirs. ASSUMPTION: no replies ship with this dataset. This one is drawn from an independent feature of the data - 5 charges of this exact amount across 3 months, a median 34 days apart - not from the agent's own probability."
     }
   ],
@@ -137,7 +137,7 @@
     "activity_dates": []
   },
   "stop_reason": "A verification response settled the question (policy 6): probability moved to 0.45 on 2 independent pieces of evidence and the action set follows directly. Further steps would not change it.",
-  "tool_calls": 10,
-  "tokens": 805,
-  "latency_s": 0.64
+  "tool_calls": 11,
+  "tokens": 812,
+  "latency_s": 0.6
 }

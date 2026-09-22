@@ -7,6 +7,7 @@ from __future__ import annotations
 import datetime as dt, math, time
 
 import episode as ep
+import external as X
 import patterns as P
 import policy as pol
 import retrieve as R
@@ -123,6 +124,10 @@ class Investigation:
             d = self.b.prior_cases_for_device(f["device_profile"], before=self.now)
             dev_prior = d.to_dict("records") if len(d) else []
 
+        # 6b. the one source outside the bank: what kind of email domain this is.
+        self.step("look the purchaser email domain up with external intelligence")
+        intel = self.b.email_intel(f.get("p_email"))
+
         # ---- assess -------------------------------------------------------
         pattern, pattern_desc = P.classify(f, {"txn_ids": [str(txn_id)]}, ring)
         self.step("reconstruct the episode and size the exposure")
@@ -130,6 +135,10 @@ class Investigation:
         pattern, pattern_desc = P.classify(f, episode, ring)
 
         self.signals = P.score_signals(f, episode, ring, prior)
+        if intel["class"] != "unknown":
+            self.signals.append(P.Signal(
+                "email_domain_intel", intel["weight"], X.claim(intel),
+                [str(intel["domain"])], "external:email_domain_intel", source="external"))
         # --- human steering, applied before anything is scored off the signal set ---
         if self.suppress:
             kept, dropped = [], []

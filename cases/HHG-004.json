@@ -43,6 +43,14 @@
         ]
       },
       {
+        "claim": "External email-domain intelligence classifies 'hotmail.com' as a free webmail address, which is what most real cardholders and most fraudsters both use. Measured across the bank's closed cases this is the baseline -- it appears on 3,667 confirmed frauds and 573 cleared alarms -- so it is named as context and carries no weight.",
+        "source": "external",
+        "ref": "external:email_domain_intel",
+        "entity_ids": [
+          "hotmail.com"
+        ]
+      },
+      {
         "claim": "The cardholder contacted the bank stating they did not make this purchase",
         "source": "customer",
         "ref": "trigger:customer_report",
@@ -84,14 +92,14 @@
       "CC-1736",
       "CC-0696"
     ],
-    "summary": "The verdict on case ID CC-XXXX remains uncertain at probability 0.45. On 2016-12-29, the cardholder disputed the $128.33 online transaction on card C08106-K1, and the bank has 3 closed confirmed-fraud cases on this card (CC-3778, CC-2121, CC-1736) with pattern(s): card_not_present_fraud. The identity record marks the device New for the account, while $128.33 is 4.8x this card's median and above its 95th percentile, and the connected components place this card in the graph's giant device-sharing component (2,500 cards). The conflicting evidence leaves exposure at $128.33.",
+    "summary": "The customer disputed the $128.33 online transaction on 2016-12-29 on card C08106-K1, and the identity record marks this device New for the account. $128.33 is 4.8x this card's median and above its 95th percentile, while the bank has 3 confirmed-fraud case(s) already closed on this card (CC-3778, CC-2121, CC-1736), pattern(s): card_not_present_fraud. The evidence conflicts and probability sits at 0.45, so the case is not decided in the graph; exposure if the activity is fraudulent is $128.33.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-004"
   },
   "evidence_requests": [
     {
       "type": "analyst_info",
-      "asked_after_step": 9,
+      "asked_after_step": 10,
       "assumed_response": "Analyst confirms no merchant-side chargeback or law-enforcement notice is attached to these transactions, so the graph evidence stands as gathered. ASSUMPTION: simulated; no analyst replies ship with the dataset."
     }
   ],
@@ -156,7 +164,7 @@
     "activity_dates": []
   },
   "stop_reason": "A verification response settled the question (policy 6): probability moved to 0.45 on 3 independent pieces of evidence and the action set follows directly. Further steps would not change it.",
-  "tool_calls": 11,
-  "tokens": 996,
+  "tool_calls": 12,
+  "tokens": 1057,
   "latency_s": 0.6
 }

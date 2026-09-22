@@ -1,22 +1,18 @@
 {
   "case_id": "HHG-017",
   "case": {
-    "status": "open",
-    "verdict": "uncertain",
-    "fraud_probability": 0.43,
-    "pattern": "undocumented",
-    "pattern_description": "The transaction was placed through an anonymising proxy (IP_PROXY:HIDDEN) on a device marked New for the account, while the card's own match flags passed. Proxy use appears in 44% of the cases the bank's analysts confirmed as fraud but could not fit to a documented pattern, against 1% of all confirmed fraud. The concealment itself, rather than the amount or the merchant, is what marks this activity.",
-    "affected_txn_ids": [
-      "3450436",
-      "3450503",
-      "3450629"
-    ],
-    "first_suspicious_txn_id": "3450436",
+    "status": "closed_legitimate",
+    "verdict": "legitimate",
+    "fraud_probability": 0.16,
+    "pattern": "none",
+    "pattern_description": "",
+    "affected_txn_ids": [],
+    "first_suspicious_txn_id": "",
     "connected_card_ids": [],
     "connected_device_profiles": [
       "Windows | Windows 10 | chrome 65.0 | 1920x1080"
     ],
-    "exposure_usd": 300.14,
+    "exposure_usd": 0.0,
     "evidence": [
       {
         "claim": "The connection came through a proxy (IP_PROXY:HIDDEN). Recorded as context: proxy use measured slightly more common on cleared alarms than on confirmed fraud in this history, so it is not scored either way",
@@ -32,6 +28,14 @@
         "ref": "query:prior_cases_for_card",
         "entity_ids": [
           "CC-1383"
+        ]
+      },
+      {
+        "claim": "External email-domain intelligence classifies 'anonymous.com' as a masked address -- the processor withheld it rather than the cardholder choosing an anonymous one. Measured against the bank's closed cases that points away from fraud (log-likelihood ratio -1.39). The domain is in the transaction; what kind of domain it is, is not -- that is the one piece of evidence here the institution does not own.",
+        "source": "external",
+        "ref": "external:email_domain_intel",
+        "entity_ids": [
+          "anonymous.com"
         ]
       },
       {
@@ -59,14 +63,14 @@
     "similar_prior_cases": [
       "CC-1383"
     ],
-    "summary": "The risk score on card C04570-K1 for a $100.09 online transaction on 2016-11-11 is uncertain at probability 0.43 with an exposure of $300.14. One previous alarm on this card was investigated and cleared under case CC-1383. The connection routed through IP_PROXY:HIDDEN, and the card resides in a giant device-sharing component of 2,500 cards, yet neither finding altered the score. The pattern is undocumented, so policy R9 was applied.",
+    "summary": "Risk score on card C04570-K1 over a $100.09 online transaction on 2016-11-11. External email-domain intelligence classifies 'anonymous.com' as a masked address -- the processor withheld it rather than the cardholder choosing an anonymous one. 1 previous alarm(s) on this card were investigated and cleared (CC-1383), and the connection came through a proxy (IP_PROXY:HIDDEN). The transaction was assessed as legitimate at fraud probability 0.16; it is not treated as part of a fraud episode and exposure is $0.00 under case ID CC-1383. The card is in the graph's giant device-sharing component (2,500 cards), and policy rule R9 on undocumented patterns was noted.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-017"
   },
   "evidence_requests": [
     {
       "type": "customer_validation",
-      "asked_after_step": 9,
+      "asked_after_step": 10,
       "assumed_response": "No reply within 24 hours. ASSUMPTION: no replies ship with this dataset, and nothing independent in the evidence points to what the cardholder would say. Inventing an answer here would manufacture certainty, so the agent assumes the case policy R4 is written for - the customer does not respond - and acts accordingly."
     }
   ],
@@ -75,7 +79,7 @@
       {
         "action": "VERIFY_WITH_CUSTOMER",
         "route": "auto",
-        "reason": "R1: the case rests on a single signal and assessed probability is 0.43, below 0.70. Verify before any block."
+        "reason": "R1: the case rests on a single signal and assessed probability is 0.16, below 0.70. Verify before any block."
       },
       {
         "action": "STEP_UP_AUTH",
@@ -86,42 +90,37 @@
         "action": "MONITOR_CARD",
         "route": "auto",
         "reason": "R1: raise monitoring sensitivity for 72 hours while the card stays active."
-      },
-      {
-        "action": "CREATE_CASE",
-        "route": "auto",
-        "reason": "Policy 3a: a case is opened because evidence has been requested."
       }
     ],
     "final": [
       {
+        "action": "ALLOW_TRANSACTION",
+        "route": "auto",
+        "reason": "R1 and policy 6: probability 0.16 with 1 independent pieces of evidence pointing away from fraud; the transaction stands."
+      },
+      {
+        "action": "CLOSE_NO_FRAUD",
+        "route": "auto",
+        "reason": "Policy 6: the evidence settles the question; close as legitimate."
+      },
+      {
         "action": "MONITOR_CARD",
         "route": "auto",
-        "reason": "R4: no reply within 24 hours; keep the card active under raised monitoring."
-      },
-      {
-        "action": "DECLINE_TRANSACTION",
-        "route": "L1",
-        "reason": "R4: decline pending authorisations while the verification is unanswered."
-      },
-      {
-        "action": "CREATE_CASE",
-        "route": "auto",
-        "reason": "Policy 3a: a case is opened because evidence was requested."
+        "reason": "Residual uncertainty is low but non-zero; keep 72-hour monitoring without customer impact."
       }
     ],
-    "what_changed": "No reply within 24 hours, moving assessed probability to 0.43. Added: DECLINE_TRANSACTION. Dropped: STEP_UP_AUTH, VERIFY_WITH_CUSTOMER."
+    "what_changed": "No reply within 24 hours, moving assessed probability to 0.16. Added: ALLOW_TRANSACTION, CLOSE_NO_FRAUD. Dropped: STEP_UP_AUTH, VERIFY_WITH_CUSTOMER."
   },
   "sar": {
     "file": false,
-    "reason": "Policy 3a: a report requires fraud confirmed or strongly suspected. Assessed probability 0.43 with verdict 'uncertain' does not meet that bar.",
+    "reason": "Policy 3a: a report requires fraud confirmed or strongly suspected. Assessed probability 0.16 with verdict 'legitimate' does not meet that bar.",
     "narrative": "",
     "subjects": [],
     "total_amount_usd": 0,
     "activity_dates": []
   },
-  "stop_reason": "A verification response settled the question (policy 6): probability moved to 0.43 on 0 independent pieces of evidence and the action set follows directly. Further steps would not change it.",
-  "tool_calls": 10,
-  "tokens": 650,
-  "latency_s": 0.57
+  "stop_reason": "A verification response settled the question (policy 6): probability moved to 0.16 on 1 independent pieces of evidence and the action set follows directly. Further steps would not change it.",
+  "tool_calls": 11,
+  "tokens": 810,
+  "latency_s": 0.58
 }

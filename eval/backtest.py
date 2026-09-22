@@ -27,6 +27,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "agent"))
 import duckdb
 import pandas as pd
 
+import external as X
 import patterns as P
 from features import FEATURE_SQL
 
@@ -91,12 +92,41 @@ def measure(train: pd.DataFrame) -> dict[str, float]:
     return out
 
 
-def score(row, prior) -> float:
-    """The shipped scorer, on one case. No episode and no live device ring: a closed case
-    has neither, and inventing them would score a different agent than the one that ships."""
+def refit_email(train: pd.DataFrame) -> dict[str, float]:
+    """The external source's weights, refit on the training half too.
+
+    external.CLASS_WEIGHT was measured on all 5,565 closed cases -- October included --
+    so scoring held-out October with it would be leakage, and the backtest would be
+    marking its own homework. privacy_or_niche keeps the same halving it gets in the
+    shipped module, for the same reason: the base is thin.
+    """
+    cls = train.p_email.map(lambda d: X._intel().get(str(d).strip().lower(), "unknown")
+                            if d else "unknown")
+    fraud, clear = train.outcome == "confirmed_fraud", train.outcome != "confirmed_fraud"
+    F, C = int(fraud.sum()), int(clear.sum())
+    out = {}
+    for c in ("isp_tied", "masked", "free_webmail", "privacy_or_niche"):
+        pf = (int((fraud & (cls == c)).sum()) + 0.5) / (F + 1)
+        pc = (int((clear & (cls == c)).sum()) + 0.5) / (C + 1)
+        w = math.log(pf / pc)
+        out[c] = round(w / 2 if c == "privacy_or_niche" else
+                       0.0 if c == "free_webmail" else w, 2)
+    out["unknown"] = 0.0
+    return out
+
+
+def score(row, prior, email_w) -> float:
+    """The shipped scorer, on one case, including the external lookup -- otherwise the
+    backtest evaluates a different agent from the one that ships. No episode and no live
+    device ring: a closed case has neither, and inventing them would be the same mistake
+    in the other direction."""
     sig = P.score_signals(row, {"txn_ids": [str(row["txn_id"])]},
                           {"cards": []}, prior)
-    return 1.0 / (1.0 + math.exp(-sum(s.weight for s in sig)))
+    total = sum(s.weight for s in sig)
+    dom = row.get("p_email")
+    cls = X._intel().get(str(dom).strip().lower(), "unknown") if dom else "unknown"
+    total += email_w.get(cls, 0.0)
+    return 1.0 / (1.0 + math.exp(-total))
 
 
 def verdict(p):
@@ -158,21 +188,28 @@ def main():
             {"case_id": r.prior_id, "outcome": r.outcome, "pattern": r.pattern})
 
     fitted = measure(train)
+    email_w = refit_email(train)
     print("weights refitted on the training half (shipped value in brackets):")
     for k, v in fitted.items():
         shipped = P.W[k]
         flag = "" if abs(v - shipped) < 0.15 else "   <- moved"
         print(f"  {k:20} {v:>+6.2f}   [{shipped:>+5.2f}]{flag}")
+    for k, v in email_w.items():
+        if k == "unknown":
+            continue
+        shipped = X.CLASS_WEIGHT[k]
+        flag = "" if abs(v - shipped) < 0.15 else "   <- moved"
+        print(f"  email:{k:14} {v:>+6.2f}   [{shipped:>+5.2f}]{flag}")
 
     rows = test.to_dict("records")
     truth = [r["outcome"] for r in rows]
     exposure = [float(r["exposure_usd"] or 0) for r in rows]
 
-    def run_agent(weights, label):
+    def run_agent(weights, label, email_w=email_w):
         original = dict(P.W)
         P.W.update(weights)
         try:
-            preds = [verdict(score(r, by_case.get(r["key_id"], []))) for r in rows]
+            preds = [verdict(score(r, by_case.get(r["key_id"], []), email_w)) for r in rows]
         finally:
             P.W.clear(); P.W.update(original)
         return label, preds
@@ -187,7 +224,8 @@ def main():
         run_agent(fitted, "agent, weights from train only"),
     ]
     if args.insample:
-        policies.append(run_agent({}, "agent, shipped weights (in-sample)"))
+        policies.append(run_agent({}, "agent, shipped weights (in-sample)",
+                                  email_w=X.CLASS_WEIGHT))
 
     hdr = (f"{'policy':34}{'caught':>8}{'missed':>8}{'false':>7}{'uncertain':>11}"
            f"{'$ missed':>13}")
@@ -229,10 +267,16 @@ def main():
         else:
             print(f"  {label:34} dominates on both axes")
 
-    print("\nThe agent is not competing to catch the most fraud. Blocking every card "
-          "catches all\nof it. It is competing on what the mistakes cost, and on how "
-          "often it admits it does\nnot know: 3 false blocks against 144, and a fifth "
-          "of the losses the bank's own 0.70\nthreshold would have let through.")
+    # Computed, not written down: a closing line with the numbers typed into it goes
+    # stale the first time a signal changes, and then the summary is a lie.
+    thr = next(c for l, c in results if l == "risk score >= 0.70")
+    print(f"\nThe agent is not competing to catch the most fraud -- blocking every card "
+          f"catches all of\nit. It competes on what the mistakes cost: {agent['fp']} "
+          f"false blocks against {thr['fp']}, and "
+          f"{agent['missed'] / thr['missed']:.0%} of the loss\nthe bank's own 0.70 "
+          f"threshold would have let through, while declining "
+          f"{(agent['unc_f'] + agent['unc_c']) / len(rows):.0%} of the\nset as too "
+          f"close to call.")
 
 
 if __name__ == "__main__":

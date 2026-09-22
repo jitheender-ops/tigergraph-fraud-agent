@@ -26,6 +26,14 @@
         ]
       },
       {
+        "claim": "External email-domain intelligence classifies 'gmail.com' as a free webmail address, which is what most real cardholders and most fraudsters both use. Measured across the bank's closed cases this is the baseline -- it appears on 3,667 confirmed frauds and 573 cleared alarms -- so it is named as context and carries no weight.",
+        "source": "external",
+        "ref": "external:email_domain_intel",
+        "entity_ids": [
+          "gmail.com"
+        ]
+      },
+      {
         "claim": "Connected components over the device-sharing graph place this card in a bounded component of 3 cards (C05979-K1, C12940-K1), linked transitively through device profiles each used by no more than 8 cards. A component this small is a genuine shared origin rather than a common configuration.",
         "source": "graph",
         "ref": "query:ring_component",
@@ -54,14 +62,14 @@
       }
     ],
     "similar_prior_cases": [],
-    "summary": "A monitoring sweep on card C00081-K2 over a $977.77 in-person transaction on 2016-11-02 produced a verdict of uncertain at probability 0.38 with pattern card_not_present_fraud. The amount is 8.7x this card's median and above its 95th percentile, and connected components over the device-sharing graph placed this card in a bounded component of 3 cards (C05979-K1, C12940-K1) linked transitively through device profiles each used by no more than 8 cards. The evidence conflicts, so policy rule R8 recommended ESCALATE_TO_ANALYST because the exposure of $977.77 exceeds $500, and policy rule R6 named 2 other card(s) transacted through the same device profile in the window for monitoring. Case ID C00081-K2 remains open.",
+    "summary": "Monitoring sweep on card C00081-K2 over a $977.77 in person transaction on 2016-11-02 yielded a verdict of uncertain at probability 0.38 with exposure of $977.77. The evidence conflicts because $977.77 is 8.7x this card's median and above its 95th percentile, while external intelligence classifies 'gmail.com' as a baseline free webmail address, and graph analysis places this card in a bounded component of 3 cards (C05979-K1, C12940-K1) linked through device profiles each used by no more than 8 cards. Per policy rule R8, the case should be escalated to an analyst, and per policy rule R6, 2 other card(s) transacted through the same device profile in the window were named for monitoring.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-004"
   },
   "evidence_requests": [
     {
       "type": "customer_validation",
-      "asked_after_step": 9,
+      "asked_after_step": 10,
       "assumed_response": "No reply within 24 hours. ASSUMPTION: no replies ship with this dataset, and nothing independent in the evidence points to what the cardholder would say. Inventing an answer here would manufacture certainty, so the agent assumes the case policy R4 is written for - the customer does not respond - and acts accordingly."
     }
   ],
@@ -121,9 +129,9 @@
     "activity_dates": []
   },
   "stop_reason": "A verification response settled the question (policy 6): probability moved to 0.38 on 1 independent pieces of evidence and the action set follows directly. Further steps would not change it.",
-  "tool_calls": 9,
-  "tokens": 926,
-  "latency_s": 0.12,
+  "tool_calls": 10,
+  "tokens": 990,
+  "latency_s": 0.13,
   "trigger": {
     "type": "monitoring_sweep",
     "text": "Self-directed sweep. Connected components over the device-sharing graph put card C00081-K2 in a bounded component of 3 cards sharing 2 device profile(s), moving $7,102.69 across 48 transactions since 2016-11-02. No model score, cardholder report or analyst request opened this."

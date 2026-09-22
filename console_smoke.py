@@ -102,6 +102,30 @@ def main():
        call("/case/HHG-002/decision",
             {"decision": "override", "action": "NOT_AN_ACTION"}).get("_http") == 400)
 
+    # --- execution, and the permission boundary ------------------------------
+    ap2 = call("/case/HHG-011/decision", {"decision": "approve"})
+    ok("auto actions execute with a reference",
+       all(r["reference"] for r in ap2["executed"]),
+       f"{len(ap2['executed'])} executed")
+    ok("L1/L2 actions get no reference until approved",
+       all(r["reference"] is None for r in ap2["pending_approval"]),
+       f"{len(ap2['pending_approval'])} held")
+    ok("every effect is marked simulated",
+       all(r["simulated"] for r in ap2["executed"] + ap2["pending_approval"]))
+    led = call("/case/HHG-011/ledger")
+    ok("the ledger survives and counts both",
+       led["executed"] > 0 and led["awaiting_approval"] > 0,
+       f"{led['executed']} executed, {led['awaiting_approval']} awaiting")
+
+    # --- cross-case intelligence ---------------------------------------------
+    intel = call("/intelligence?min_cases=2")
+    ok("entities recur across cases", intel["cards"] > 0 and intel["devices"] > 0,
+       f"{intel['cards']} cards, {intel['devices']} devices")
+    ok("generic device profiles are filtered out",
+       all("unknown | unknown | unknown" not in e["entity"] for e in intel["entities"]))
+    ok("a higher bar returns fewer",
+       len(call("/intelligence?min_cases=10")["entities"]) <= len(intel["entities"]))
+
     # --- writes to the graph -------------------------------------------------
     b1 = call("/device/blacklist", {"device_profile": DEVICE, "note": "smoke test"})
     b2 = call("/device/blacklist", {"device_profile": DEVICE, "note": "smoke test"})

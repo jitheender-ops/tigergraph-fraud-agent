@@ -1,0 +1,37 @@
+{
+  "_source": "Email-domain intelligence. NOT in the dataset: the transaction file gives a domain string and nothing else. The class of a domain -- who operates it, what it costs to open an account there, whether it is tied to a billing relationship -- is external knowledge, and it is the kind of thing a fraud desk buys from a vendor. Compiled here from public knowledge of the operators rather than fetched at runtime, so the agent works offline and the demo is reproducible.",
+  "_classes": {
+    "isp_tied": "opened as part of a paid internet, cable or phone subscription, which means a billing relationship and a credit check stand behind it",
+    "free_webmail": "free, ubiquitous, no barrier to opening -- the default for most real people and most fraudsters alike",
+    "privacy_or_niche": "free but deliberately private, or a small provider with weak or no identity checks",
+    "masked": "the merchant or processor withheld the address; 'anonymous.com' is Vesta's placeholder, not a real domain"
+  },
+  "domains": {
+    "att.net": "isp_tied", "bellsouth.net": "isp_tied", "cableone.net": "isp_tied",
+    "centurylink.net": "isp_tied", "cfl.rr.com": "isp_tied", "charter.net": "isp_tied",
+    "comcast.net": "isp_tied", "cox.net": "isp_tied", "earthlink.net": "isp_tied",
+    "embarqmail.com": "isp_tied", "frontier.com": "isp_tied", "frontiernet.net": "isp_tied",
+    "optonline.net": "isp_tied", "ptd.net": "isp_tied", "q.com": "isp_tied",
+    "roadrunner.com": "isp_tied", "sbcglobal.net": "isp_tied", "sc.rr.com": "isp_tied",
+    "suddenlink.net": "isp_tied", "twc.com": "isp_tied", "verizon.net": "isp_tied",
+    "windstream.net": "isp_tied", "prodigy.net.mx": "isp_tied",
+    "mac.com": "isp_tied", "me.com": "isp_tied", "icloud.com": "isp_tied",
+
+    "gmail.com": "free_webmail", "gmail": "free_webmail", "yahoo.com": "free_webmail",
+    "yahoo.co.jp": "free_webmail", "yahoo.co.uk": "free_webmail",
+    "yahoo.com.mx": "free_webmail", "yahoo.de": "free_webmail", "yahoo.es": "free_webmail",
+    "yahoo.fr": "free_webmail", "ymail.com": "free_webmail", "rocketmail.com": "free_webmail",
+    "hotmail.com": "free_webmail", "hotmail.co.uk": "free_webmail",
+    "hotmail.de": "free_webmail", "hotmail.es": "free_webmail", "hotmail.fr": "free_webmail",
+    "outlook.com": "free_webmail", "outlook.es": "free_webmail", "live.com": "free_webmail",
+    "live.com.mx": "free_webmail", "live.fr": "free_webmail", "msn.com": "free_webmail",
+    "aol.com": "free_webmail", "aim.com": "free_webmail",
+
+    "mail.com": "privacy_or_niche", "gmx.de": "privacy_or_niche",
+    "web.de": "privacy_or_niche", "protonmail.com": "privacy_or_niche",
+    "juno.com": "privacy_or_niche", "netzero.com": "privacy_or_niche",
+    "netzero.net": "privacy_or_niche", "servicios-ta.com": "privacy_or_niche",
+
+    "anonymous.com": "masked"
+  }
+}

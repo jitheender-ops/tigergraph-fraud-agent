@@ -324,4 +324,61 @@ CREATE OR REPLACE QUERY write_closed_case(
   PRINT p_case_id AS written;
 }
 
+// ---------------------------------------------------------------------------
+// 14. CROSS-CASE INTELLIGENCE. Which entities recur across investigations.
+//
+//     Queries 6 and 7 answer "what does the bank already know about THIS card, THIS
+//     device". They are lookups, and a lookup cannot see a pattern. This one goes the
+//     other way: over every case the bank has closed and every case this agent has
+//     opened, which cards and which device profiles appear in more than one, and under
+//     which patterns. That is the difference between memory you can query and memory
+//     that tells you something.
+// ---------------------------------------------------------------------------
+CREATE OR REPLACE QUERY cross_case_entities(INT p_min_cases = 2,
+                                           INT p_max_cards_per_device = 80)
+  FOR GRAPH FraudInvestigation {
+  // Two maps, not one keyed by kind: a MapAccum<STRING,STRING> CONCATENATES on +=, so a
+  // shared kind map came back reading "devicedevicedevice...". Keeping cards and devices
+  // apart makes the kind structural instead of stored.
+  MapAccum<STRING, SetAccum<STRING>> @@card_cases, @@card_patterns;
+  MapAccum<STRING, SetAccum<STRING>> @@dev_cases, @@dev_patterns;
+  SetAccum<STRING> @@ring_devices;
+
+  // Only profiles that plausibly describe a machine. 'Windows | unknown | chrome 63.0 |
+  // unknown' appears in 260 closed cases, and that is a fact about Chrome, not a ring.
+  AllDev = {DeviceProfile.*};
+  D = SELECT d FROM AllDev:d
+      WHERE d.n_cards >= 2 AND d.n_cards <= p_max_cards_per_device
+        AND d.device_profile NOT LIKE "unknown | unknown | unknown%"
+      ACCUM @@ring_devices += d.device_profile;
+
+  CC = {ClosedCase.*};
+  OnCard = SELECT c FROM CC:c -(ON_CARD>)- Card:k
+           ACCUM @@card_cases += (k.card_id -> c.case_id),
+                 @@card_patterns += (k.card_id -> c.pattern);
+  Conn   = SELECT c FROM CC:c -(CONNECTED_TO>)- Card:k
+           ACCUM @@card_cases += (k.card_id -> c.case_id),
+                 @@card_patterns += (k.card_id -> c.pattern);
+  T      = SELECT t FROM CC:c -(INVOLVES>)- Transaction:t
+           WHERE @@ring_devices.contains(t.device_profile)
+           ACCUM @@dev_cases += (t.device_profile -> c.case_id),
+                 @@dev_patterns += (t.device_profile -> c.pattern);
+
+  FC = {FraudCase.*};
+  FOnCard = SELECT f FROM FC:f -(CASE_ON_CARD>)- Card:k
+            ACCUM @@card_cases += (k.card_id -> f.graph_case_id),
+                  @@card_patterns += (k.card_id -> f.pattern);
+  FConn   = SELECT f FROM FC:f -(CASE_CONNECTED>)- Card:k
+            ACCUM @@card_cases += (k.card_id -> f.graph_case_id),
+                  @@card_patterns += (k.card_id -> f.pattern);
+  FDev    = SELECT f FROM FC:f -(CASE_DEVICE>)- DeviceProfile:d
+            WHERE @@ring_devices.contains(d.device_profile)
+            ACCUM @@dev_cases += (d.device_profile -> f.graph_case_id),
+                  @@dev_patterns += (d.device_profile -> f.pattern);
+
+  PRINT @@card_cases AS card_cases, @@card_patterns AS card_patterns,
+        @@dev_cases AS dev_cases, @@dev_patterns AS dev_patterns,
+        p_min_cases AS min_cases;
+}
+
 INSTALL QUERY ALL

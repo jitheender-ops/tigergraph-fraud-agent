@@ -80,6 +80,14 @@
         ]
       },
       {
+        "claim": "External email-domain intelligence classifies 'yahoo.com' as a free webmail address, which is what most real cardholders and most fraudsters both use. Measured across the bank's closed cases this is the baseline -- it appears on 3,667 confirmed frauds and 573 cleared alarms -- so it is named as context and carries no weight.",
+        "source": "external",
+        "ref": "external:email_domain_intel",
+        "entity_ids": [
+          "yahoo.com"
+        ]
+      },
+      {
         "claim": "A fraud analyst opened this review after seeing several cards transacting through the same unusual device profile. A trained reviewer identifying a cross-card pattern is independent evidence, not a restatement of the model score",
         "source": "external",
         "ref": "trigger:analyst_request",
@@ -125,19 +133,19 @@
       }
     ],
     "similar_prior_cases": [],
-    "summary": "An analyst opened case C13487-K1 on 2016-11-22 for card C13487-K1 after observing several cards transacting through the same unusual device profile, and the cardholder denied the transaction on contact. The connection came through an anonymising proxy (IP_PROXY:ANONYMOUS) from a device marked New for the account on named hardware (SM-G935F Build/NRD90M), which appeared in 4 of the 9 confirmed fraud cases the bank could not fit to a documented pattern. Against this, the identity record marks this device New for the account, 83% of cleared alarms had a New device against 18% of confirmed fraud, and an online transaction on a card whose history is 5% online was mildly exculpatatory at 11.9% of cleared versus 4.5% of confirmed fraud. The device profile 'SM-G935F Build/NRD90M | Android 7.0 | chrome 62.0 for android | 1920x1080' is shared with 19 other card(s) inside the 30-day window across 20 customer(s). The activity is assessed as an undocumented pattern at probability 0.90 with 1 transaction(s) and $74.96 of exposure, and 19 other card(s) transacted through the same device profile in the window and are named for monitoring.",
+    "summary": "A fraud analyst opened a review on case ID undisclosed after seeing several cards transacting through the same unusual device profile involving card C13487-K1. The cardholder denied the transaction on contact, and the $74.96 online transaction on 2016-11-22 came through an anonymising proxy (IP_PROXY:ANONYMOUS) from a device marked New for the account on named hardware (SM-G935F Build/NRD90M). The identity record marks this device New for the account, 83% of cleared alarms had a New device against 18% of confirmed fraud, and the card's history is 5% online. A online transaction on a card whose history is 5% online was mildly exculpatatory, the device profile 'SM-G935F Build/NRD90M Build/NRD90M | Android 7.0 | chrome 62.0 for android | 1920x1080' is shared with 19 other card(s) inside the 30-day window across 20 customer(s), and only 190 of the 590,742 transactions in the book carry that combination. The connection carried no documented pattern the bank recognises, assessed as fraud at probability 0.90, with 1 transaction(s) and $74.96 of exposure, and 19 other card(s) transacted through the same device profile in the window and are named for monitoring. The external email-domain intelligence classifies 'yahoo.com' as a free webmail address, which measured as the baseline across the bank's closed cases and carries no weight.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-014"
   },
   "evidence_requests": [
     {
       "type": "customer_validation",
-      "asked_after_step": 9,
+      "asked_after_step": 10,
       "assumed_response": "Cardholder states they did not make the transaction and still holds the card. ASSUMPTION: no replies ship with this dataset. This one is drawn from 2 independent incriminating findings in the graph, not from the agent's own probability."
     },
     {
       "type": "analyst_info",
-      "asked_after_step": 9,
+      "asked_after_step": 10,
       "assumed_response": "Analyst confirms no merchant-side chargeback or law-enforcement notice is attached to these transactions, so the graph evidence stands as gathered. ASSUMPTION: simulated; no analyst replies ship with the dataset."
     }
   ],
@@ -242,7 +250,7 @@
     ]
   },
   "stop_reason": "A verification response settled the question (policy 6): probability moved to 0.90 on 5 independent pieces of evidence and the action set follows directly. Further steps would not change it.",
-  "tool_calls": 15,
-  "tokens": 3642,
-  "latency_s": 0.2
+  "tool_calls": 16,
+  "tokens": 3899,
+  "latency_s": 0.22
 }
