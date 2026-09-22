@@ -79,7 +79,8 @@ CREATE SCHEMA_CHANGE JOB fraud_schema FOR GRAPH FraudInvestigation {
   ) WITH primary_id_as_attribute="true";
 
   // Cases this agent opens. Written back so later investigations retrieve them.
-  ADD VERTEX Case (
+  // Named FraudCase, not Case: GSQL reserves CASE, and a vertex type cannot use it.
+  ADD VERTEX FraudCase (
     PRIMARY_ID graph_case_id STRING,
     source_case_id STRING,
     customer_id STRING,
@@ -120,21 +121,23 @@ CREATE SCHEMA_CHANGE JOB fraud_schema FOR GRAPH FraudInvestigation {
   ADD DIRECTED EDGE ON_CARD         (FROM ClosedCase,  TO Card)           WITH REVERSE_EDGE="HAS_CLOSED_CASE";
   ADD DIRECTED EDGE CONNECTED_TO    (FROM ClosedCase,  TO Card)           WITH REVERSE_EDGE="CONNECTED_FROM";
 
-  ADD DIRECTED EDGE CASE_INVOLVES   (FROM Case,        TO Transaction)    WITH REVERSE_EDGE="IN_CASE";
-  ADD DIRECTED EDGE CASE_ON_CARD    (FROM Case,        TO Card)           WITH REVERSE_EDGE="HAS_CASE";
-  ADD DIRECTED EDGE CASE_CONNECTED  (FROM Case,        TO Card)           WITH REVERSE_EDGE="CONNECTED_IN_CASE";
-  ADD DIRECTED EDGE CASE_DEVICE     (FROM Case,        TO DeviceProfile)  WITH REVERSE_EDGE="DEVICE_IN_CASE";
-  ADD DIRECTED EDGE CITES_PRIOR     (FROM Case,        TO ClosedCase)     WITH REVERSE_EDGE="CITED_BY";
+  ADD DIRECTED EDGE CASE_INVOLVES   (FROM FraudCase,        TO Transaction)    WITH REVERSE_EDGE="IN_CASE";
+  ADD DIRECTED EDGE CASE_ON_CARD    (FROM FraudCase,        TO Card)           WITH REVERSE_EDGE="HAS_CASE";
+  ADD DIRECTED EDGE CASE_CONNECTED  (FROM FraudCase,        TO Card)           WITH REVERSE_EDGE="CONNECTED_IN_CASE";
+  ADD DIRECTED EDGE CASE_DEVICE     (FROM FraudCase,        TO DeviceProfile)  WITH REVERSE_EDGE="DEVICE_IN_CASE";
+  ADD DIRECTED EDGE CITES_PRIOR     (FROM FraudCase,        TO ClosedCase)     WITH REVERSE_EDGE="CITED_BY";
 }
 
 RUN SCHEMA_CHANGE JOB fraud_schema
 
-// Vector attributes are added by ALTER VERTEX in a GLOBAL schema change job; they
-// cannot appear in the ADD VERTEX clause above. 384 dimensions is BAAI/bge-small-en-v1.5,
-// the model prep/build_corpus.py embeds with. Cosine, because the corpus vectors are
-// L2-normalised on the way in. TigerGraph builds the HNSW index as the vectors load.
-CREATE GLOBAL SCHEMA_CHANGE JOB doc_embedding {
+// Vector attributes are added by ALTER VERTEX in a second schema change job; they cannot
+// appear in the ADD VERTEX clause above. The job is scoped FOR GRAPH, not GLOBAL, because
+// DocChunk was created inside a graph-scoped job and is therefore a local vertex type.
+// 384 dimensions is BAAI/bge-small-en-v1.5, the model prep/build_corpus.py embeds with.
+// Cosine, because the corpus vectors are L2-normalised on the way in. TigerGraph builds
+// the HNSW index as the vectors load.
+CREATE SCHEMA_CHANGE JOB doc_embedding FOR GRAPH FraudInvestigation {
   ALTER VERTEX DocChunk ADD VECTOR ATTRIBUTE embedding(DIMENSION=384, METRIC="COSINE");
 }
 
-RUN GLOBAL SCHEMA_CHANGE JOB doc_embedding
+RUN SCHEMA_CHANGE JOB doc_embedding

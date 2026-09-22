@@ -125,7 +125,7 @@
       }
     ],
     "similar_prior_cases": [],
-    "summary": "An analyst opened this review on case ID C13487-K1 after observing several cards transacting through the same unusual device profile. The cardholder denied the $74.96 online transaction on 2016-11-22, and the connection came through an anonymising proxy (IP_PROXY:ANONYMOUS) from a device marked New for the account on named hardware (SM-G935F Build/NRD90M). The identity record marked this device New for the account, and the card's history showed 5% online transactions, yet the activity was assessed as an undocumented pattern at probability 0.90 with 1 transaction(s) and $74.96 of exposure. The device profile (SM-G935F Build/NRD90M | Android 7.0 | chrome 62.0 for android | 1920x1080) was shared with 19 other card(s) across 20 customer(s) in the 30-day window, and 190 of the 590,742 transactions in the book carried that combination. Policy R6 required naming the shared element, and 19 other card(s) transacted through the same device profile in the window and were named for monitoring.",
+    "summary": "An analyst requested a review of card C13487-K1 for case 1 over a $74.96 online transaction on 2016-11-22. The cardholder denied the transaction, the connection came through an anonymising proxy (IP_PROXY:ANONYMOUS) from a device marked New for the account on named hardware (SM-G935F Build/NRD90M), and the card has a history of 5% online transactions. The identity record marks this device New for the account, and 19 other card(s) transacted through the same device profile in the 30-day window across 20 customer(s). The activity was assessed as an undocumented pattern with probability 0.90, and 4 of the 9 confirmed fraud cases in the bank's records carried the same proxy and New device combination.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-014"
   },
@@ -242,7 +242,7 @@
     ]
   },
   "stop_reason": "A verification response settled the question (policy 6): probability moved to 0.90 on 5 independent pieces of evidence and the action set follows directly. Further steps would not change it.",
-  "tool_calls": 14,
-  "tokens": 3656,
-  "latency_s": 0.08
+  "tool_calls": 15,
+  "tokens": 3550,
+  "latency_s": 0.27
 }

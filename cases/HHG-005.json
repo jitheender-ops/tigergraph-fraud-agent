@@ -67,7 +67,7 @@
       "CC-2717",
       "CC-2400"
     ],
-    "summary": "The risk score on card C02923-K1 for transaction 2016-12-07 on a $100.07 online purchase yielded a verdict of uncertain at probability 0.33 with pattern card_not_present_new_device. The bank has 3 confirmed-fraud case(s) already closed on this card (CC-2857, CC-2717, CC-2400), pattern(s): account_takeover, while the identity record marks this device New for the account and connected components placed this card in the graph's giant device-sharing component (2,500 cards). Policy rule R1 recommends `VERIFY_WITH_CUSTOMER` or `STEP_UP_AUTH` before any block because the assessed fraud probability is below 0.70, and the exposure if the activity is fraudulent is $100.07.",
+    "summary": "The risk score on card C02923-K1 for a $100.07 online transaction on 2016-12-07 yielded a verdict of uncertain at probability 0.33 with pattern card_not_present_new_device. The bank has 3 confirmed-fraud case(s) already closed on this card (CC-2857, CC-2717, CC-2400), pattern(s): account_takeover, and the identity record marks this device New for the account. The evidence conflicts, the connected component membership of 2,500 cards carries no weight as evidence of a ring, and exposure if the activity is fraudulent is $100.07. Per policy R1, because the assessed fraud probability is below 0.70, the case recommended `VERIFY_WITH_CUSTOMER` or `STEP_UP_AUTH` before any block.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-005"
   },
@@ -129,7 +129,7 @@
     "activity_dates": []
   },
   "stop_reason": "A verification response settled the question (policy 6): probability moved to 0.33 on 1 independent pieces of evidence and the action set follows directly. Further steps would not change it.",
-  "tool_calls": 9,
-  "tokens": 892,
-  "latency_s": 0.07
+  "tool_calls": 10,
+  "tokens": 896,
+  "latency_s": 0.56
 }

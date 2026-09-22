@@ -66,7 +66,7 @@ def main():
             "connected_cards": r["connected"], "devices": [d for d in r["devices"] if d],
             "prior_cases": [p["case_id"] for p in r["prior"]][:8],
         }
-        out = ans.build(t, r, llm=llm)
+        out = ans.build(t, r, llm=llm, backend=b)
         payload["summary"] = out["case"]["summary"]
         payload["stop_reason"] = out["stop_reason"]
         b.write_case(payload)

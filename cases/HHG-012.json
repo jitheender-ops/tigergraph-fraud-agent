@@ -70,7 +70,7 @@
       "CC-2370",
       "CC-0003"
     ],
-    "summary": "The risk score on card C05876-K2 for a $30.91 in person transaction on 2016-12-18 returned fraud at probability 0.87 with pattern account_takeover and exposure of $30.91. One card-detail match flag (M1-M9) came back F on this transaction, 13 transactions occurred on this card in the 48 hours ending at the flagged one, and the bank has 1 confirmed-fraud case(s) already closed on this card (CC-2370) with pattern card_not_present_fraud. This card is in the graph's giant device-sharing component of 2,500 cards, which carries no weight because transitive device sharing percolates at every threshold tested. The case was assessed as mixed-channel activity consistent with stolen credentials, and policy rule R1 advises verifying before blocking on a weak signal when the assessed fraud probability is below 0.70.",
+    "summary": "The case, CC-2370, concerns card C05876-K2 and a $30.91 in person transaction on 2016-12-18. One card-detail match flag (M1-M9) came back F, and 13 transactions occurred on this card in the 48 hours ending at the flagged one. The assessed probability of fraud is 0.87 with a pattern of account_takeover and $30.91 of exposure, and the bank already has 1 confirmed-fraud case(s) closed on this card. The card sits in the graph's giant device-sharing component of 2,500 cards, though transitive device sharing carries no weight here. Known fraud pattern 5 describes mixed-channel activity inconsistent with the cardholder, often with device and match-flag anomalies, pointing to stolen credentials. Policy rule R1 requires verification before blocking when a case rests on a single signal and the assessed fraud probability is below 0.70.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-012"
   },
@@ -112,6 +112,6 @@
   },
   "stop_reason": "Policy 6: probability 0.87 is at or above 0.85 on 2 independent pieces of evidence, which is the bar for a defensible action.",
   "tool_calls": 9,
-  "tokens": 862,
-  "latency_s": 0.07
+  "tokens": 868,
+  "latency_s": 0.62
 }

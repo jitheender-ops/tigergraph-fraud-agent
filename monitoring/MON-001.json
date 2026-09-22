@@ -78,7 +78,7 @@
       "CC-3384",
       "CC-0575"
     ],
-    "summary": "A monitoring sweep on card C03999-K1 identified an in-person transaction of $2,294.91 on 2016-11-22. One card-detail match flag (M1-M9) returned F, $2,294.91 is 17.0x this card's median and above its 95th percentile, and the bank has 2 confirmed-fraud case(s) already closed on this card (CC-4268, CC-3384), pattern(s): card_not_present_fraud. Connected components over the device-sharing graph placed this card in a bounded component of 4 cards (C00066-K1, C04742-K1, C13015-K2), linked transitively through device profiles each used by no more than 8 cards, and 3 other card(s) transacted through the same device profile in the window and are named for monitoring. The evidence conflicts, the verdict is uncertain at probability 0.69, and exposure if the activity is fraudulent is $2,394.82, so the case is not decided in the graph.",
+    "summary": "A monitoring sweep on 2016-11-22 recorded an in-person transaction of $2,294.91 on card C03999-K1. One card-detail match flag (M1-M9) returned F, and $2,294.91 is 17.0x this card's median and above its 95th percentile. The bank has 2 confirmed-fraud case(s) already closed on this card (CC-4268, CC-3384), pattern(s): card_not_present_fraud, and connected components placed this card in a bounded component of 4 cards (C00066-K1, C04742-K1, C13015-K2). The verdict is uncertain at probability 0.69, the evidence conflicts, and exposure is $2,394.82. Policy rule R8 recommended `ESCALATE_TO_ANALYST`, while policy rule R6 recommended naming the shared element, `CREATE_CASE`, `FILE_REPORT`, and `MONITOR_CONNECTED_CARDS` for the 3 other card(s) transacted through the same device profile, with case ID CC-4268.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-001"
   },
@@ -161,8 +161,8 @@
   },
   "stop_reason": "A verification response settled the question (policy 6): probability moved to 0.69 on 2 independent pieces of evidence and the action set follows directly. Further steps would not change it.",
   "tool_calls": 9,
-  "tokens": 1120,
-  "latency_s": 0.19,
+  "tokens": 1134,
+  "latency_s": 0.38,
   "trigger": {
     "type": "monitoring_sweep",
     "text": "Self-directed sweep. Connected components over the device-sharing graph put card C03999-K1 in a bounded component of 4 cards sharing 7 device profile(s), moving $17,539.13 across 114 transactions since 2016-11-02. No model score, cardholder report or analyst request opened this."

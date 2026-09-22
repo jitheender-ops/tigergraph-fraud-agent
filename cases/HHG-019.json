@@ -94,7 +94,7 @@
       "CC-2087",
       "CC-2011"
     ],
-    "summary": "On 2016-12-01, card C07987-K2 was assessed as legitimate at probability 0.18 with $0.00 exposure for a $99.92 transaction. The model risk score was 0.90, and the identity record marked the device New, which is characteristic of a cardholder who recently acquired hardware. Device profile 'Windows | other | chrome 61.0 | 1280x720' was shared with 2 other card(s) across 3 customer(s), and the card resided in a giant device-sharing component of 2,500 cards. The exact amount of $99.92 had been charged 13 times across 4 distinct months under the same product code, a cadence consistent with a subscription. The bank had 3 confirmed-fraud case(s) already closed on this card (CC-5026, CC-2860, CC-2011), pattern(s): card_not_present_fraud, out_of_region_use.",
+    "summary": "Risk score on card C07987-K2 over a $99.92 online transaction on 2016-12-01 was assessed as legitimate at probability 0.18 with exposure of $0.00. The identity record marked this device as New for the account, and the model risk score was 0.90. Two other card(s) transacted through the same device profile in the 30-day window, and the bank has 3 confirmed-fraud case(s) already closed on this card (CC-5026, CC-2860, CC-2011), pattern(s): card_not_present_fraud, out_of_region_use. This exact amount ($99.92) had been charged to this card 13 times across 4 distinct months under the same product code, a median of 27 days apart. The device profile 'Windows | other | chrome 61.0 | 1280x720' was shared with 2 other card(s) inside the 30-day window, across 3 customer(s), and this card was placed in the graph's giant device-sharing component (2,500 cards).",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-019"
   },
@@ -145,7 +145,7 @@
     "activity_dates": []
   },
   "stop_reason": "Policy 6: probability 0.18 on 2 independent pieces of evidence sits between the stopping thresholds. Stopping here because the remaining uncertainty is the cardholder's own intent, which only the cardholder or an analyst can resolve; the recommended actions route it to them rather than resolving it in the graph.",
-  "tool_calls": 12,
-  "tokens": 1180,
-  "latency_s": 0.07
+  "tool_calls": 13,
+  "tokens": 1217,
+  "latency_s": 0.64
 }

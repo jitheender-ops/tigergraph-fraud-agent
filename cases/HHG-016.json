@@ -61,7 +61,7 @@
       }
     ],
     "similar_prior_cases": [],
-    "summary": "The customer reported the $59.67 online transaction on 2016-12-11 on card C09988-K1 under case ID not provided. The identity record marked the device New for the account, 83% of cleared alarms involved a New device versus 18% of confirmed fraud, and known fraud pattern 3 indicated card-not-present fraud from a new device. Transitive device sharing placed card C09988-K1 in a component of 2,500 cards, and policy R2 recommended `BLOCK_CARD` and `CREATE_CASE` because the customer denied the transaction. The evidence conflicted and the probability remained 0.50, leaving the case unresolved with exposure of $59.67.",
+    "summary": "The case for card C09988-K1 and customer ID on transaction T61413 on 2016-12-11 carries a verdict of uncertain at probability 0.50 with exposure of $59.67. The cardholder contacted the bank to deny the purchase, while the identity record marks the device as New for the account, 83% of cleared alarms had a New device against 18% of confirmed fraud, and the card sits in a giant device-sharing component of 2,500 cards. Policy rule R2 recommends `BLOCK_CARD` and `CREATE_CASE` because the customer denies the transaction, though `FILE_REPORT` was not triggered as the exposure does not exceed $1,000 and no shared device profile or another card's fraud was connected.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-016"
   },
@@ -133,7 +133,7 @@
     "activity_dates": []
   },
   "stop_reason": "A verification response settled the question (policy 6): probability moved to 0.50 on 2 independent pieces of evidence and the action set follows directly. Further steps would not change it.",
-  "tool_calls": 8,
-  "tokens": 763,
-  "latency_s": 0.07
+  "tool_calls": 9,
+  "tokens": 776,
+  "latency_s": 0.61
 }

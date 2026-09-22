@@ -11,7 +11,8 @@ import datetime as dt, json, os
 TOOL_NAMES = [
     "card_window", "card_baseline", "device_neighbors", "region_history",
     "card_testing_probe", "prior_cases_for_card", "prior_cases_for_device",
-    "connected_cards", "region_cluster", "ring_component", "doc_search", "write_case",
+    "connected_cards", "region_cluster", "device_reach", "ring_component",
+    "doc_search", "write_case",
 ]
 
 
@@ -196,19 +197,53 @@ class TigerGraphBackend:
 
     def _run(self, name, params):
         res = self.conn.runInstalledQuery(name, params)
-        self.log.record(name, params, sum(len(r.get(k, [])) for r in res for k in r))
+        # a PRINT block holds either a vertex set or a scalar accumulator; only the
+        # former has a length, and card_baseline prints nine scalars.
+        n = sum(len(v) if isinstance(v, (list, dict)) else 1
+                for blk in res for v in blk.values())
+        self.log.record(name, params, n)
         return res
+
+    # RESTPP returns every attribute as JSON, so a DATETIME arrives as a string and the
+    # callers -- which were written against the DuckDB mirror's typed frames -- do
+    # arithmetic on it. Coerce once, here, rather than in every caller.
+    _DATE_COLS = ("ts", "opened_at", "closed_at")
+    _NUM_COLS = ("amount", "risk_score", "exposure_usd", "n_txns", "dist1")
+
+    @classmethod
+    def _frame(cls, res, key):
+        import pandas as pd
+        df = pd.DataFrame(cls._rows(res, key))
+        for c in cls._DATE_COLS:
+            if c in df:
+                df[c] = pd.to_datetime(df[c], errors="coerce")
+        for c in cls._NUM_COLS:
+            if c in df:
+                df[c] = pd.to_numeric(df[c], errors="coerce")
+        return df
+
+    @staticmethod
+    def _rows(res, key):
+        """Vertex attributes out of a PRINT result.
+
+        `PRINT T[T.amount]` names the attribute "T.amount", after the set variable, so
+        every key carries an alias prefix that the DuckDB mirror's columns do not. Strip
+        it once here rather than in six callers."""
+        out = []
+        for blk in res:
+            for v in blk.get(key, []):
+                out.append({k.split(".", 1)[-1] if "." in k else k: val
+                            for k, val in v["attributes"].items()})
+        return out
 
     @staticmethod
     def _ts(x):
         return x.strftime("%Y-%m-%d %H:%M:%S") if isinstance(x, (dt.datetime, dt.date)) else str(x)
 
     def card_window(self, card_id, t_from, t_to):
-        import pandas as pd
         r = self._run("card_window", {"p_card_id": card_id, "p_from": self._ts(t_from),
                                       "p_to": self._ts(t_to)})
-        rows = [v["attributes"] for blk in r for v in blk.get("txns", [])]
-        return pd.DataFrame(rows)
+        return self._frame(r, "txns")
 
     def card_baseline(self, card_id):
         r = self._run("card_baseline", {"p_card_id": card_id})
@@ -218,16 +253,15 @@ class TigerGraphBackend:
         return out
 
     def device_neighbors(self, device_profile, t_from, t_to):
-        import pandas as pd
         r = self._run("device_neighbors", {"p_device_profile": device_profile,
                                            "p_from": self._ts(t_from), "p_to": self._ts(t_to)})
-        cards, custs, txns = [], [], []
+        cards, custs = [], []
         for blk in r:
             cards += blk.get("card_ids", [])
             custs += blk.get("customer_ids", [])
-            txns += [v["attributes"] for v in blk.get("txns", [])]
+        txns = self._frame(r, "txns")
         return {"cards": sorted(set(cards)), "customers": sorted(set(custs)),
-                "n_txns": len(txns), "txns": pd.DataFrame(txns)}
+                "n_txns": len(txns), "txns": txns}
 
     def region_history(self, card_id, region, before):
         r = self._run("region_history", {"p_card_id": card_id, "p_region": str(region),
@@ -239,29 +273,28 @@ class TigerGraphBackend:
                 "first_use": out.get("first_ever_use"), "last_prior": out.get("last_prior_use")}
 
     def card_testing_probe(self, card_id, anchor, hours=24):
-        import pandas as pd
         r = self._run("card_testing_probe", {"p_card_id": card_id, "p_anchor": self._ts(anchor),
                                              "p_hours": hours})
-        rows = [v["attributes"] for blk in r for v in blk.get("sequence", [])]
-        return pd.DataFrame(rows)
+        return self._frame(r, "sequence")
 
     def prior_cases_for_card(self, card_id, before=None):
         import pandas as pd
         r = self._run("prior_cases_for_card", {"p_card_id": card_id})
-        rows = [v["attributes"] for blk in r for v in blk.get("prior_cases", [])]
-        df = pd.DataFrame(rows)
+        df = self._frame(r, "prior_cases")
         if before is not None and len(df):
-            df = df[df.opened_at < str(before)]
-        return df
+            df = df[df.opened_at < pd.Timestamp(before)]
+        # the SQL mirror orders newest first and the agent cites the top eight, so
+        # without this the two backends cite different cases, not just a different order.
+        return df.sort_values("opened_at", ascending=False) if len(df) else df
 
     def prior_cases_for_device(self, device_profile, before=None):
         import pandas as pd
         r = self._run("prior_cases_for_device", {"p_device_profile": device_profile})
-        rows = [v["attributes"] for blk in r for v in blk.get("device_cases", [])]
-        df = pd.DataFrame(rows)
+        df = self._frame(r, "device_cases")
         if before is not None and len(df):
-            df = df[df.opened_at < str(before)]
-        return df
+            df = df[df.opened_at < pd.Timestamp(before)]
+        return (df.sort_values("opened_at", ascending=False).head(25)
+                if len(df) else df)
 
     def connected_cards(self, card_id, t_from, t_to):
         r = self._run("connected_cards", {"p_card_id": card_id, "p_from": self._ts(t_from),
@@ -286,7 +319,10 @@ class TigerGraphBackend:
         out = {}
         for blk in r:
             out.update(blk)
-        members = [c for c in out.get("members", []) if c != card_id]
+        # a SetAccum comes back in whatever order the engine built it; the SQL mirror
+        # orders ascending, and both truncate to 25, so an unsorted set would name a
+        # different 25 cards out of the same component.
+        members = sorted(c for c in out.get("members", []) if c != card_id)
         return {"ring_id": out.get("ring_id", ""),
                 "ring_size": int(out.get("ring_size", 1) or 1), "members": members[:25]}
 
@@ -298,14 +334,117 @@ class TigerGraphBackend:
         r = self.conn.runInstalledQuery("doc_search", {
             "p_query": retrieve.embed(query).tolist(), "p_k": k,
             "p_sources": list(sources or ())})
-        hits = [v["attributes"] for blk in r for v in blk.get("hits", [])]
+        hits = self._rows(r, "hits")
         self.log.record("doc_search", {"query": query, "sources": list(sources or ())}, len(hits))
         return [{"source": h["source"], "section": h["section"], "title": h["title"],
                  "text": h["text"], "doc_id": h["doc_id"],
                  "score": round(float(h.get("score", 0.0)), 4)} for h in hits]
 
+    # ---- feature extraction over the graph ------------------------------
+    # The DuckDB mirror computes the feature row in one SQL pass. There is no SQL here,
+    # and rewriting that pass as a 90-line GSQL query would bury the calibration in the
+    # database. Instead the card's whole history comes back through card_window -- a tool
+    # the agent already has -- and the same derivations run over it. The result is
+    # asserted equal to the DuckDB row for all twenty cases by prep/parity.py, which is
+    # the only reason to believe the two backends agree.
+    FLAG_IDX = (0, 1, 2, 4, 5, 6, 7, 8)   # M1,M2,M3,M5..M9; M4 is categorical, not a flag
+
     def features(self, card_id, txn_id):
-        raise NotImplementedError("features() is computed by the loader-side DuckDB mirror")
+        import numpy as np, pandas as pd
+
+        h = self.card_window(card_id, "1970-01-01 00:00:00", "2100-01-01 00:00:00")
+        if not len(h):
+            raise LookupError(f"card {card_id} has no transactions in the graph")
+        h = h.copy()
+        h["txn_id"] = h.txn_id.astype(str)
+        h["ts"] = pd.to_datetime(h.ts)
+        h["amount"] = h.amount.astype(float)
+        for c in ("product_cd", "addr1", "p_email", "device_profile", "id_15", "id_23",
+                  "m_flags", "channel", "customer_id"):
+            h[c] = h[c].fillna("") if c in h else ""
+        h = h.sort_values("ts")
+
+        hit = h[h.txn_id == str(txn_id)]
+        if not len(hit):
+            raise LookupError(f"transaction {txn_id} is not on card {card_id}")
+        a = hit.iloc[0]
+
+        before = h[h.ts < a.ts]
+        # same amount within 2%, which is the recurring-charge tell (policy R7)
+        same_amt = h[(h.amount - a.amount).abs() <= 0.02 * a.amount]
+        same_amt_prod = same_amt[same_amt.product_cd == a.product_cd].sort_values("ts")
+        # SQL's date_diff('day', a, b) counts day boundaries crossed, not the fractional
+        # difference, so the gap is measured between normalised dates or the two backends
+        # disagree in the last decimal on every card.
+        gaps = same_amt_prod.ts.dt.normalize().diff().dt.days
+        w48 = h[(h.ts >= a.ts - dt.timedelta(hours=48)) & (h.ts <= a.ts)]
+        w24 = h[(h.ts >= a.ts - dt.timedelta(hours=24)) & (h.ts <= a.ts)]
+
+        dp = a.device_profile or ""
+        # DeviceInfo is the first component of the profile, 'X | OS | browser | screen'.
+        # The source column is NULL where the identity record had no DeviceInfo and the
+        # profile spells that as the literal 'unknown', so it maps back to None to keep
+        # the two backends' rows identical.
+        device_info = dp.split(" | ")[0] if dp else ""
+        if device_info == "unknown":
+            device_info = ""
+        online = (h.channel == "online")
+        flags = str(a.m_flags or "").split(",")
+
+        return {
+            "key_id": "x", "txn_id": str(txn_id), "card_id": card_id,
+            "customer_id": a.customer_id or None,
+            "ts": a.ts.to_pydatetime(), "amount": float(a.amount),
+            "product_cd": a.product_cd or None, "channel": a.channel,
+            "risk_score": float(a.risk_score) if a.risk_score == a.risk_score else float("nan"),
+            "addr1": a.addr1 or None, "p_email": a.p_email or None,
+            "device_profile": dp or None, "device_info": device_info or None,
+            "id_15": a.id_15 or None, "id_23": a.id_23 or None,
+
+            "n_txns": int(len(h)),
+            "amt_median": float(h.amount.median()),
+            "amt_p95": float(h.amount.quantile(0.95)),
+            "amt_max": float(h.amount.max()),
+            "online_share": float(online.sum()) / len(h),
+            "n_regions": int(h.loc[h.addr1 != "", "addr1"].nunique()),
+            "n_devices": int(h.loc[h.device_profile != "", "device_profile"].nunique()),
+
+            "amt_vs_median": (float(a.amount) / float(h.amount.median())
+                              if h.amount.median() else None),
+            "amt_over_p95": int(a.amount > h.amount.quantile(0.95)),
+            "prior_in_region": int((before.addr1 == a.addr1).sum()),
+            "prior_product": int((before.product_cd == a.product_cd).sum()),
+            "prior_email": int((before.p_email == a.p_email).sum()),
+            "same_amount_n": int(len(same_amt)),
+            "same_amount_months": int(same_amt_prod.ts.dt.to_period("M").nunique()),
+            "same_amount_gap_days": float(gaps.median()) if gaps.notna().any() else float("nan"),
+            "burst_48h": int(len(w48)),
+            "small_auths_24h": int(((w24.channel == "online") & (w24.amount < 5)).sum()),
+
+            "dev_cards": self.device_reach(dp) if dp else 0,
+            "dev_unknowns": dp.count("unknown"),
+            "dev_named_hw": int(bool(device_info)
+                                and device_info not in ("Windows", "MacOS", "iOS Device",
+                                                        "Trident/7.0", "Linux", "other")
+                                and not device_info.startswith("unknown")),
+            "dev_specific": int(bool(dp) and not dp.startswith("unknown | unknown | unknown")),
+            "dev_new": int(a.id_15 == "New"),
+            "proxy": int(bool(a.id_23) and a.id_23 != "IP_PROXY:TRANSPARENT"),
+            "channel_odd": int((a.channel == "online" and float(online.sum()) / len(h) < 0.1)
+                               or (a.channel == "in_person"
+                                   and float(online.sum()) / len(h) > 0.9)),
+            # M1..M9 are booleans in the source, so a failed match is the string
+            # "false" once packed, not "F". SQL's `M1 = 'F'` means the same thing:
+            # DuckDB reads 'F' as the boolean false.
+            "m_false_n": sum(1 for i in self.FLAG_IDX
+                             if i < len(flags) and flags[i].strip().lower() == "false"),
+        }
+
+    def device_reach(self, device_profile):
+        r = self._run("device_reach", {"p_device_profile": device_profile})
+        for row in self._rows(r, "device"):
+            return int(row.get("n_cards") or 0)
+        return 0
 
     def write_case(self, payload):
         self._run("write_case", {

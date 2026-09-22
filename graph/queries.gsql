@@ -14,8 +14,9 @@ CREATE OR REPLACE QUERY card_window(STRING p_card_id, DATETIME p_from, DATETIME 
       WHERE t.ts >= p_from AND t.ts <= p_to
       ACCUM @@hits += t
       ORDER BY t.ts ASC;
-  PRINT T[T.txn_id, T.ts, T.amount, T.product_cd, T.channel, T.risk_score,
-          T.addr1, T.p_email, T.device_profile, T.id_15, T.id_23, T.m_flags] AS txns;
+  PRINT T[T.txn_id, T.card_id, T.customer_id, T.ts, T.amount, T.product_cd, T.channel,
+          T.risk_score, T.addr1, T.p_email, T.device_profile, T.id_15, T.id_23,
+          T.m_flags] AS txns;
 }
 
 // ---------------------------------------------------------------------------
@@ -150,7 +151,9 @@ CREATE OR REPLACE QUERY connected_cards(STRING p_card_id, DATETIME p_from, DATET
       WHERE t.ts >= p_from AND t.ts <= p_to AND t.device_profile != ""
       ACCUM @@devices += t.device_profile;
 
-  D  = SELECT d FROM {DeviceProfile.*}:d WHERE d.device_profile IN @@devices;
+  // an inline vertex-set literal is not a legal FROM source: it has to be bound first.
+  AllDevices = {DeviceProfile.*};
+  D  = SELECT d FROM AllDevices:d WHERE d.device_profile IN @@devices;
   T2 = SELECT t FROM D:d -(DEVICE_USED_IN>)- Transaction:t
        WHERE t.ts >= p_from AND t.ts <= p_to AND t.card_id != p_card_id
        ACCUM @@linked_cards += t.card_id;
@@ -174,6 +177,17 @@ CREATE OR REPLACE QUERY region_cluster(STRING p_region, DATETIME p_from, DATETIM
       ACCUM @@cards += t.card_id, @@total += t.amount, @@n += 1;
 
   PRINT @@cards AS card_ids, @@n AS n_txns, @@total AS total_amount;
+}
+
+// ---------------------------------------------------------------------------
+// 9b. How many distinct cards a device profile has ever touched. One attribute, but
+//     it decides whether a shared profile is a machine or a configuration, so the
+//     feature extractor needs it for every anchor transaction.
+// ---------------------------------------------------------------------------
+CREATE OR REPLACE QUERY device_reach(STRING p_device_profile) FOR GRAPH FraudInvestigation {
+  AllDevices = {DeviceProfile.*};
+  D = SELECT d FROM AllDevices:d WHERE d.device_profile == p_device_profile;
+  PRINT D[D.n_cards] AS device;
 }
 
 // ---------------------------------------------------------------------------
@@ -266,7 +280,7 @@ CREATE OR REPLACE QUERY write_case(
   STRING p_stop_reason, STRING p_actions_final, BOOL p_sar_filed,
   SET<STRING> p_txn_ids, SET<STRING> p_connected_cards, SET<STRING> p_devices, SET<STRING> p_prior_cases
 ) FOR GRAPH FraudInvestigation {
-  INSERT INTO Case VALUES (p_graph_case_id, p_source_case_id, p_customer_id, p_card_id,
+  INSERT INTO FraudCase VALUES (p_graph_case_id, p_source_case_id, p_customer_id, p_card_id,
     p_opened_at, p_status, p_verdict, p_fraud_probability, p_pattern, p_pattern_description,
     p_exposure, p_summary, p_stop_reason, p_actions_final, p_sar_filed);
 

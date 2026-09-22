@@ -65,7 +65,7 @@
       }
     ],
     "similar_prior_cases": [],
-    "summary": "The cardholder disputed the $30.02 online transaction on 2016-12-28 on card C08299-K1 under case ID 0. Against this, the cardholder later confirmed the transaction was theirs. The pattern is card_not_present_fraud with exposure of $30.02, and the $30.02 amount was charged to card C08299-K1 five times across three distinct months under the same product code. The card sits in the giant device-sharing component of 2,500 cards, and known fraud pattern 2 describes card-not-present fraud as ambiguous online purchases that require verification under policy R1 to R4. Because policy R7 forbids blocking on recurring charges matching the cardholder's own pattern, the verdict remains uncertain at probability 0.45.",
+    "summary": "Customer C08299-K1 disputed an online transaction of $30.02 on 2016-12-28. The cardholder first stated they did not make the purchase, but later confirmed the transaction was theirs, creating conflicting evidence. Pattern card_not_present_fraud was identified with exposure of $30.02 and probability 0.45, and case ID C08299-K1 remains undecided because the $30.02 amount appeared 5 times across 3 distinct months under the same product code with a median of 34 days apart, which policy R7 forbids blocking. The card belongs to a shared device component of 2,500 cards, yet transitive device sharing percolates at every threshold tested and carries no weight per policy R6, and known fraud pattern 2 notes that a single unusual online purchase is ambiguous per policy R1 to R4.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-009"
   },
@@ -137,7 +137,7 @@
     "activity_dates": []
   },
   "stop_reason": "A verification response settled the question (policy 6): probability moved to 0.45 on 2 independent pieces of evidence and the action set follows directly. Further steps would not change it.",
-  "tool_calls": 9,
-  "tokens": 801,
-  "latency_s": 0.06
+  "tool_calls": 10,
+  "tokens": 813,
+  "latency_s": 0.62
 }

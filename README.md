@@ -22,13 +22,31 @@ uv run python monitor.py --top 5        # cases nobody asked for: the self-direc
 uv run python ui/build.py && open ui/dashboard.html
 ```
 
+No Savanna workspace? `./graph/local_tigergraph.sh up` brings up TigerGraph Community
+Edition in a container (on Apple Silicon the image is amd64, so it runs under Rosetta in
+a Lima VM — the script's header has the two commands).
+
 Three backends, one tool surface:
 
 | `--backend` | how the graph is reached |
 |---|---|
-| `duckdb` | the same traversals in SQL, so the pipeline runs with no workspace |
 | `tigergraph` | the installed GSQL queries over pyTigerGraph |
 | `mcp` | the same installed queries over [TigerGraph MCP](https://github.com/tigergraph/tigergraph-mcp) |
+| `duckdb` | the same traversals in SQL, so the pipeline runs with no workspace |
+
+All three produce **identical answer files on all twenty cases**, and two checks say so
+rather than the README:
+
+```bash
+uv run python prep/parity.py            # 20/20 feature rows identical across backends
+uv run python run.py --backend duckdb     --no-llm --out build/cmp/duckdb
+uv run python run.py --backend tigergraph --no-llm --out build/cmp/tigergraph
+uv run python prep/backend_diff.py build/cmp/duckdb build/cmp/tigergraph
+```
+
+`backend_diff` ignores exactly four fields: `tool_calls` (the graph path makes one extra
+call, `device_reach`), `latency_s`, `tokens`, and `written_to_graph` — which is `true`
+only when the case vertex really landed in TigerGraph.
 
 ## What the agent does
 
@@ -122,9 +140,20 @@ who used one machine; `connected_cards` expands two hops from a card through its
 profiles and back out; `prior_cases_for_device` reaches a closed investigation through the
 transactions that shared a device.
 
-`write_case` closes the memory loop. Every investigation is written back as a `Case`
-vertex with edges to its transactions, its connected cards, its device profiles and the
-prior cases it cited, so a case that names a device becomes evidence for the next analyst.
+`write_case` closes the memory loop. Every investigation is written back as a `FraudCase`
+vertex — not `Case`, which GSQL reserves — with edges to its transactions, its connected
+cards, its device profiles and the prior cases it cited, so a case that names a device
+becomes evidence for the next analyst. After a full run the graph holds 25 of them (20
+benchmark, 5 self-opened) with 65 `CASE_INVOLVES`, 23 `CASE_CONNECTED`, 13 `CASE_DEVICE`
+and 67 `CITES_PRIOR` edges.
+
+**Features come off the graph, not out of a side database.** The DuckDB mirror computes
+the feature row in one SQL pass. There is no SQL in TigerGraph, and rewriting that pass
+as a 90-line GSQL query would bury the calibration in the database — so the card's whole
+history comes back through `card_window`, a tool the agent already has, and the same
+derivations run over it. `prep/parity.py` asserts the two rows are identical field for
+field on all twenty anchors, which is the only reason to believe the weights calibrated
+against the SQL path apply to the graph path at all.
 
 **Over MCP.** `agent/mcp_backend.py` reaches the same installed queries through the
 TigerGraph MCP server instead of pyTigerGraph. Because the ten tools are already installed

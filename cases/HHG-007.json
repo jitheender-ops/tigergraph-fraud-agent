@@ -93,7 +93,7 @@
       "CC-4196",
       "CC-3821"
     ],
-    "summary": "The case for CC-XXXX assessed fraud on card C09933-K2 at probability 0.76 for a $241.87 exposure, with 3 of the card-detail match flags M1-M9 returning F on the $111.92 in person transaction on 2016-12-05 and 24 transactions occurring on the card in the 48 hours ending at the flagged one. The Model risk score of 0.87 and the presence of 18 closed confirmed-fraud cases on the card, specifically CC-5521, CC-5092, CC-4787, and CC-4597, supported the account_takeover pattern, though the high score was evidence against fraud. The card belonged to a giant device-sharing component of 2,500 cards, which carried no weight under policy R6.",
+    "summary": "Risk score on card C09933-K2 over a $111.92 in person transaction on 2016-12-05 was 0.87. Against fraud, 3 of the card-detail match flags M1-M9 came back F, 24 transactions occurred on this card in the 48 hours ending at the flagged one, and the bank had 18 confirmed-fraud case(s) already closed on this card, specifically CC-5521, CC-5092, CC-4787, and CC-4597. The card was assessed as mixed-channel activity consistent with stolen credentials at probability 0.76 with $241.87 of exposure, and the case ID is CC-XXXX.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-007"
   },
@@ -161,6 +161,6 @@
   },
   "stop_reason": "A verification response settled the question (policy 6): probability moved to 0.76 on 3 independent pieces of evidence and the action set follows directly. Further steps would not change it.",
   "tool_calls": 9,
-  "tokens": 994,
-  "latency_s": 0.07
+  "tokens": 969,
+  "latency_s": 0.79
 }

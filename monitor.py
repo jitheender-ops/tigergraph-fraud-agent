@@ -30,6 +30,7 @@ from dotenv import load_dotenv
 load_dotenv()
 from backend import DuckDBBackend, ToolLog
 from investigate import Investigation
+from run import get_backend
 import answer as ans
 
 WINDOW_FROM = "2016-11-02"          # the exam window: after the last closed case
@@ -60,6 +61,9 @@ def main():
     ap.add_argument("--top", type=int, default=5)
     ap.add_argument("--out", default="monitoring")
     ap.add_argument("--no-llm", action="store_true")
+    # the ranking sweep is an analytics query over the precomputed components and always
+    # runs locally; this is the backend the investigations themselves use.
+    ap.add_argument("--backend", default="duckdb", choices=["duckdb", "tigergraph", "mcp"])
     args = ap.parse_args()
 
     con = duckdb.connect("build/fraud.db", read_only=True)
@@ -98,11 +102,11 @@ def main():
         }
 
         log = ToolLog()
-        b = DuckDBBackend(log=log)
+        b = get_backend(args.backend, log)
         if llm:
             llm.start_case()
         res = Investigation(b, trigger).run()
-        a = ans.build(trigger, res, llm=llm)
+        a = ans.build(trigger, res, llm=llm, backend=b)
         a["tool_calls"], a["tokens"] = log.count, (llm.tokens_for_case() if llm else 0)
         a["trigger"] = {"type": trigger["trigger_type"], "text": trigger["trigger_text"]}
 

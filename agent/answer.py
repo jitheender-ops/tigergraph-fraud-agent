@@ -23,7 +23,7 @@ def _d(x):
     return x.strftime("%Y-%m-%d") if isinstance(x, (dt.datetime, dt.date)) else str(x)[:10]
 
 
-def build(trigger, r, llm=None) -> dict:
+def build(trigger, r, llm=None, backend=None) -> dict:
     f, ep_, sig = r["f"], r["episode"], r["signals"]
     verdict, prob, pattern = r["verdict"], r["prob"], r["pattern"]
     status = {"fraud": "closed_fraud", "legitimate": "closed_legitimate",
@@ -66,7 +66,11 @@ def build(trigger, r, llm=None) -> dict:
             "evidence": evidence,
             "similar_prior_cases": prior_ids,
             "summary": summary,
-            "written_to_graph": True,
+            # True only when the case vertex actually landed in TigerGraph. On the
+            # DuckDB mirror the write goes to build/graph_cases.jsonl, which is
+            # auditable but is not the graph, and saying otherwise in a submitted
+            # answer file would be a false claim.
+            "written_to_graph": getattr(backend, "name", "duckdb") in ("tigergraph", "mcp"),
             "graph_case_id": graph_case_id,
         },
         "evidence_requests": [

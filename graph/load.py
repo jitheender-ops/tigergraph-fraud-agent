@@ -61,9 +61,12 @@ def export():
                    coalesce(id_15,'') AS id_15, coalesce(id_23,'') AS id_23,
                    coalesce(id_30,'') AS id_30, coalesce(id_31,'') AS id_31,
                    coalesce(id_33,'') AS id_33,
-                   concat_ws(',',M1,M2,M3,M4,M5,M6,M7,M8,M9) AS m_flags,
-                   concat_ws(',',C1,C2,C3,C4,C5,C6,C7,C8,C9,C10,C11,C12,C13,C14) AS c_counts,
-                   concat_ws(',',D1,D2,D3,D4,D5,D6,D7,D8,D9,D10,D11,D12,D13,D14,D15) AS d_deltas
+                   -- concat_ws SKIPS nulls, which shifts every later flag one
+                   -- position left and makes the packed string unparseable by index.
+                   -- Explicit empty placeholders keep the positions stable.
+                   concat_ws(',',coalesce(M1::VARCHAR,''),coalesce(M2::VARCHAR,''),coalesce(M3::VARCHAR,''),coalesce(M4::VARCHAR,''),coalesce(M5::VARCHAR,''),coalesce(M6::VARCHAR,''),coalesce(M7::VARCHAR,''),coalesce(M8::VARCHAR,''),coalesce(M9::VARCHAR,'')) AS m_flags,
+                   concat_ws(',',coalesce(C1::VARCHAR,''),coalesce(C2::VARCHAR,''),coalesce(C3::VARCHAR,''),coalesce(C4::VARCHAR,''),coalesce(C5::VARCHAR,''),coalesce(C6::VARCHAR,''),coalesce(C7::VARCHAR,''),coalesce(C8::VARCHAR,''),coalesce(C9::VARCHAR,''),coalesce(C10::VARCHAR,''),coalesce(C11::VARCHAR,''),coalesce(C12::VARCHAR,''),coalesce(C13::VARCHAR,''),coalesce(C14::VARCHAR,'')) AS c_counts,
+                   concat_ws(',',coalesce(D1::VARCHAR,''),coalesce(D2::VARCHAR,''),coalesce(D3::VARCHAR,''),coalesce(D4::VARCHAR,''),coalesce(D5::VARCHAR,''),coalesce(D6::VARCHAR,''),coalesce(D7::VARCHAR,''),coalesce(D8::VARCHAR,''),coalesce(D9::VARCHAR,''),coalesce(D10::VARCHAR,''),coalesce(D11::VARCHAR,''),coalesce(D12::VARCHAR,''),coalesce(D13::VARCHAR,''),coalesce(D14::VARCHAR,''),coalesce(D15::VARCHAR,'')) AS d_deltas
             FROM tx""",
         "closed_case": """
             SELECT case_id, customer_id, card_id,
@@ -99,6 +102,22 @@ def export():
     con.close()
 
 
+_CAST = {"INT": int, "UINT": int, "INT64": int, "DOUBLE": float, "FLOAT": float,
+         "BOOL": lambda v: str(v).lower() in ("true", "t", "1")}
+_TYPES: dict[str, dict] = {}
+
+
+def casters(conn, vtype):
+    """Every CSV value is a string, and the REST endpoint will not coerce one into an
+    INT or a DOUBLE attribute. Rather than keep a hand-written list of numeric columns
+    in step with the schema, read the types off the graph once per vertex type."""
+    if vtype not in _TYPES:
+        _TYPES[vtype] = {a["AttributeName"]: _CAST[a["AttributeType"]["Name"]]
+                         for a in conn.getVertexType(vtype)["Attributes"]
+                         if a["AttributeType"]["Name"] in _CAST}
+    return _TYPES[vtype]
+
+
 def upsert(conn, name, vtype=None, etype=None, attrs=None, src=None, tgt=None):
     """Stream a CSV in batches through the REST upsert endpoint."""
     import csv
@@ -119,11 +138,16 @@ def upsert(conn, name, vtype=None, etype=None, attrs=None, src=None, tgt=None):
 
 def _flush(conn, batch, vtype, etype, attrs, src, tgt):
     if vtype:
-        data = {r[attrs[0]]: {k: (v if v != "" else None) for k, v in r.items() if k != attrs[0]}
-                for r in batch}
-        data = {k: {a: {"value": v} for a, v in d.items() if v is not None}
-                for k, d in data.items()}
-        conn.upsertVertices(vtype, [(k, v) for k, v in data.items()])
+        # pyTigerGraph does the {"value": ...} wrapping itself; wrapping it here too makes
+        # every attribute a dict and the REST endpoint rejects it as un-convertible. The
+        # bug only shows on vertex types that HAVE attributes -- Customer has none, so it
+        # loaded fine and Card was the first failure.
+        cast = casters(conn, vtype)
+        rows = [(r[attrs[0]],
+                 {k: (cast[k](v) if k in cast else v)
+                  for k, v in r.items() if k != attrs[0] and v != ""})
+                for r in batch]
+        conn.upsertVertices(vtype, rows)
     else:
         edges = [(r[src[1]], r[tgt[1]], {}) for r in batch]
         conn.upsertEdges(src[0], etype, tgt[0], edges)

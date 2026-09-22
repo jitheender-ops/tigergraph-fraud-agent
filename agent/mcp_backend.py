@@ -16,12 +16,24 @@ connection uses, except that it spells the graph TG_GRAPHNAME where pyTigerGraph
 it TG_GRAPH; the launcher below passes both.
 """
 from __future__ import annotations
-import asyncio, json, os, re, threading
+import asyncio, json, os, pathlib, re, shutil, sys, threading
 
 from backend import TigerGraphBackend
 
 TOOL = "tigergraph__run_installed_query"
 _JSON_BLOCK = re.compile(r"```json\s*(.*?)\s*```", re.S)
+
+
+def server_command() -> str:
+    """Where tigergraph-mcp actually is.
+
+    It installs as a console script beside the interpreter running this, and a
+    subprocess launched from a script does not inherit the venv's bin on PATH -- so
+    looking it up on PATH finds nothing and the session times out with no explanation.
+    """
+    beside = pathlib.Path(sys.executable).with_name("tigergraph-mcp")
+    return str(beside) if beside.exists() else (shutil.which("tigergraph-mcp")
+                                                or "tigergraph-mcp")
 
 
 class MCPClient:
@@ -33,7 +45,8 @@ class MCPClient:
     async context managers -- so a parked coroutine holds them and waits on `stop`.
     """
 
-    def __init__(self, command: str = "tigergraph-mcp", args=(), env=None, timeout=120):
+    def __init__(self, command: str | None = None, args=(), env=None, timeout=120):
+        command = command or server_command()
         from mcp import ClientSession, StdioServerParameters
         from mcp.client.stdio import stdio_client
 
@@ -45,6 +58,7 @@ class MCPClient:
         params = StdioServerParameters(command=command, args=list(args),
                                        env={**os.environ, **(env or {})})
         ready, self._stop = asyncio.Event(), asyncio.Event()
+        self._error: BaseException | None = None
 
         async def serve():
             try:
@@ -54,6 +68,8 @@ class MCPClient:
                         self._session = s
                         ready.set()
                         await self._stop.wait()
+            except BaseException as e:      # noqa: BLE001 - re-raised on the caller's thread
+                self._error = e
             finally:
                 ready.set()
 
@@ -61,8 +77,9 @@ class MCPClient:
         asyncio.run_coroutine_threadsafe(ready.wait(), self._loop).result(timeout)
         if self._session is None:
             raise RuntimeError(
-                "tigergraph-mcp did not start. Check that it is installed "
-                "(`uv add tigergraph-mcp`) and that TG_HOST is set in .env.")
+                f"tigergraph-mcp did not start from {command!r}. Check that it is "
+                f"installed (`uv add tigergraph-mcp`) and that TG_HOST is set in .env."
+            ) from self._error
 
     def call(self, name: str, arguments: dict):
         res = asyncio.run_coroutine_threadsafe(
@@ -102,7 +119,7 @@ class MCPBackend(TigerGraphBackend):
     """Same ten tools, same response shaping, reached through the MCP server."""
     name = "mcp"
 
-    def __init__(self, log=None, graph=None, command="tigergraph-mcp"):
+    def __init__(self, log=None, graph=None, command=None):
         graph = graph or os.getenv("TG_GRAPH", "FraudInvestigation")
         # the server spells it TG_GRAPHNAME; pyTigerGraph spells it TG_GRAPH.
         self.client = MCPClient(command=command, env={"TG_GRAPHNAME": graph})

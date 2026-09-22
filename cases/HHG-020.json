@@ -56,7 +56,7 @@
       "CC-2447",
       "CC-2277"
     ],
-    "summary": "Risk score on card C12265-K2 over a $125.08 online transaction on 2016-12-03. Against the cardholder, the bank has 2 confirmed-fraud case(s) already closed on this card (CC-2447, CC-2277), pattern(s): account_takeover. For the cardholder, the identity record marks this device New for the account, and the card's history is 5% online. Assessed as legitimate at fraud probability 0.23; no transaction is treated as part of a fraud episode and exposure is $0.00.",
+    "summary": "Risk score on card C12265-K2 over a $125.08 online transaction on 2016-12-03 assessed the case as legitimate at fraud probability 0.23 with exposure of $0.00. The bank had 2 confirmed-fraud case(s) already closed on this card (CC-2447, CC-2277), pattern(s): account_takeover. For the cardholder, the identity record marked this device New for the account, and the transaction occurred on a card whose history is 5% online. The pattern was account_takeover.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-020"
   },
@@ -107,7 +107,7 @@
     "activity_dates": []
   },
   "stop_reason": "Policy 6: probability 0.23 on 2 independent pieces of evidence sits between the stopping thresholds. Stopping here because the remaining uncertainty is the cardholder's own intent, which only the cardholder or an analyst can resolve; the recommended actions route it to them rather than resolving it in the graph.",
-  "tool_calls": 9,
-  "tokens": 777,
-  "latency_s": 0.07
+  "tool_calls": 10,
+  "tokens": 772,
+  "latency_s": 0.15
 }

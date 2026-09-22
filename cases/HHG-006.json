@@ -65,7 +65,7 @@
       }
     ],
     "similar_prior_cases": [],
-    "summary": "The customer denied a $482.12 online transaction on 2016-11-21 on card C07297-K1, and the identity record marks this device New for the account. Against this, $482.12 is 8.2x this card's median and above its 95th percentile, and the cardholder's history is 2% online, which is mildly exculpatory. The evidence conflicts and the probability is 0.27, so the case, ID unknown, is uncertain with exposure of $1,906.07.",
+    "summary": "Customer report on card C07297-K1 over a $482.12 online transaction on 2016-11-21. Against it: The cardholder contacted the bank stating they did not make this purchase. For the cardholder: The identity record marks this device New for the account. $482.12 is 8.2x this card's median and above its 95th percentile. The evidence conflicts and probability sits at 0.27, so the case is not decided in the graph; exposure if the activity is fraudulent is $1,906.07.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-006"
   },
@@ -121,7 +121,7 @@
     "activity_dates": []
   },
   "stop_reason": "Policy 6: probability 0.27 on 3 independent pieces of evidence sits between the stopping thresholds. Stopping here because the remaining uncertainty is the cardholder's own intent, which only the cardholder or an analyst can resolve; the recommended actions route it to them rather than resolving it in the graph.",
-  "tool_calls": 9,
-  "tokens": 793,
-  "latency_s": 0.07
+  "tool_calls": 10,
+  "tokens": 794,
+  "latency_s": 0.18
 }
