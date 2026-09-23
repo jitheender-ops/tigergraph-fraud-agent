@@ -87,7 +87,7 @@
       "CC-2219",
       "CC-0162"
     ],
-    "summary": "Risk score on card C12265-K2 over a $125.08 online transaction on 2016-12-03 assessed the case as legitimate at fraud probability 0.24 with $0.00 exposure under case ID CC-2447 and CC-2277, which are 2 confirmed-fraud case(s) already closed on this card with pattern(s): account_takeover. For the cardholder, the identity record marked this device New for the account, the 5 closed cases most resembling this one (CC-1806, CC-3048, CC-1883, CC-2219, CC-0162) closed as 5 confirmed fraud and 0 cleared, and step-up authentication passed. An online transaction on a card whose history is 5% online was mildly exculpatory, and external email-domain intelligence classified 'yahoo.com' as a free webmail address carrying no weight. The pattern was identified as account_takeover, and policy rule R1 recommended verifying before blocking on a weak signal.",
+    "summary": "Risk score on card C12265-K2 over a $125.08 online transaction on 2016-12-03. Against it, the bank has 2 confirmed-fraud case(s) already closed on this card (CC-2447, CC-2277), pattern(s): account_takeover. For the cardholder, the identity record marks this device New for the account, and step-up authentication passed. The case was assessed as legitimate at fraud probability 0.24; no transaction is treated as part of a fraud episode and exposure is $0.00.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-020"
   },
@@ -95,7 +95,7 @@
     {
       "type": "customer_validation",
       "asked_after_step": 11,
-      "reason": "R1: probability 0.36 is below 0.70; ask the cardholder before taking any action with customer impact.",
+      "reason": "R1: probability 0.37 is below 0.70; ask the cardholder before taking any action with customer impact.",
       "assumed_response": "No reply within 24 hours. ASSUMPTION: no replies ship with this dataset, and nothing independent in the evidence points to what the cardholder would say. Inventing an answer here would manufacture certainty, so the agent assumes the case policy R4 is written for - the customer does not respond - and acts accordingly.",
       "simulated": true
     },
@@ -117,7 +117,7 @@
       {
         "action": "VERIFY_WITH_CUSTOMER",
         "route": "auto",
-        "reason": "R1: probability 0.36 is below 0.70; ask the cardholder before taking any action with customer impact."
+        "reason": "R1: probability 0.37 is below 0.70; ask the cardholder before taking any action with customer impact."
       },
       {
         "action": "MONITOR_CARD",
@@ -159,6 +159,6 @@
   },
   "stop_reason": "Policy 6: probability 0.24 on 4 independent pieces of evidence sits between the stopping thresholds, and every request the agent may make without approval has been made. The remaining uncertainty is the cardholder's own intent, which only the cardholder or an analyst can resolve; the recommended actions route it to them rather than resolving it in the graph.",
   "tool_calls": 13,
-  "tokens": 1044,
-  "latency_s": 0.13
+  "tokens": 938,
+  "latency_s": 0.14
 }

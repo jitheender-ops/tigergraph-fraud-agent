@@ -87,7 +87,7 @@
       "CC-2739",
       "CC-0649"
     ],
-    "summary": "Customer C09988-K1 reported an unauthorized $59.67 online transaction on 2016-12-11. The cardholder denied the purchase, while the identity record marks the device as New for the account, yielding a verdict of uncertain at probability 0.50 under pattern card_not_present_new_device with exposure of $59.67. The closed cases CC-3886, CC-1558, CC-4376, CC-2739, and CC-0649 were all confirmed fraud, and the card resides in a device-sharing component of 2,500 cards, yet neither factor shifted the probability. Per policy R2, the recommended actions are BLOCK_CARD and CREATE_CASE, with FILE_REPORT to be added only if exposure exceeds $1,000 or the case connects to a shared device profile or another card's fraud.",
+    "summary": "Customer reported card C09988-K1 for the 2016-12-11 online transaction of $59.67. The cardholder denied making the purchase, while the identity record marked the device as New and the case followed pattern card_not_present_new_device. Evidence included transitive device sharing across 2,500 cards, external hotmail.com classification, memory from closed cases CC-3886, CC-1558, CC-4376, CC-2739, and CC-0649, and policy rule R2, leaving the verdict uncertain at probability 0.50 with exposure of $59.67.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-016"
   },
@@ -162,6 +162,6 @@
   },
   "stop_reason": "Policy 6: probability 0.50 on 2 independent pieces of evidence sits between the stopping thresholds, and every request the agent may make without approval has been made. The remaining uncertainty is the cardholder's own intent, which only the cardholder or an analyst can resolve; the recommended actions route it to them rather than resolving it in the graph.",
   "tool_calls": 12,
-  "tokens": 971,
-  "latency_s": 0.78
+  "tokens": 920,
+  "latency_s": 0.58
 }

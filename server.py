@@ -12,7 +12,7 @@ not a judgement -- and even that is validated against the signals actually prese
   uv run uvicorn server:app --reload --port 8000
 """
 from __future__ import annotations
-import datetime as dt, hashlib, hmac, json, os, pathlib, sys, threading
+import contextvars, datetime as dt, hashlib, hmac, json, os, pathlib, sys, threading
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "agent"))
 
@@ -20,7 +20,7 @@ from dotenv import load_dotenv
 load_dotenv()
 import math
 
-from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -52,10 +52,37 @@ app.add_middleware(CORSMiddleware, allow_methods=["GET", "POST"],
                    allow_headers=["content-type", "x-analyst-token", "x-approver-token"])
 
 
-def _token_ok(token: str | None) -> bool:
-    """An analyst token, or an approver's -- an approver is also an analyst."""
-    wants = [os.getenv(k) for k in ("ANALYST_TOKEN", "APPROVER_TOKEN_L1", "APPROVER_TOKEN_L2")]
-    return bool(token) and any(w and hmac.compare_digest(token, w) for w in wants)
+# Who is making the current request, set by the middleware below. Everything that leaves
+# a record reads it from here, so a name in a request body can never stand in for it.
+USER: contextvars.ContextVar[dict | None] = contextvars.ContextVar("user", default=None)
+
+
+def _users() -> dict[str, dict]:
+    """token -> {name, role}. CONSOLE_USERS="ana:analyst:tok1,lee:L1:tok2,kim:L2:tok3"
+    names each person; the single ANALYST_TOKEN / APPROVER_TOKEN_L1 / _L2 still work,
+    under generic names, for a one-person setup.
+    ponytail: tokens from .env; swap for SSO identities before real use."""
+    out = {}
+    for item in os.getenv("CONSOLE_USERS", "").split(","):
+        parts = [x.strip() for x in item.split(":")]
+        if len(parts) == 3 and all(parts) and parts[1] in ("analyst", "L1", "L2"):
+            out[parts[2]] = {"name": parts[0], "role": parts[1]}
+    for env, name, role in (("ANALYST_TOKEN", "analyst", "analyst"),
+                            ("APPROVER_TOKEN_L1", "L1 approver", "L1"),
+                            ("APPROVER_TOKEN_L2", "L2 approver", "L2")):
+        if os.getenv(env):
+            out.setdefault(os.environ[env], {"name": name, "role": role})
+    return out
+
+
+def _whoami(token: str | None) -> dict | None:
+    """Every known token is compared, so timing says nothing about which one matched.
+    An approver is also an analyst: every role may make ordinary changes."""
+    hit = None
+    for want, user in _users().items():
+        if token and hmac.compare_digest(token, want):
+            hit = user
+    return hit
 
 
 @app.middleware("http")
@@ -65,11 +92,13 @@ async def writes_need_a_token(request: Request, call_next):
     open: the console is a local tool, and a 401 on the case list helps nobody."""
     if request.method not in ("GET", "HEAD", "OPTIONS") and request.url.path.startswith("/api/"):
         tok = request.headers.get("x-analyst-token") or request.headers.get("x-approver-token")
-        if not _token_ok(tok):
+        user = _whoami(tok)
+        if not user:
             from fastapi.responses import JSONResponse
             return JSONResponse(status_code=401, content={
                 "detail": "a valid X-Analyst-Token is required for changes "
-                          "(set ANALYST_TOKEN in .env)"})
+                          "(set CONSOLE_USERS or ANALYST_TOKEN in .env)"})
+        USER.set(user)
     return await call_next(request)
 
 # One backend for the process. get_backend() opens a connection each time it is called,
@@ -142,8 +171,10 @@ class Case:
         self.lock = threading.Lock()
 
     def log(self, kind, detail, persist=True, **extra):
+        who = USER.get()
         ev = {"at": dt.datetime.now().isoformat(timespec="seconds"),
-              "kind": kind, "detail": detail, **extra}
+              "kind": kind, "detail": detail, **extra,
+              **({"by": who["name"], "role": who["role"]} if who else {})}
         self.events.append(ev)
         if persist:
             EVENTS.parent.mkdir(exist_ok=True)
@@ -441,6 +472,11 @@ def ledger(cid: str):
             "awaiting_approval": sum(r["status"] != "executed" for r in rows)}
 
 
+def _by() -> str | None:
+    who = USER.get()
+    return who["name"] if who else None
+
+
 def _ctx(c: Case) -> dict:
     """The substitutions the simulated systems fill their messages with."""
     a, t = c.answer, c.trigger
@@ -538,7 +574,7 @@ def decide(cid: str, body: Decision):
         raise HTTPException(409, "case is closed")
     final = c.answer["next_best_actions"]["final"]
     if body.decision == "approve":
-        done = [X.execute(cid, a, _ctx(c)) for a in final]
+        done = [X.execute(cid, a, _ctx(c), by=_by()) for a in final]
         ran = [r for r in done if r["status"] == "executed"]
         held = [r for r in done if r["status"] != "executed"]
         c.log("approve",
@@ -553,7 +589,7 @@ def decide(cid: str, body: Decision):
     except ValueError:
         raise HTTPException(400, f"{body.action} is not a policy action")
     rec = X.execute(cid, {"action": body.action, "route": route,
-                          "reason": body.note or "analyst override"}, _ctx(c))
+                          "reason": body.note or "analyst override"}, _ctx(c), by=_by())
     c.log("override", body.note or f"analyst overrode to {body.action}",
           action=body.action, route=route,
           replaced=[a["action"] for a in final])
@@ -589,39 +625,30 @@ def reply(cid: str, body: Reply):
 
 class Release(BaseModel):
     action: str
-    approver: str = Field(..., min_length=1, max_length=80)
-
-
-def _approver_level(token: str | None) -> str | None:
-    """The approval tier comes from the credential, never from the request body: an
-    analyst who could simply say "I am L2" would make the routing table decorative.
-    ponytail: static shared tokens from .env; swap for SSO roles before real use."""
-    for level in ("L2", "L1"):
-        want = os.getenv(f"APPROVER_TOKEN_{level}")
-        if want and token and hmac.compare_digest(token, want):
-            return level
-    return None
 
 
 @app.post("/api/case/{cid}/release")
-def release(cid: str, body: Release, x_approver_token: str | None = Header(None)):
+def release(cid: str, body: Release):
     """Release one action the policy held for L1/L2 approval. Until this existed an
     approved case's BLOCK_CARD sat at awaiting_approval with no way to run it."""
     c = get(cid)
     if c.closed:
         raise HTTPException(409, "case is closed")
-    level = _approver_level(x_approver_token)
-    if not level:
-        raise HTTPException(401, "a valid X-Approver-Token is required "
-                                 "(APPROVER_TOKEN_L1 / APPROVER_TOKEN_L2 in .env)")
+    # tier AND name come from the credential: an analyst who could say "I am L2", or
+    # sign someone else's name, would make the routing table and the audit decorative
+    who = USER.get() or {}
+    level = who.get("role")
+    if level not in ("L1", "L2"):
+        raise HTTPException(403, f"{who.get('name', 'this user')} is not an approver; "
+                                 f"releasing a held action needs an L1 or L2 token")
     try:
-        rec = X.release(cid, body.action, level, body.approver, _ctx(c))
+        rec = X.release(cid, body.action, level, who["name"], _ctx(c))
     except PermissionError as e:
         raise HTTPException(403, str(e))
     except LookupError as e:
         raise HTTPException(404, str(e))
-    c.log("release", f"{body.approver} ({level}) released {body.action}",
-          action=body.action, approver=body.approver, level=level)
+    c.log("release", f"{who['name']} ({level}) released {body.action}",
+          action=body.action, level=level)
     return {"result": rec, "ledger": X.history(cid), "events": c.events}
 
 
@@ -689,7 +716,10 @@ def close(cid: str, body: Close):
     payload = {
         "p_case_id": case_id, "p_customer_id": t["customer_id"], "p_card_id": t["card_id"],
         "p_opened_at": str(t["opened_at"])[:19],
-        "p_closed_at": dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        # The replay runs on the dataset's clock, and memory retrieves by close date. A
+        # 2026 wall-clock close would never be "before" any 2016 investigation, so the
+        # analyst's decision is dated to the case, and the wall time goes in the notes.
+        "p_closed_at": str(t["opened_at"])[:19],
         "p_outcome": body.outcome,
         "p_pattern": a["case"]["pattern"] if body.outcome == "confirmed_fraud" else "none",
         "p_first_txn_id": a["case"]["first_suspicious_txn_id"],
@@ -697,7 +727,8 @@ def close(cid: str, body: Close):
         "p_exposure": a["case"]["exposure_usd"] if body.outcome == "confirmed_fraud" else 0.0,
         "p_actions_taken": "|".join(x["action"] for x in a["next_best_actions"]["final"]),
         "p_report_filed": str(a["sar"]["file"]),
-        "p_analyst_notes": body.note or f"Closed from the console as {body.outcome}.",
+        "p_analyst_notes": (body.note or f"Closed from the console as {body.outcome}.")
+                           + f" [console {dt.datetime.now():%Y-%m-%d %H:%M}]",
         "p_txn_ids": a["case"]["affected_txn_ids"],
         "p_connected_cards": a["case"]["connected_card_ids"],
     }
@@ -737,7 +768,7 @@ def blacklist(body: Blacklist):
     written = _write_closed_case({
         "p_case_id": case_id, "p_customer_id": "", "p_card_id": "",
         "p_opened_at": first.strftime("%Y-%m-%d %H:%M:%S"),
-        "p_closed_at": dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "p_closed_at": first.strftime("%Y-%m-%d %H:%M:%S"),
         "p_outcome": "confirmed_fraud", "p_pattern": "undocumented",
         "p_first_txn_id": txn_ids[0] if txn_ids else "", "p_n_txns": len(txn_ids),
         "p_exposure": 0.0, "p_actions_taken": "BLOCK_CARD|MONITOR_CONNECTED_CARDS",

@@ -213,6 +213,12 @@ class Investigation:
         recurring = is_recurring_charge(f)
         n_ind = pol.independent_evidence_count(self.signals)
         verdict = self._verdict(prob)
+        # A denial the graph evidence contradicts is a conflict, not an acquittal (R8).
+        # The report is known from the trigger, so this applies to the FIRST
+        # recommendation too -- applied only after the evidence step, it flipped
+        # ALLOW/CLOSE to BLOCK/ESCALATE between initial and final with nothing asked.
+        if customer_disputed and not recurring and verdict == "legitimate":
+            verdict = "uncertain"
 
         # exposure only means something if we think something went wrong
         exposure = episode["exposure"] if verdict != "legitimate" else 0.0

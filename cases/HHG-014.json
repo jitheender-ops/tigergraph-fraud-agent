@@ -151,7 +151,7 @@
       "CC-4259",
       "CC-3520"
     ],
-    "summary": "Analyst review was requested on case ID C13487-K1 for a $74.96 online transaction on 2016-11-22. The connection came through an anonymising proxy (IP_PROXY:ANONYMOUS) from a device marked New for the account on named hardware (SM-G935F Build/NRD90M), and the cardholder denied the transaction on contact. The identity record marks this device New for the account, and the card history is 5% online. The transaction was assessed as an undocumented pattern at probability 0.90, with 1 transaction(s) and $74.96 of exposure. The device profile was shared with 19 other card(s) inside the 30-day window across 20 customer(s), which was named for monitoring per policy R6.",
+    "summary": "The analyst opened this review on case ID C13487-K1 after observing several cards transacting through the same unusual device profile, and the cardholder denied the $74.96 online transaction on 2016-11-22 on card C13487-K1. The connection came through an anonymising proxy (IP_PROXY:ANONYMOUS) from named hardware (SM-G935F Build/NRD90M) marked New, a combination that appeared in 190 of 590,742 transactions and on 4 of 9 confirmed fraud cases with no documented pattern. The device profile was shared with 19 other cards across 20 customers within the 30-day window and named per policy R6, while 83% of cleared alarms and 18% of confirmed fraud used a New device, and the card's 5% online history was mildly exculpatory at 11.9% of cleared versus 4.5% of confirmed fraud. The transaction was assessed as undocumented fraud at probability 0.90, matching 5 closed cases (CC-3035, CC-2971, CC-0017, CC-4259, CC-3520) that closed as 2 confirmed fraud and 3 cleared, with exposure of $74.96. The external email-domain 'yahoo.com' was classified as a free webmail address appearing on 3,667 confirmed frauds and 573 cleared alarms with no weight, and policy R2 recommended BLOCK_CARD and CREATE_CASE because the customer denied the transaction.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-014"
   },
@@ -219,11 +219,6 @@
         "reason": "R2: open the internal case with the evidence attached."
       },
       {
-        "action": "MONITOR_CARD",
-        "route": "auto",
-        "reason": "R4: keep the card active under raised monitoring while the question is open."
-      },
-      {
         "action": "MONITOR_CONNECTED_CARDS",
         "route": "auto",
         "reason": "R6: shared device profile 'SM-G935F Build/NRD90M | Android 7.0 | chrome 62.0 for android | 1920x1080' links 19 other card(s) to this activity; place them under monitoring."
@@ -239,12 +234,12 @@
         "reason": "Policy 3a and R9: the activity fits no documented pattern and is coordinated across more than one cardholder, which requires a filing regardless of amount."
       }
     ],
-    "what_changed": "Cardholder states they did not make the transaction and still holds the card, moving assessed probability to 0.90. Added: BLOCK_CARD. Dropped: DECLINE_TRANSACTION, STEP_UP_AUTH, VERIFY_WITH_CUSTOMER."
+    "what_changed": "Cardholder states they did not make the transaction and still holds the card, moving assessed probability to 0.90. Added: BLOCK_CARD. Dropped: DECLINE_TRANSACTION, MONITOR_CARD, STEP_UP_AUTH, VERIFY_WITH_CUSTOMER."
   },
   "sar": {
     "file": true,
     "reason": "Policy 3a and R9: the activity fits no documented pattern and is coordinated across more than one cardholder, which requires a filing regardless of amount.",
-    "narrative": "Between 2016-11-22 and 2016-11-22, card C13487-K1 belonging to customer C13487 was used for 1 transaction(s) totalling $74.96, of which the transaction that triggered this investigation was $74.96 on 2016-11-22. The activity was conducted online under product code C, billed in region 191.0, from the device profile 'SM-G935F Build/NRD90M | Android 7.0 | chrome 62.0 for android | 1920x1080' and the connection came through an anonymising proxy (IP_PROXY:ANONYMOUS) from a device marked New for the account on named hardware (SM-G935F Build/NRD90M). A fraud analyst opened this review after seeing several cards transacting through the same unusual device profile, and the same device profile was shared with 19 other card(s) inside the 30-day window to 2016-11-22 (C01289-K1, C01996-K2, C02910-K1, C02975-K1, C03676-K2, C04108-K2) across 20 customer(s), indicating a common actor operating across more than one cardholder. On contact, cardholder C13487 denies the transaction and states they did not make the transaction and still holds the card, an assumption recorded in the case file, as no cardholder replies were available to this investigation, and the activity is suspicious because it fits none of the five fraud patterns the institution documents while showing the coordination described above. The activity is assessed at a 90% probability of being fraudulent on 5 independent pieces of evidence drawn from the transaction graph and the institution's closed-case history, and the filing is made because the activity is coordinated across accounts and matches no documented pattern, which requires a report regardless of amount. The total amount of suspicious activity is $74.96, and the card has been blocked and scheduled for reissue, an internal investigation case has been opened, the card has been placed under heightened monitoring, the cards sharing the same origin have been placed under monitoring, and the matter has been escalated to a fraud analyst.",
+    "narrative": "Between 2016-11-22 and 2016-11-22, card C13487-K1 belonging to customer C13487 was used for 1 transaction(s) totalling $74.96, of which the transaction that triggered this investigation was $74.96 on 2016-11-22. The activity was conducted online under product code C, billed in region 191.0, from the device profile 'SM-G935F Build/NRD90M | Android 7.0 | chrome 62.0 for android | 1920x1080'. The connection came through an anonymising proxy (IP_PROXY:ANONYMOUS) from a device marked New for the account on named hardware (SM-G935F Build/NRD90M). Cardholder denies the transaction on contact. A fraud analyst opened this review after seeing several cards transacting through the same unusual device profile. The same device profile was used by 19 other card(s) in the thirty days to 2016-11-22 (C01289-K1, C01996-K2, C02910-K1, C02975-K1, C03676-K2, C04108-K2), indicating a common actor operating across more than one cardholder. On contact, cardholder states they did not make the transaction and still holds the card. That response is an assumption recorded in the case file, as no cardholder replies were available to this investigation. The activity is suspicious because it fits none of the five fraud patterns the institution documents, while showing the coordination described above. It is assessed at a 90% probability of being fraudulent on 5 independent pieces of evidence drawn from the transaction graph and the institution's closed-case history. The filing is made because the activity is coordinated across accounts and matches no documented pattern, which requires a report regardless of amount. The total amount of suspicious activity is $74.96. The card has been blocked and scheduled for reissue, an internal investigation case has been opened, the cards sharing the same origin have been placed under monitoring, and the matter has been escalated to a fraud analyst.",
     "subjects": [
       "C13487",
       "C13487-K1",
@@ -266,6 +261,6 @@
   },
   "stop_reason": "A verification response settled the question (policy 6): probability moved to 0.90 on 5 independent pieces of evidence and the action set follows directly. Further steps would not change it.",
   "tool_calls": 18,
-  "tokens": 3895,
+  "tokens": 4062,
   "latency_s": 0.23
 }

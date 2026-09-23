@@ -113,7 +113,7 @@
       "CC-2261",
       "CC-0528"
     ],
-    "summary": "Risk score on card C03042-K1 over a $599.94 online transaction on 2016-11-17 was 0.77, and the identity record marked the device as New, while the card had no billing history in region 327.0 and external intelligence classified 'anonymous.com' as a masked address. The bank had 2 confirmed-fraud case(s) already closed on this card (CC-3886, CC-0615), and pattern(s): card_not_present_new_device. The transaction was assessed as legitimate at probability 0.03, the model placed 817 confirmed frauds against 234 cleared alarms in the 0.70-0.85 band with a likelihood ratio of 0.67, and exposure was $0.00.",
+    "summary": "Risk score on card C03042-K1 over a $599.94 online transaction on 2016-11-17 was 0.77, and the identity record marked the device New. The card had no billing history in region 327.0, and $599.94 was 6.0x this card's median and above its 95th percentile. External email-domain intelligence classified 'anonymous.com' as a masked address, and the 5 most similar closed cases (CC-0735, CC-2959, CC-0882, CC-2261, CC-0528) included 2 confirmed fraud and 3 cleared. The bank has 2 confirmed-fraud case(s) already closed on this card (CC-3886, CC-0615), pattern(s): card_not_present_new_device, and the case was assessed as legitimate at probability 0.03 with exposure of $0.00.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-015"
   },
@@ -155,6 +155,6 @@
   },
   "stop_reason": "Policy 6: probability 0.03 is at or below 0.15 on 6 independent pieces of evidence; the alarm is explained and further investigation would not change the outcome.",
   "tool_calls": 15,
-  "tokens": 1316,
-  "latency_s": 0.62
+  "tokens": 1358,
+  "latency_s": 0.6
 }

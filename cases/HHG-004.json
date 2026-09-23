@@ -3,7 +3,7 @@
   "case": {
     "status": "escalated",
     "verdict": "uncertain",
-    "fraud_probability": 0.6,
+    "fraud_probability": 0.61,
     "pattern": "card_not_present_new_device",
     "pattern_description": "",
     "affected_txn_ids": [
@@ -109,7 +109,7 @@
       "CC-3683",
       "CC-3853"
     ],
-    "summary": "Customer report on card C08106-K1 over a $128.33 online transaction on 2016-12-29 stated they did not make the purchase. The bank has 3 confirmed-fraud case(s) already closed on this card (CC-3778, CC-2121, CC-1736), pattern(s): card_not_present_fraud. The identity record marks this device New for the account, $128.33 is 4.8x this card's median and above its 95th percentile, and the 5 closed cases whose transaction most resembles this one (CC-5460, CC-1731, CC-2667, CC-3683, CC-3853) closed as 5 confirmed fraud (card not present new device) and 0 cleared. The evidence conflicts and probability sits at 0.60, so the case is not decided in the graph; exposure if the activity is fraudulent is $128.33, and policy R2 recommended `BLOCK_CARD` and `CREATE_CASE` because the customer denied the transaction.",
+    "summary": "Customer reported fraud on card C08106-K1 for transaction ID on 2016-12-29 with exposure of $128.33. The cardholder denied the purchase, and the bank had 3 closed confirmed-fraud cases on the card, CC-3778, CC-2121, and CC-1736, with pattern card_not_present_fraud. While the identity record marked the device New and the $128.33 amount was 4.8x the card's median and above its 95th percentile, 83% of cleared alarms and 18% of confirmed fraud involved a New device, and large outliers appeared on 16% of cleared alarms and 6% of confirmed fraud. The verdict remained uncertain at probability 0.61 with pattern card_not_present_new_device.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-004"
   },
@@ -137,7 +137,7 @@
       {
         "action": "VERIFY_WITH_CUSTOMER",
         "route": "auto",
-        "reason": "R1: probability 0.60 is below 0.70; ask the cardholder before taking any action with customer impact."
+        "reason": "R1: probability 0.61 is below 0.70; ask the cardholder before taking any action with customer impact."
       },
       {
         "action": "MONITOR_CARD",
@@ -172,18 +172,18 @@
         "reason": "R8: the verdict is uncertain and the evidence conflicts; hand to a human analyst."
       }
     ],
-    "what_changed": "Analyst confirms no merchant-side chargeback or law-enforcement notice is attached to these transactions, so the graph evidence stands as gathered, moving assessed probability to 0.60. Dropped: VERIFY_WITH_CUSTOMER."
+    "what_changed": "Analyst confirms no merchant-side chargeback or law-enforcement notice is attached to these transactions, so the graph evidence stands as gathered, moving assessed probability to 0.61. Dropped: VERIFY_WITH_CUSTOMER."
   },
   "sar": {
     "file": false,
-    "reason": "Policy 3a: a report requires fraud confirmed or strongly suspected. Assessed probability 0.60 with verdict 'uncertain' does not meet that bar.",
+    "reason": "Policy 3a: a report requires fraud confirmed or strongly suspected. Assessed probability 0.61 with verdict 'uncertain' does not meet that bar.",
     "narrative": "",
     "subjects": [],
     "total_amount_usd": 0,
     "activity_dates": []
   },
-  "stop_reason": "Policy 6: probability 0.60 on 4 independent pieces of evidence sits between the stopping thresholds, and every request the agent may make without approval has been made. The remaining uncertainty is the cardholder's own intent, which only the cardholder or an analyst can resolve; the recommended actions route it to them rather than resolving it in the graph.",
+  "stop_reason": "Policy 6: probability 0.61 on 4 independent pieces of evidence sits between the stopping thresholds, and every request the agent may make without approval has been made. The remaining uncertainty is the cardholder's own intent, which only the cardholder or an analyst can resolve; the recommended actions route it to them rather than resolving it in the graph.",
   "tool_calls": 14,
-  "tokens": 1241,
-  "latency_s": 0.59
+  "tokens": 1176,
+  "latency_s": 0.58
 }

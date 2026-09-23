@@ -122,7 +122,7 @@
       "CC-2406",
       "CC-1914"
     ],
-    "summary": "The customer reported on card C13171-K2 that they did not make an online purchase of $55.68 on 2016-12-19. The bank had 18 confirmed-fraud case(s) already closed on this card (CC-5010, CC-4485, CC-4163, CC-3928) with pattern(s): card_not_present_fraud, card_not_present_new_device, and the transaction was assessed as card-not-present use of the number without the card at probability 0.93 with 8 transaction(s) and $284.65 of exposure.",
+    "summary": "The cardholder reported card C13171-K2 for an unauthorized $55.68 online transaction on 2016-12-19. The bank had 18 prior closed confirmed-fraud cases on this card (CC-5010, CC-4485, CC-4163, CC-3928) with patterns card_not_present_fraud and card_not_present_new_device. The transaction was assessed as card-not-present fraud at probability 0.93, with exposure of $284.65 across 8 transactions.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-008"
   },
@@ -138,16 +138,6 @@
         "action": "CREATE_CASE",
         "route": "auto",
         "reason": "R2: open the internal case with the evidence attached."
-      },
-      {
-        "action": "VERIFY_WITH_CUSTOMER",
-        "route": "auto",
-        "reason": "R1: probability 0.93 is below 0.70; ask the cardholder before taking any action with customer impact."
-      },
-      {
-        "action": "MONITOR_CARD",
-        "route": "auto",
-        "reason": "R4: keep the card active under raised monitoring while the question is open."
       }
     ],
     "final": [
@@ -160,11 +150,6 @@
         "action": "CREATE_CASE",
         "route": "auto",
         "reason": "R2: open the internal case with the evidence attached."
-      },
-      {
-        "action": "MONITOR_CARD",
-        "route": "auto",
-        "reason": "R4: keep the card active under raised monitoring while the question is open."
       }
     ],
     "what_changed": "nothing"
@@ -179,6 +164,6 @@
   },
   "stop_reason": "Policy 6: probability 0.93 is at or above 0.85 on 3 independent pieces of evidence, which is the bar for a defensible action. No further evidence was requested because none could change it.",
   "tool_calls": 12,
-  "tokens": 1044,
-  "latency_s": 0.63
+  "tokens": 1025,
+  "latency_s": 0.68
 }

@@ -214,7 +214,10 @@ def decide_actions(*, prob, verdict, exposure, signals, pattern, trigger_type,
         if prob >= 0.15:
             _add(a, MONITOR_CARD, exposure, "Residual uncertainty is low but non-zero; keep 72-hour monitoring without customer impact.")
         return a
-    else:  # uncertain
+    elif verdict == "uncertain":
+        # Was a bare `else`, so "fraud AND the cardholder denies it" fell in here and
+        # recommended VERIFY_WITH_CUSTOMER -- asking a cardholder who had just reported
+        # the fraud. R2 above already answers that case.
         if should_create_case(prob, True, customer_denied):
             _add(a, CREATE_CASE, exposure, "Policy 3a: probability is at or above 0.30 with the verdict still uncertain.")
         if phase == "initial":
@@ -334,6 +337,10 @@ def demo():
     assert BLOCK_CARD in acts(verdict="fraud", prob=0.75, customer_denied=True)
     a = acts(customer_confirmed=True, phase="final")
     assert a == {CLOSE_NO_FRAUD}, a
+
+    # --- a cardholder who reported fraud is never asked to verify it again ---
+    a = acts(verdict="fraud", prob=0.92, customer_denied=True, trigger_type="customer_report")
+    assert BLOCK_CARD in a and VERIFY_WITH_CUSTOMER not in a, a
 
     # --- R3 must not close a case the evidence still calls fraud ---
     a = acts(verdict="fraud", prob=0.9, customer_denied=True, customer_confirmed=False)

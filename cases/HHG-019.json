@@ -119,7 +119,7 @@
       "CC-3012",
       "CC-4375"
     ],
-    "summary": "The risk score for card C07987-K2 on 2016-12-01 was 0.90 against a $99.92 transaction, and the case was assessed as legitimate at probability 0.11 with exposure of $0.00. The identity record marked the device New for the account, and external email-domain intelligence classified 'verizon.net' as tied to a paid subscription with a log-likelihood ratio of -1.24. The exact amount of $99.92 had been charged 13 times across 4 distinct months under the same product code, and policy R7 forbade blocking on that cadence. The bank had 3 confirmed-fraud case(s) already closed on this card (CC-5026, CC-2860, CC-2011) with pattern(s) of card_not_present_fraud and out_of_region_use, and 2 other card(s) transacted through the same device profile in the window. Policy R6 required naming the shared device profile 'Windows | other | chrome 61.0 | 1280x720', which was shared across 3 customer(s), and 5 closed cases resembling this one (CC-0757, CC-3020, CC-0635, CC-3012, CC-4375) closed as 1 confirmed fraud and 4 cleared.",
+    "summary": "The risk score on card C07987-K2 for a $99.92 online transaction on 2016-12-01 was 0.90, and the identity record marked the device as New for the account. Against fraud, the bank has 3 confirmed-fraud case(s) already closed on this card (CC-5026, CC-2860, CC-2011), pattern(s): card_not_present_fraud, out_of_region_use, and external email-domain intelligence classified 'verizon.net' with a log-likelihood ratio of -1.24. For the cardholder, the exact amount ($99.92) had been charged to this card 13 times across 4 distinct months under the same product code, a median of 27 days apart, and 2 other card(s) transacted through the same device profile in the window. The case (CC-0757, CC-3020, CC-0635, CC-3012, CC-4375) was assessed as legitimate at probability 0.11, undocumented, with exposure of $0.00.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-019"
   },
@@ -161,6 +161,6 @@
   },
   "stop_reason": "Policy 6: probability 0.11 is at or below 0.15 on 4 independent pieces of evidence; the alarm is explained and further investigation would not change the outcome.",
   "tool_calls": 16,
-  "tokens": 1483,
+  "tokens": 1430,
   "latency_s": 0.63
 }

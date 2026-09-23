@@ -86,7 +86,7 @@
       "CC-3601",
       "CC-2982"
     ],
-    "summary": "The $100.09 online transaction on 2016-11-11 on card C04570-K1 was assessed as legitimate at fraud probability 0.12, with case ID CC-4358, exposure of $0.00, and no transaction treated as part of a fraud episode. External email-domain intelligence classifies 'anonymous.com' as a masked address, the processor withheld it rather than the cardholder choosing an anonymous one, and step-up authentication passed. The connection came through a proxy, 1 previous alarm on card C04570-K1 was investigated and cleared under CC-1383, 5 closed cases whose transactions most resemble this one (CC-4358, CC-4529, CC-3902, CC-3601, CC-2982) closed as 4 confirmed fraud and 1 cleared, and the card sits in a shared-device component of 2,500 cards. Policy R9 governs undocumented patterns, and while the pattern is undocumented, the evidence does not show coordinated or repeated abuse across customers.",
+    "summary": "Risk score on card C04570-K1 over a $100.09 online transaction on 2016-11-11 assessed the cardholder as legitimate at probability 0.12 with exposure of $0.00 and case ID CC-4529. Step-up authentication passed, 1 previous alarm on this card was investigated and cleared under CC-1383, and the connection came through proxy IP_PROXY:HIDDEN. External email-domain intelligence classified 'anonymous.com' as a masked address withheld by the processor rather than chosen by the cardholder, and the 5 most similar closed cases were CC-4358, CC-4529, CC-3902, CC-3601, and CC-2982, of which 4 were confirmed fraud and 1 was cleared. The card belongs to a giant device-sharing component of 2,500 cards, but transitive device sharing carries no weight. Policy R9 on undocumented patterns was noted, and the pattern was recorded as undocumented.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-017"
   },
@@ -148,6 +148,6 @@
   },
   "stop_reason": "Policy 6: probability 0.12 is at or below 0.15 on 2 independent pieces of evidence; the alarm is explained and further investigation would not change the outcome.",
   "tool_calls": 13,
-  "tokens": 968,
-  "latency_s": 0.58
+  "tokens": 954,
+  "latency_s": 0.6
 }

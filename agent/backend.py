@@ -142,8 +142,10 @@ class DuckDBBackend:
                  FROM closed_case
                  WHERE (card_id = ? OR connected_card_ids LIKE ?)"""
         p = [card_id, f"%{card_id}%"]
+        # an outcome is known only once the case has CLOSED; filtering on opened_at let
+        # an investigation read the verdict of a case still being worked
         if before is not None:
-            sql += " AND opened_at < ?"
+            sql += " AND closed_at < ?"
             p.append(before)
         return self._df("prior_cases_for_card", sql + " ORDER BY opened_at DESC", p)
 
@@ -156,7 +158,7 @@ class DuckDBBackend:
                  WHERE t.device_profile = ?"""
         p = [device_profile]
         if before is not None:
-            sql += " AND c.opened_at < ?"
+            sql += " AND c.closed_at < ?"
             p.append(before)
         return self._df("prior_cases_for_device", sql + " ORDER BY c.opened_at DESC LIMIT 25", p)
 
@@ -167,7 +169,7 @@ class DuckDBBackend:
                  WHERE customer_id = ? AND outcome = 'confirmed_fraud'"""
         p = [customer_id]
         if before is not None:
-            sql += " AND opened_at < ?"
+            sql += " AND closed_at < ?"
             p.append(before)
         return sorted(self._df("customer_confirmed_cards", sql, p).card_id.tolist())
 
@@ -417,7 +419,7 @@ class TigerGraphBackend:
         r = self._run("prior_cases_for_card", {"p_card_id": card_id})
         df = self._frame(r, "prior_cases")
         if before is not None and len(df):
-            df = df[df.opened_at < pd.Timestamp(before)]
+            df = df[df.closed_at < pd.Timestamp(before)]
         # the SQL mirror orders newest first and the agent cites the top eight, so
         # without this the two backends cite different cases, not just a different order.
         return df.sort_values("opened_at", ascending=False) if len(df) else df
@@ -427,7 +429,7 @@ class TigerGraphBackend:
         r = self._run("prior_cases_for_device", {"p_device_profile": device_profile})
         df = self._frame(r, "device_cases")
         if before is not None and len(df):
-            df = df[df.opened_at < pd.Timestamp(before)]
+            df = df[df.closed_at < pd.Timestamp(before)]
         return (df.sort_values("opened_at", ascending=False).head(25)
                 if len(df) else df)
 
@@ -436,7 +438,7 @@ class TigerGraphBackend:
         df = self._frame(self._run("customer_confirmed_cards",
                                    {"p_customer_id": customer_id}), "confirmed")
         if before is not None and len(df):
-            df = df[df.opened_at < pd.Timestamp(before)]
+            df = df[df.closed_at < pd.Timestamp(before)]
         return sorted(set(df.card_id)) if len(df) else []
 
     def connected_cards(self, card_id, t_from, t_to):

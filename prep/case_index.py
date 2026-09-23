@@ -15,7 +15,7 @@ con.execute("""CREATE OR REPLACE TEMP TABLE anchors AS
          coalesce(first_fraud_txn_id::VARCHAR, split_part(txn_ids,'|',1))::BIGINT AS txn_id
   FROM closed_case""")
 con.execute(f"CREATE OR REPLACE TEMP TABLE feat AS {FEATURE_SQL}")
-df = con.sql("""SELECT f.*, cc.outcome, cc.pattern, cc.opened_at
+df = con.sql("""SELECT f.*, cc.outcome, cc.pattern, cc.closed_at
                 FROM feat f JOIN closed_case cc ON cc.case_id = f.key_id
                 ORDER BY cc.case_id""").df()
 raw = np.array([similar.vector(r) for r in df.to_dict("records")])
@@ -24,5 +24,5 @@ std[std == 0] = 1.0
 np.savez(similar.INDEX, vecs=(raw - mean) / std, mean=mean, std=std,
          case_ids=df.key_id.to_numpy(), outcomes=df.outcome.to_numpy(),
          patterns=df.pattern.to_numpy(),
-         opened_at=df.opened_at.to_numpy().astype("datetime64[s]"))
+         closed_at=df.closed_at.to_numpy().astype("datetime64[s]"))
 print(f"{similar.INDEX}: {len(df):,} closed cases x {raw.shape[1]} features")

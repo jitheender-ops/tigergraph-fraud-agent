@@ -79,16 +79,16 @@ print(ep.to_string())
 
 # --- case memory: what an earlier closed case on the same card or device is worth -------
 # prior_fraud / prior_cleared / device_prior_fraud were set by hand. Each case is scored
-# only against cases closed BEFORE it opened, exactly as the agent retrieves them.
+# only against cases that had CLOSED before it opened, exactly as the agent retrieves them.
 print()
 print("== case memory ==")
 mem = con.sql("""
   SELECT a.case_id, a.outcome,
     EXISTS (SELECT 1 FROM closed_case b WHERE b.card_id = a.card_id
-            AND b.opened_at < a.opened_at AND b.outcome = 'confirmed_fraud') AS card_fraud,
+            AND b.closed_at < a.opened_at AND b.outcome = 'confirmed_fraud') AS card_fraud,
     EXISTS (SELECT 1 FROM closed_case b WHERE b.card_id = a.card_id
-            AND b.opened_at < a.opened_at AND b.outcome = 'cleared') AS card_cleared,
-    EXISTS (SELECT 1 FROM feat f JOIN closed_case b ON b.opened_at < a.opened_at
+            AND b.closed_at < a.opened_at AND b.outcome = 'cleared') AS card_cleared,
+    EXISTS (SELECT 1 FROM feat f JOIN closed_case b ON b.closed_at < a.opened_at
               AND b.outcome = 'confirmed_fraud' AND b.card_id <> a.card_id
             JOIN tx t ON t.txn_id = TRY_CAST(split_part(b.txn_ids, '|', 1) AS BIGINT)
             WHERE f.key_id = a.case_id AND f.dev_specific = 1 AND f.dev_cards <= 50

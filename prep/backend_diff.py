@@ -6,8 +6,8 @@ same verdict, same probability, same episode, same evidence, same actions, same 
 Run both backends into their own folders first, with --no-llm on both -- the LLM is
 non-deterministic prose and would swamp the comparison.
 
-  uv run python run.py --backend duckdb     --no-llm --out build/cmp/duckdb
-  uv run python run.py --backend tigergraph --no-llm --out build/cmp/tigergraph
+  uv run python run.py --backend duckdb     --no-llm --no-write --out build/cmp/duckdb
+  uv run python run.py --backend tigergraph --no-llm --no-write --out build/cmp/tigergraph
   uv run python prep/backend_diff.py build/cmp/duckdb build/cmp/tigergraph
 """
 from __future__ import annotations

@@ -627,6 +627,7 @@ export default function App() {
                           <span className="text-muted shrink-0">{ev.at.split('T')[1]}</span>
                           <span className="font-bold text-ink shrink-0 w-24">[{ev.kind}]</span>
                           <span className="text-ink/80">{ev.detail}</span>
+                          {ev.by && <span className="text-muted shrink-0 ml-auto">{ev.by} · {ev.role}</span>}
                         </div>
                       ))}
                     </div>

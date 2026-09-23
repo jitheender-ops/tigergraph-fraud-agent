@@ -91,27 +91,45 @@
       "CC-0415",
       "CC-2518"
     ],
-    "summary": "Customer C07297-K1 reported on 2016-11-21 that they did not make an online transaction of $482.12 on card C07297-K1, which is 8.2x the card's median and above its 95th percentile, while the identity record marks the device as New and the card's history is 2% online. The conflicting evidence produced a verdict of uncertain at probability 0.27 with pattern account_takeover and exposure of $1,906.07 for case CC-2518, and the 5 closed cases whose transaction most resembles this one closed as 5 confirmed fraud and 0 cleared. Per policy rule R2, the recommended actions are `BLOCK_CARD` and `CREATE_CASE`, with `FILE_REPORT` added because the exposure exceeds $1,000.",
+    "summary": "On 2016-11-21, the customer reported an unrecognized $482.12 online transaction on card C07297-K1, and the cardholder contacted the bank stating they did not make the purchase. The identity record marked the device as New, the $482.12 amount was 8.2x the card's median and above its 95th percentile, and the card's history was 2% online. The evidence conflicts and the case, ID CC-0415, sits at uncertain with probability 0.27, so the graph does not decide it; exposure if the activity is fraudulent is $1,906.07.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-006"
   },
-  "evidence_requests": [],
+  "evidence_requests": [
+    {
+      "type": "analyst_info",
+      "asked_after_step": 11,
+      "reason": "R8: the verdict is uncertain and exposure $1,906.07 exceeds $500; hand to a human analyst.",
+      "assumed_response": "Analyst confirms no merchant-side chargeback or law-enforcement notice is attached to these transactions, so the graph evidence stands as gathered. ASSUMPTION: simulated; no analyst replies ship with the dataset.",
+      "simulated": true
+    }
+  ],
   "next_best_actions": {
     "initial": [
       {
-        "action": "ALLOW_TRANSACTION",
-        "route": "auto",
-        "reason": "R1 and policy 6: probability 0.27 with 3 independent pieces of evidence pointing away from fraud; the transaction stands."
+        "action": "BLOCK_CARD",
+        "route": "L1",
+        "reason": "R2: the cardholder denies the transaction; block and reissue. Exposure $1,906.07 sets the approval route."
       },
       {
-        "action": "CLOSE_NO_FRAUD",
+        "action": "CREATE_CASE",
         "route": "auto",
-        "reason": "Policy 6: the evidence settles the question; close as legitimate."
+        "reason": "R2: open the internal case with the evidence attached."
+      },
+      {
+        "action": "VERIFY_WITH_CUSTOMER",
+        "route": "auto",
+        "reason": "R1: probability 0.27 is below 0.70; ask the cardholder before taking any action with customer impact."
       },
       {
         "action": "MONITOR_CARD",
         "route": "auto",
-        "reason": "Residual uncertainty is low but non-zero; keep 72-hour monitoring without customer impact."
+        "reason": "R4: keep the card active under raised monitoring while the question is open."
+      },
+      {
+        "action": "ESCALATE_TO_ANALYST",
+        "route": "auto",
+        "reason": "R8: the verdict is uncertain and exposure $1,906.07 exceeds $500; hand to a human analyst."
       }
     ],
     "final": [
@@ -136,7 +154,7 @@
         "reason": "R8: the verdict is uncertain and exposure $1,906.07 exceeds $500; hand to a human analyst."
       }
     ],
-    "what_changed": "nothing"
+    "what_changed": "Analyst confirms no merchant-side chargeback or law-enforcement notice is attached to these transactions, so the graph evidence stands as gathered, moving assessed probability to 0.27. Dropped: VERIFY_WITH_CUSTOMER."
   },
   "sar": {
     "file": false,
@@ -148,6 +166,6 @@
   },
   "stop_reason": "Policy 6: probability 0.27 on 3 independent pieces of evidence sits between the stopping thresholds, and every request the agent may make without approval has been made. The remaining uncertainty is the cardholder's own intent, which only the cardholder or an analyst can resolve; the recommended actions route it to them rather than resolving it in the graph.",
   "tool_calls": 13,
-  "tokens": 1026,
-  "latency_s": 0.14
+  "tokens": 984,
+  "latency_s": 0.13
 }

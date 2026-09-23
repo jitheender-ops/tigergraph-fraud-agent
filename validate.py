@@ -130,6 +130,11 @@ def main(out="cases"):
         for q in d.get("evidence_requests", []):
             if q.get("type") not in REQ_TYPES: E(f"bad evidence_request type {q.get('type')!r}")
             if not q.get("reason"): E(f"evidence_request {q.get('type')} has no reason")
+        # the spec: "If you requested nothing, `final` equals `initial`"
+        nba = d.get("next_best_actions", {})
+        if not d.get("evidence_requests") and \
+                [a["action"] for a in nba.get("initial", [])] != [a["action"] for a in nba.get("final", [])]:
+            E("no evidence was requested, yet final differs from initial")
         for e in c.get("evidence", []):
             if e.get("source") not in SOURCES: E(f"bad evidence source {e.get('source')!r}")
             if not e.get("claim"): E("evidence entry with empty claim")

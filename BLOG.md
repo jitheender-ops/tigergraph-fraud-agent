@@ -25,14 +25,15 @@ engine, with an LLM confined to writing prose.
 trigger ─▶ investigate ─▶ assess ─▶ request evidence ─▶ re-assess ─▶ act ─▶ explain ─▶ remember
 ```
 
-Nine or ten graph and retrieval calls per case, 1.5 seconds of wall clock across all
-twenty, ~1,170 LLM tokens each. The output is the spec's answer file: the case, the SAR
+About thirteen graph and retrieval calls per case, 11 seconds of wall clock across all
+twenty on the live database, ~1,400 LLM tokens each. The output is the spec's answer file: the case, the SAR
 when policy requires one, and both the before-evidence and after-evidence action sets
 with their approval routes.
 
-Twenty cases: 8 fraud, 7 uncertain, 5 legitimate. Two SARs. 67 prior closed cases
-retrieved and cited as memory. Ten of the twenty changed their recommendation after
-requesting evidence.
+Twenty cases: 8 fraud, 7 legitimate, 5 uncertain. Two SARs. 165 distinct closed cases
+retrieved and cited as memory, by identity and by resemblance. Nine of the twenty asked
+for evidence, and all nine changed their recommendation on the answer; the other eleven
+met the policy 6 bar, or had nothing left to ask, before asking anything.
 
 ## The architecture
 
@@ -206,7 +207,7 @@ Monitoring 2,500 cards is not an action, it is a denial of service on the fraud 
 
 ## Agentic capabilities
 
-**Uncertainty is a first-class verdict.** Seven of twenty cases land `uncertain`, and
+**Uncertainty is a first-class verdict.** Five of twenty cases land `uncertain`, and
 they are not failures. The policy has a rule for exactly that state (R8: escalate when
 uncertain and exposed), and the stop reason says so explicitly: the remaining uncertainty
 is the cardholder's own intent, which only the cardholder or an analyst can resolve, so
@@ -233,7 +234,7 @@ system.
 **Cases nobody asked for.** All twenty benchmark cases arrive from a trigger somebody
 else pulled. `monitor.py` ranks the bounded ring components by money moved in the exam
 window, discards any touching a benchmark card, and runs the same investigation and the
-same policy engine over each. The top five move $6.9k–$17.5k apiece; one files a SAR. A
+same policy engine over each. The top five move $6.9k–$17.5k apiece; four file a SAR. A
 fraud agent that only answers the doorbell misses everything nobody thought to flag.
 
 ## Letting a human argue with it
@@ -313,15 +314,67 @@ while running on the mirror, where there is no graph to write to — the same li
 codebase say "this was measured at −0.32, so it is named but not weighted, and here is
 the sweep".
 
+## Grading it like a judge, then fixing what the grade found
+
+I scored the finished build as a judge would and gave it 7.5. The low marks were not
+where I expected, and three of them were bugs dressed up as design.
+
+**The stop rule was a caption.** Policy 6 says when to stop, and the agent quoted it in
+`stop_reason` — after asking for exactly one round of evidence, whatever the numbers said.
+Evidence gathering is now a loop with policy 6 as its condition: check the bar, ask for the
+next thing policy 5 allows (the cardholder, then step-up, then an analyst), re-score,
+recompute what the policy wants, repeat. `stop_reason` names the exit actually taken, so it
+cannot claim "a verification response settled the question" when nobody answered — which it
+had been doing on six of the twenty cases.
+
+**My own step-up simulation pointed the wrong way.** I had made it fail on a New device.
+In this data a New device sits on 83% of cleared alerts and 18% of fraud — people buy
+phones — so a failed step-up was being scored as fraud evidence off a fact that measures as
+innocence. Worse, a *passed* step-up counted as the cardholder confirming the charge, which
+on HHG-011 produced `BLOCK_CARD` and `CLOSE_NO_FRAUD` in the same action set. A passcode
+proves who holds the phone, not who made a past purchase; it now moves the score and nothing
+else, runs off the match flags, and carries half weight because those flags are already
+scored.
+
+**The backtest counted the wrong thing.** Adopting measured memory weights took held-out
+"false blocks" from 2 to 17, and I nearly reported that as the cost. But the column counted
+fraud *verdicts*, and a fraud verdict below 0.85 does not block a card — R1 declines the
+pending authorisation and asks first. Running the policy engine on every held-out case
+instead: of 144 legitimate cardholders, **one** had a card blocked; sixteen were declined
+and asked to verify. The metric had been overstating customer harm seventeen-fold.
+
+**Memory could read the future.** Every lookup cut on the date a case *opened*, but an
+outcome is unknown until the case *closes*. The leak was small — cases close in one to five
+days — but it had inflated the device-memory weight from +1.32 to +1.67. Every lookup now
+cuts on the close date, in both backends, the similarity index, calibration and the
+backtest.
+
+**Smaller, and just as real.** A case resting on an unanswered verification was marked
+`closed_fraud`; the spec defines that state as `open`. HHG-001 and MON-001 both claimed graph
+ID `CASE-2016-001`. The smoke test left a device blacklist in the live graph, which the next
+regeneration dutifully cited as confirmed fraud. An approval recorded whatever name the
+request body carried. And five of the twenty answer files broke a rule the spec states in
+one line — *if you requested nothing, `final` equals `initial`* — because the rules engine's
+fallback branch treated "fraud and the cardholder denies it" as uncertain and recommended
+asking a cardholder who had just reported the fraud, and because a denial that contradicted
+a legitimate verdict was only noticed after the evidence step. The validator never checked
+that rule; it does now. Each of these is fixed, and each now has a check.
+
+What did not change is worth saying too: the verdict band. The backtest fits the band a cost
+function would choose and prints it beside the shipped one. It looks better on October —
+under a review cost and a false-block cost I made up. Nobody in this dataset prices either,
+so the band stays at the policy's own numbers, and the fit is there for whoever can.
+
 ## What I would improve with more time
 
 - **Retrieve the rule as a constraint, not just as context.** Right now the policy passage
   grounds the explanation while a hand-written implementation of the same rule picks the
   action. Verifying the chosen action set *against* the retrieved text — and flagging a
   divergence — would make the policy engine self-checking.
-- **Calibration curves, not point weights.** The weights are per-band log-LRs. A proper
-  isotonic fit with confidence intervals would let the agent say how sure it is about how
-  sure it is, which is exactly what the `uncertain` band needs.
+- **Calibration curves, not point weights.** The backtest now prints a reliability table
+  and Brier score, and it shows the low end is poorly calibrated against this 89%-fraud
+  history (by design: the prior is set for a 50/50 exam set). An isotonic fit with
+  confidence intervals is the next step.
 - **Real merchant data.** Policy R7 is "same merchant, same amount, monthly" and there is
   no merchant column, so product code stands in and cadence does the work. It holds up,
   but it is the weakest joint in the system.

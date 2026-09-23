@@ -44,7 +44,7 @@ def _ref(system: str, case_id: str, action: str) -> str:
     return f"{system[:3]}-{h}"
 
 
-def execute(case_id: str, action: dict, ctx: dict) -> dict:
+def execute(case_id: str, action: dict, ctx: dict, by: str | None = None) -> dict:
     """Run one action, or record that it is waiting for a human.
 
     `route` decides which: `auto` is the agent's own authority, `L1` and `L2` are not.
@@ -69,6 +69,7 @@ def execute(case_id: str, action: dict, ctx: dict) -> dict:
                    f"requires {route} approval before {template.format(action=name, **ctx)}"),
         "simulated": True,
         "reason": action.get("reason", ""),
+        "requested_by": by,
     }
     append(rec)
     return rec

@@ -38,9 +38,9 @@ export const api = {
     call<any>(`/case/${id}/close`, { outcome, note }),
   blacklist: (device_profile: string, note: string) =>
     call<any>('/device/blacklist', { device_profile, note }),
-  // the approval tier comes from the token, server side; the UI only carries it
-  release: (id: string, action: string, approver: string, token: string) =>
-    call<any>(`/case/${id}/release`, { action, approver }, { 'X-Approver-Token': token }),
+  // who approves, and at which tier, both come from the token server side
+  release: (id: string, action: string, token: string) =>
+    call<any>(`/case/${id}/release`, { action }, { 'X-Approver-Token': token }),
   reply: (id: string, type: string, outcome: 'confirmed' | 'denied' | 'no_reply', note: string) =>
     call<any>(`/case/${id}/reply`, { type, outcome, note }),
   open: (card_id: string, txn_id: number, trigger_type: string, trigger_text: string) =>

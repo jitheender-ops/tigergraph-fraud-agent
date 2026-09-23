@@ -5,7 +5,7 @@ this one. The brief also asks for "similar past cases when a new alert resembles
 one" -- and since every cleared case carries pattern 'none', resemblance cannot be read
 off the pattern label. It is read off the transaction instead: each closed case's anchor
 transaction becomes a vector of the features the scorer uses, and a new alert retrieves
-its nearest neighbours among cases closed before it opened.
+its nearest neighbours among cases that had CLOSED before it opened.
 
 The index is built offline by prep/case_index.py. Both backends share it, the way they
 share the email-domain lookup: it is a lookup over the closed cases, not a traversal.
@@ -50,7 +50,7 @@ def nearest(f, before=None, k=5) -> list[dict]:
     q = (np.array(vector(f)) - z["mean"]) / z["std"]
     d = np.sqrt(((z["vecs"] - q) ** 2).sum(axis=1))
     if before is not None:
-        d = np.where(z["opened_at"] < np.datetime64(before), d, np.inf)
+        d = np.where(z["closed_at"] < np.datetime64(before), d, np.inf)
     out = []
     for i in np.argsort(d)[:k]:
         if not np.isfinite(d[i]):

@@ -3,7 +3,7 @@
   "case": {
     "status": "open",
     "verdict": "uncertain",
-    "fraud_probability": 0.36,
+    "fraud_probability": 0.37,
     "pattern": "card_not_present_fraud",
     "pattern_description": "",
     "affected_txn_ids": [
@@ -100,7 +100,7 @@
       "CC-4218",
       "CC-5375"
     ],
-    "summary": "The case for card C11891-K1 and customer ID tied to transaction 2016-11-22 has a probability of 0.36. Against the $292.36 exposure, the bank has 1 confirmed-fraud case already closed on this card (CC-4160) with pattern(s) card_not_present_fraud, yet step-up authentication passed and $292.36 is 7.9x this card's median and above its 95th percentile. The evidence conflicts, so the pattern is card_not_present_fraud and the case is uncertain.",
+    "summary": "The risk score on card C11891-K1 for a $292.36 online transaction on 2016-11-22 was 0.79, and the case ID is CC-5375 with a verdict of uncertain at probability 0.37. Against it, the bank has 1 confirmed-fraud case(s) already closed on this card (CC-4160), pattern(s): card_not_present_fraud. For the cardholder, step-up authentication passed, while $292.36 is 7.9x this card's median and above its 95th percentile, and exposure if the activity is fraudulent is $292.36.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-002"
   },
@@ -108,7 +108,7 @@
     {
       "type": "customer_validation",
       "asked_after_step": 11,
-      "reason": "R1: probability 0.50 is below 0.70; ask the cardholder before taking any action with customer impact.",
+      "reason": "R1: probability 0.51 is below 0.70; ask the cardholder before taking any action with customer impact.",
       "assumed_response": "No reply within 24 hours. ASSUMPTION: no replies ship with this dataset, and nothing independent in the evidence points to what the cardholder would say. Inventing an answer here would manufacture certainty, so the agent assumes the case policy R4 is written for - the customer does not respond - and acts accordingly.",
       "simulated": true
     },
@@ -130,7 +130,7 @@
       {
         "action": "VERIFY_WITH_CUSTOMER",
         "route": "auto",
-        "reason": "R1: probability 0.50 is below 0.70; ask the cardholder before taking any action with customer impact."
+        "reason": "R1: probability 0.51 is below 0.70; ask the cardholder before taking any action with customer impact."
       },
       {
         "action": "MONITOR_CARD",
@@ -155,18 +155,18 @@
         "reason": "Policy 3a: a case is opened because evidence was requested."
       }
     ],
-    "what_changed": "No reply within 24 hours, moving assessed probability to 0.36. Added: DECLINE_TRANSACTION. Dropped: VERIFY_WITH_CUSTOMER."
+    "what_changed": "No reply within 24 hours, moving assessed probability to 0.37. Added: DECLINE_TRANSACTION. Dropped: VERIFY_WITH_CUSTOMER."
   },
   "sar": {
     "file": false,
-    "reason": "Policy 3a: a report requires fraud confirmed or strongly suspected. Assessed probability 0.36 with verdict 'uncertain' does not meet that bar.",
+    "reason": "Policy 3a: a report requires fraud confirmed or strongly suspected. Assessed probability 0.37 with verdict 'uncertain' does not meet that bar.",
     "narrative": "",
     "subjects": [],
     "total_amount_usd": 0,
     "activity_dates": []
   },
-  "stop_reason": "Policy 6: probability 0.36 on 4 independent pieces of evidence sits between the stopping thresholds, and every request the agent may make without approval has been made. The remaining uncertainty is the cardholder's own intent, which only the cardholder or an analyst can resolve; the recommended actions route it to them rather than resolving it in the graph.",
+  "stop_reason": "Policy 6: probability 0.37 on 4 independent pieces of evidence sits between the stopping thresholds, and every request the agent may make without approval has been made. The remaining uncertainty is the cardholder's own intent, which only the cardholder or an analyst can resolve; the recommended actions route it to them rather than resolving it in the graph.",
   "tool_calls": 11,
-  "tokens": 1130,
-  "latency_s": 0.56
+  "tokens": 1152,
+  "latency_s": 0.52
 }

@@ -49,8 +49,7 @@ def console(tmp_path_factory):
     shutil.copy(ROOT / "build" / "triggers.json", state / "triggers.json")
     os.chdir(ROOT)
     os.environ.update(CONSOLE_BACKEND="duckdb", CONSOLE_STATE_DIR=str(state),
-                      ANALYST_TOKEN="t-analyst", APPROVER_TOKEN_L1="t-l1",
-                      APPROVER_TOKEN_L2="t-l2")
+                      CONSOLE_USERS="ana:analyst:t-analyst,lee:L1:t-l1,kim:L2:t-l2")
     for m in ("server", "execute", "backend"):
         sys.modules.pop(m, None)
     from fastapi.testclient import TestClient
@@ -121,8 +120,16 @@ def test_release_respects_the_approval_tier(console):
     held = cl.post(f"/api/case/{cid}/decision", headers=A,
                    json={"decision": "approve"}).json()["pending_approval"]
     l2 = next(h["action"] for h in held if h["route"] == "L2")
-    body = {"action": l2, "approver": "judge"}
+    body = {"action": l2}
+    assert cl.post(f"/api/case/{cid}/release", json=body, headers=A).status_code == 403, \
+        "an analyst is not an approver"
     assert cl.post(f"/api/case/{cid}/release", json=body,
                    headers={"X-Approver-Token": "t-l1"}).status_code == 403
-    r = cl.post(f"/api/case/{cid}/release", json=body, headers={"X-Approver-Token": "t-l2"})
-    assert r.json()["result"]["status"] == "executed"
+    # a name in the body is ignored: identity comes from the token alone
+    r = cl.post(f"/api/case/{cid}/release", json={**body, "approver": "mallory"},
+                headers={"X-Approver-Token": "t-l2"})
+    rec = r.json()["result"]
+    assert rec["status"] == "executed" and rec["approved_by"] == "kim", rec
+    ev = [e for e in r.json()["events"] if e["kind"] == "release"][-1]
+    assert ev["by"] == "kim" and ev["role"] == "L2", ev
+    assert all(x.get("requested_by") == "ana" for x in held), "approvals record who asked"

@@ -118,7 +118,7 @@ CREATE OR REPLACE QUERY prior_cases_for_card(STRING p_card_id) FOR GRAPH FraudIn
   CN = SELECT k FROM C:c -(CONNECTED_FROM>)- ClosedCase:k;
   ALL_CASES = CC UNION CN;
   PRINT ALL_CASES[ALL_CASES.case_id, ALL_CASES.outcome, ALL_CASES.pattern,
-                  ALL_CASES.opened_at, ALL_CASES.exposure_usd, ALL_CASES.n_txns,
+                  ALL_CASES.opened_at, ALL_CASES.closed_at, ALL_CASES.exposure_usd, ALL_CASES.n_txns,
                   ALL_CASES.actions_taken, ALL_CASES.report_filed,
                   ALL_CASES.analyst_notes] AS prior_cases;
 }
@@ -133,7 +133,7 @@ CREATE OR REPLACE QUERY customer_confirmed_cards(STRING p_customer_id) FOR GRAPH
   D = SELECT d FROM C:c -(OWNS>)- Card:d;
   K = SELECT k FROM D:d -(HAS_CLOSED_CASE>)- ClosedCase:k
       WHERE k.outcome == "confirmed_fraud";
-  PRINT K[K.case_id, K.card_id, K.opened_at] AS confirmed;
+  PRINT K[K.case_id, K.card_id, K.opened_at, K.closed_at] AS confirmed;
 }
 
 // ---------------------------------------------------------------------------
@@ -147,7 +147,7 @@ CREATE OR REPLACE QUERY prior_cases_for_device(STRING p_device_profile) FOR GRAP
   T = SELECT t FROM D:d -(DEVICE_USED_IN>)- Transaction:t;
   K = SELECT k FROM T:t -(INVOLVED_IN>)- ClosedCase:k
       ACCUM @@case_ids += k.case_id;
-  PRINT K[K.case_id, K.outcome, K.pattern, K.opened_at, K.exposure_usd,
+  PRINT K[K.case_id, K.outcome, K.pattern, K.opened_at, K.closed_at, K.exposure_usd,
           K.card_id, K.analyst_notes] AS device_cases;
 }
 

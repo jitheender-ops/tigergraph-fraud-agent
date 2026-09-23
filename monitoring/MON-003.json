@@ -121,7 +121,7 @@
       "CC-3722",
       "CC-4562"
     ],
-    "summary": "Monitoring sweep on card C00782-K1 over a $934.98 in person transaction on 2016-12-29. The cardholder denied the transaction on contact, 2 of the card-detail match flags M1-M9 came back F, and $934.98 is 12.7x this card's median and above its 95th percentile. The case, CC-3048, was assessed as fraud at probability 0.94 with exposure of $959.27, and card C13355-K1 shares the same device profile in a bounded component of 2 cards.",
+    "summary": "Monitoring sweep on card C00782-K1 over a $934.98 in person transaction on 2016-12-29 found the cardholder denies the transaction on contact. The transaction received 2 of the card-detail match flags M1-M9 as F, and the card sits in a bounded component of 2 cards (C13355-K1) linked transitively through device profiles each used by no more than 8 cards. Assessed as mixed-channel activity consistent with stolen credentials at probability 0.94, the case is pattern account_takeover with exposure of $959.27. The bank has 1 confirmed-fraud case already closed on this card (CC-3048), pattern(s): card_not_present_new_device, and 5 closed cases whose transaction most resembles this one (CC-5502, CC-1192, CC-4870, CC-3722, CC-4562) closed as 5 confirmed fraud and 0 cleared. Policy rule R2 recommends BLOCK_CARD and CREATE_CASE because the customer denies the transaction, and policy rule R6 names the shared element and recommends MONITOR_CONNECTED_CARDS for every card that shares it.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-M003"
   },
@@ -129,7 +129,7 @@
     {
       "type": "customer_validation",
       "asked_after_step": 11,
-      "reason": "R1: probability 0.81 is below the 0.85 stopping bar in policy 6; confirm with the cardholder before any action with customer impact.",
+      "reason": "R1: probability 0.82 is below the 0.85 stopping bar in policy 6; confirm with the cardholder before any action with customer impact.",
       "assumed_response": "Cardholder states they did not make the transaction and still holds the card. ASSUMPTION: no replies ship with this dataset. This one is drawn from 2 independent incriminating findings in the graph, not from the agent's own probability.",
       "simulated": true
     }
@@ -144,7 +144,7 @@
       {
         "action": "VERIFY_WITH_CUSTOMER",
         "route": "auto",
-        "reason": "R1: probability 0.81 is below the 0.85 stopping bar in policy 6; confirm with the cardholder before any action with customer impact."
+        "reason": "R1: probability 0.82 is below the 0.85 stopping bar in policy 6; confirm with the cardholder before any action with customer impact."
       },
       {
         "action": "STEP_UP_AUTH",
@@ -154,7 +154,7 @@
       {
         "action": "DECLINE_TRANSACTION",
         "route": "L1",
-        "reason": "R4: decline the pending authorisation while the card stays active, given assessed probability 0.81."
+        "reason": "R4: decline the pending authorisation while the card stays active, given assessed probability 0.82."
       },
       {
         "action": "MONITOR_CARD",
@@ -184,11 +184,6 @@
         "reason": "R2: open the internal case with the evidence attached."
       },
       {
-        "action": "MONITOR_CARD",
-        "route": "auto",
-        "reason": "R4: keep the card active under raised monitoring while the question is open."
-      },
-      {
         "action": "MONITOR_CONNECTED_CARDS",
         "route": "auto",
         "reason": "R6: shared device-sharing component of 2 cards links 1 other card(s) to this activity; place them under monitoring."
@@ -199,12 +194,12 @@
         "reason": "Policy 3a and R6: the activity connects to a shared device profile / region cluster used by other cards, which requires a filing regardless of amount."
       }
     ],
-    "what_changed": "Cardholder states they did not make the transaction and still holds the card, moving assessed probability to 0.94. Added: BLOCK_CARD. Dropped: DECLINE_TRANSACTION, STEP_UP_AUTH, VERIFY_WITH_CUSTOMER."
+    "what_changed": "Cardholder states they did not make the transaction and still holds the card, moving assessed probability to 0.94. Added: BLOCK_CARD. Dropped: DECLINE_TRANSACTION, MONITOR_CARD, STEP_UP_AUTH, VERIFY_WITH_CUSTOMER."
   },
   "sar": {
     "file": true,
     "reason": "Policy 3a and R6: the activity connects to a shared device profile / region cluster used by other cards, which requires a filing regardless of amount.",
-    "narrative": "Between 2016-12-29 and 2016-12-31, card C00782-K1 belonging to customer C00782 was used for 2 transaction(s) totalling $959.27, of which the transaction that triggered this investigation was $934.98 on 2016-12-29, and the activity was conducted in person under product code W, billed in region 327.0. Cardholder denies the transaction on contact, and on contact cardholder states they did not make the transaction and still holds the card, though that response is an assumption recorded in the case file, as no cardholder replies were available to this investigation. On this transaction, 2 of the card-detail match flags M1-M9 came back F, and the bank has 1 confirmed-fraud case(s) already closed on this card (CC-3048), pattern(s): card_not_present_new_device, while the bank's closed investigations also record 1 confirmed fraud case(s) on this card (CC-3579, CC-3048). The same device profile was used by 1 other card(s) in the thirty days to 2016-12-29 (C13355-K1), indicating a common actor operating across more than one cardholder, and connected components over the device-sharing graph place this card in a bounded component of 2 cards (C13355-K1), linked transitively through device profiles each used by no more than 8 cards. The activity is suspicious because it is consistent with mixed-channel activity consistent with stolen credentials, assessed at a 94% probability of being fraudulent on 4 independent pieces of evidence drawn from the transaction graph and the institution's closed-case history, and because $934.98 is 12.7x this card's median and above its 95th percentile, though large outliers appear on 16% of cleared alarms and 6% of confirmed fraud. The filing is made because the activity connects to a device profile shared with other compromised cards, which requires a report regardless of amount, and because the 5 closed cases whose transaction most resembles this one (CC-5502, CC-1192, CC-4870, CC-3722, CC-4562) closed as 5 confirmed fraud (account takeover, out of region use) and 0 cleared. External email-domain intelligence classifies 'gmail.com' as a free webmail address, which is the baseline, and the activity is also suspicious because the 2 of the card-detail match flags M1-M9 came back F, which is 2.9x more likely on confirmed fraud than on a cleared alarm (22.7% vs 7.9%), prompting the institution to block the card and schedule it for reissue, open an internal investigation case, place the card under heightened monitoring, and place the cards sharing the same origin under monitoring.",
+    "narrative": "Between 2016-12-29 and 2016-12-31, card C00782-K1 belonging to customer C00782 was used for 2 transaction(s) totalling $959.27, of which the transaction that triggered this investigation was $934.98 on 2016-12-29, and the activity was conducted in person under product code W and billed in region 327.0. Cardholder denies the transaction on contact, and on contact the cardholder states they did not make the transaction and still holds the card, which is an assumption recorded in the case file because no cardholder replies were available to this investigation. 2 of the card-detail match flags M1-M9 came back F on this transaction, $934.98 is 12.7x this card's median and above its 95th percentile, and the bank has 1 confirmed-fraud case(s) already closed on this card (CC-3048), pattern(s): card_not_present_new_device, alongside another closed case (CC-3579). The same device profile was used by 1 other card(s) in the thirty days to 2016-12-29 (C13355-K1), placing this card in a bounded component of 2 cards (C13355-K1) linked transitively through device profiles each used by no more than 8 cards, indicating a common actor operating across more than one cardholder. The 5 closed cases whose transaction most resembles this one (CC-5502, CC-1192, CC-4870, CC-3722, CC-4562) closed as 5 confirmed fraud (account takeover, out of region use) and 0 cleared, and the bank's closed investigations already record 1 confirmed fraud case(s) on this card (CC-3048). The activity is suspicious because it is consistent with mixed-channel activity inconsistent with the cardholder, often with device and match-flag anomalies, pointing to stolen credentials rather than a stolen number, assessed at a 94% probability of being fraudulent on 4 independent pieces of evidence drawn from the transaction graph and the institution's closed-case history. The filing is made because the activity connects to a device profile shared with other compromised cards, which requires a report regardless of amount, and because the cardholder denies the transaction, which under policy rule R2 requires `BLOCK_CARD`, `CREATE_CASE`, and `FILE_REPORT` since the exposure does not exceed $1,000 but the case connects to a shared device profile.",
     "subjects": [
       "C00782",
       "C00782-K1",
@@ -218,7 +213,7 @@
   },
   "stop_reason": "A verification response settled the question (policy 6): probability moved to 0.94 on 4 independent pieces of evidence and the action set follows directly. Further steps would not change it.",
   "tool_calls": 15,
-  "tokens": 3663,
+  "tokens": 3712,
   "latency_s": 0.2,
   "trigger": {
     "type": "monitoring_sweep",

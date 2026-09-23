@@ -224,7 +224,7 @@ def main():
     priors = con.sql("""
         SELECT a.case_id, b.case_id AS prior_id, b.outcome, b.pattern
         FROM closed_case a JOIN closed_case b
-          ON b.card_id = a.card_id AND b.opened_at < a.opened_at
+          ON b.card_id = a.card_id AND b.closed_at < a.opened_at
     """).df()
     by_case: dict[str, list] = {}
     for r in priors.itertuples():
@@ -293,11 +293,13 @@ def main():
     # block is EXPENSIVE. Printing one sentence for both cases invites the wrong reading.
     agent = next(c for l, c in results if l.startswith("agent, weights from train"))
     print(f"\nagent, out of sample: {agent['tp']:,} caught, {agent['fn']:,} missed, "
-          f"{agent['fp']:,} false blocks, ${agent['missed']:,.0f} of loss let through,\n"
+          f"{agent['fp']:,} fraud verdicts on legitimate cases, ${agent['missed']:,.0f} of loss "
+          f"let through,\n"
           f"and {agent['unc_f'] + agent['unc_c']:,} of {len(rows):,} "
           f"({(agent['unc_f'] + agent['unc_c']) / len(rows):.0%}) judged too close to call "
           f"(split below into analyst and automatic verification).\n")
-    print("break-even against it:\n")
+    print("break-even against it (every agent fraud verdict counted as a block, which "
+          "overstates it --\nsee the action table below):\n")
     for label, c in results:
         if label.startswith("agent, weights from train"):
             continue
@@ -334,6 +336,35 @@ def main():
           f"cases) meet R8 and go to an analyst; {len(unc) - to_analyst:,} "
           f"({(len(unc) - to_analyst) / len(rows):.0%}) are verified automatically first.")
 
+    # --- what the policy actually does to each customer ----------------------------
+    # The table above counts VERDICTS. A fraud verdict below 0.85 does not block a card:
+    # R1 declines the pending authorisation and asks the cardholder first. So "false"
+    # above is fraud verdicts on legitimate cases, not blocked cardholders -- this is.
+    impact = {"confirmed_fraud": {}, "cleared": {}}
+    for r, (p, sig) in zip(rows, full):
+        v = verdict(p)
+        pat, _ = P.classify(r, {"txn_ids": [str(r["txn_id"])]}, {"cards": []})
+        acts = {a["action"] for a in pol.decide_actions(
+            prob=p, verdict=v, exposure=float(r["exposure_usd"] or 0), signals=sig,
+            pattern=pat if v != "legitimate" else "none", trigger_type="risk_score",
+            customer_denied=False, customer_confirmed=False, recurring=False,
+            connected_cards=[], shared_element="", n_confirmed_cards=0, phase="initial")}
+        worst = ("card blocked" if acts & {"BLOCK_CARD", "BLOCK_ALL_CARDS"} else
+                 "authorisation declined" if "DECLINE_TRANSACTION" in acts else
+                 "sent to an analyst" if "ESCALATE_TO_ANALYST" in acts else
+                 "cardholder asked to verify" if acts & {"VERIFY_WITH_CUSTOMER", "STEP_UP_AUTH"} else
+                 "allowed, monitored" if "MONITOR_CARD" in acts else "allowed")
+        side = impact["confirmed_fraud" if r["outcome"] == "confirmed_fraud" else "cleared"]
+        side[worst] = side.get(worst, 0) + 1
+    order = ["card blocked", "authorisation declined", "sent to an analyst",
+             "cardholder asked to verify", "allowed, monitored", "allowed"]
+    print("\nwhat the agent's first actions do, held-out month (strongest action per case):")
+    print(f"  {'':28}{'legitimate':>11}{'fraud':>8}")
+    for k in order:
+        print(f"  {k:28}{impact['cleared'].get(k, 0):>11,}{impact['confirmed_fraud'].get(k, 0):>8,}")
+    print("  a legitimate cardholder is blocked outright only at 0.85+ on two independent "
+          "pieces of evidence\n  (policy 6); below that the agent declines and asks.")
+
     # --- calibration ---------------------------------------------------------------
     # Prior 0 (even odds) is chosen for the exam set, where half the cases are legitimate.
     # This history is 89% fraud, so the probabilities SHOULD read low against it; the
@@ -363,7 +394,7 @@ def main():
           f"(shipped 0.30-0.70). On the held-out month:")
     for label, (a, b) in (("shipped 0.30-0.70", (0.30, 0.70)), (f"fitted {lo:.2f}-{hi:.2f}", (lo, hi))):
         c = confusion([verdict(p, a, b) for p in probs], truth, exposure)
-        print(f"  {label:20} false blocks {c['fp']:>4}  missed ${c['missed']:>9,.0f}  "
+        print(f"  {label:20} fraud verdicts on legit {c['fp']:>4}  missed ${c['missed']:>9,.0f}  "
               f"uncertain {(c['unc_f'] + c['unc_c']) / len(rows):>4.0%}")
 
     # --- memory by resemblance, held out ---------------------------------------------
@@ -384,8 +415,10 @@ def main():
     # stale the first time a signal changes, and then the summary is a lie.
     thr = next(c for l, c in results if l == "risk score >= 0.70")
     print(f"\nThe agent is not competing to catch the most fraud -- blocking every card "
-          f"catches all of\nit. It competes on what the mistakes cost: {agent['fp']} "
-          f"false blocks against {thr['fp']}, and "
+          f"catches all of\nit. It competes on what the mistakes cost: "
+          f"{impact['cleared'].get('card blocked', 0)} legitimate card blocked (and "
+          f"{agent['fp']} fraud verdicts, which decline and ask) against the {thr['fp']} "
+          f"blocks at the bank's threshold, and "
           f"{agent['missed'] / thr['missed']:.0%} of the loss\nthe bank's own 0.70 "
           f"threshold would have let through, while declining "
           f"{(agent['unc_f'] + agent['unc_c']) / len(rows):.0%} of the\nset as too "

@@ -88,7 +88,6 @@ export function Intelligence({ onPickCase }: { onPickCase: (id: string) => void 
 export function Ledger({ caseId, refresh }: { caseId: string; refresh: number }) {
   const [d, setD] = useState<any>(null);
   const [tick, setTick] = useState(0);
-  const [approver, setApprover] = useState('');
   const [token, setToken] = useState('');
   const [msg, setMsg] = useState('');
   useEffect(() => {
@@ -96,7 +95,7 @@ export function Ledger({ caseId, refresh }: { caseId: string; refresh: number })
   }, [caseId, refresh, tick]);
   const release = async (action: string) => {
     try {
-      const r = await api.release(caseId, action, approver, token);
+      const r = await api.release(caseId, action, token);
       setMsg(`${action} released by ${r.result.approved_by} (${r.result.approver_level}).`);
     } catch (e) {
       setMsg(String(e).slice(0, 200));
@@ -118,12 +117,10 @@ export function Ledger({ caseId, refresh }: { caseId: string; refresh: number })
       {held && (
         <div className="p-4 flex flex-wrap gap-2 items-center bg-paper">
           <span className="font-mono text-[10px] uppercase tracking-widest text-muted">Approver</span>
-          <input value={approver} onChange={(e) => setApprover(e.target.value)} placeholder="name"
-            className="border border-line px-2 py-1 text-sm bg-white focus:outline-none focus:border-crimson" />
           <input value={token} onChange={(e) => setToken(e.target.value)} placeholder="approver token"
             type="password" autoComplete="off"
             className="border border-line px-2 py-1 text-sm bg-white focus:outline-none focus:border-crimson" />
-          <span className="text-xs text-muted">The token sets your tier; L1 cannot release L2 work.</span>
+          <span className="text-xs text-muted">Your token says who you are and your tier; L1 cannot release L2 work.</span>
           {msg && <div className="w-full text-sm text-ink/80">{msg}</div>}
         </div>
       )}
@@ -139,9 +136,14 @@ export function Ledger({ caseId, refresh }: { caseId: string; refresh: number })
           {r.reference && (
             <span className="font-mono text-[10px] text-emerald-700">{r.reference}</span>
           )}
+          {(r.approved_by || r.requested_by) && (
+            <span className="font-mono text-[10px] text-muted">
+              {r.approved_by ? `released by ${r.approved_by} (${r.approver_level})` : `by ${r.requested_by}`}
+            </span>
+          )}
           <span className="font-mono text-[10px] text-muted ml-auto">{r.at.split('T')[1]}</span>
           {r.status !== 'executed' && !executed.has(r.action) && (
-            <button disabled={!approver || !token} onClick={() => release(r.action)}
+            <button disabled={!token} onClick={() => release(r.action)}
               className="px-3 py-1 border border-ink text-[10px] font-bold uppercase tracking-widest
                          hover:bg-ink hover:text-paper transition-colors disabled:opacity-30">
               Release ({r.route})

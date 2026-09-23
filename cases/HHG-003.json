@@ -3,7 +3,7 @@
   "case": {
     "status": "closed_fraud",
     "verdict": "fraud",
-    "fraud_probability": 0.91,
+    "fraud_probability": 0.92,
     "pattern": "account_takeover",
     "pattern_description": "",
     "affected_txn_ids": [
@@ -111,7 +111,7 @@
       "CC-3543",
       "CC-4325"
     ],
-    "summary": "The cardholder reported that they did not make the $49.00 in-person transaction on 2016-12-10 on card C08623-K2, which was assessed as mixed-channel activity consistent with stolen credentials at probability 0.91. Three of the card-detail match flags M1-M9 came back F on this transaction, 13 transactions occurred on this card in the 48 hours ending at the flagged one, and the bank has 5 confirmed-fraud case(s) already closed on this card (CC-4957, CC-3682, CC-3327, CC-2935). External email-domain intelligence classifies 'me.com' as an address tied to a paid internet, cable or phone subscription, which means a billing relationship and a credit check stand behind it, pointing away from fraud with log-likelihood ratio -1.24, while known fraud pattern 5 identified account takeover with device and match-flag anomalies. Policy rule R2 recommends `BLOCK_CARD` and `CREATE_CASE`, and the case should be assigned case ID CC-0136, CC-4744, CC-5427, CC-3543, or CC-4325. The 5 closed cases whose transaction most resembles this one (CC-0136, CC-4744, CC-5427, CC-3543, CC-4325) closed as 5 confirmed fraud (account takeover, out of region use) and 0 cleared, and connected components placed this card in the graph's giant device-sharing component (2,500 cards). The exposure is $49.00 and the pattern is account_takeover.",
+    "summary": "Customer report on card C08623-K2 over a $49.00 in person transaction on 2016-12-10. Against it: 3 of the card-detail match flags M1-M9 came back F on this transaction. The cardholder contacted the bank stating they did not make this purchase. For the cardholder: External email-domain intelligence classifies 'me.com' as an address tied to a paid internet, cable or phone subscription, which means a billing relationship and a credit check stand behind it. Assessed as mixed-channel activity consistent with stolen credentials at probability 0.92, 1 transaction(s) and $49.00 of exposure.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-003"
   },
@@ -127,16 +127,6 @@
         "action": "CREATE_CASE",
         "route": "auto",
         "reason": "R2: open the internal case with the evidence attached."
-      },
-      {
-        "action": "VERIFY_WITH_CUSTOMER",
-        "route": "auto",
-        "reason": "R1: probability 0.91 is below 0.70; ask the cardholder before taking any action with customer impact."
-      },
-      {
-        "action": "MONITOR_CARD",
-        "route": "auto",
-        "reason": "R4: keep the card active under raised monitoring while the question is open."
       }
     ],
     "final": [
@@ -149,11 +139,6 @@
         "action": "CREATE_CASE",
         "route": "auto",
         "reason": "R2: open the internal case with the evidence attached."
-      },
-      {
-        "action": "MONITOR_CARD",
-        "route": "auto",
-        "reason": "R4: keep the card active under raised monitoring while the question is open."
       }
     ],
     "what_changed": "nothing"
@@ -166,8 +151,8 @@
     "total_amount_usd": 0,
     "activity_dates": []
   },
-  "stop_reason": "Policy 6: probability 0.91 is at or above 0.85 on 5 independent pieces of evidence, which is the bar for a defensible action. No further evidence was requested because none could change it.",
+  "stop_reason": "Policy 6: probability 0.92 is at or above 0.85 on 5 independent pieces of evidence, which is the bar for a defensible action. No further evidence was requested because none could change it.",
   "tool_calls": 12,
-  "tokens": 1307,
-  "latency_s": 0.67
+  "tokens": 1132,
+  "latency_s": 0.6
 }

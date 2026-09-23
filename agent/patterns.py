@@ -75,14 +75,15 @@ W = {
                                  # hardware at all, which is why it still counts for something.
     "analyst_request":   1.00,   # a trained analyst already saw cross-card activity
     "recurring":         0.00,   # measured +0.26: policy R7 drives the action, not the score
-    # Case memory, measured by prep/calibrate.py against only the cases closed BEFORE each
-    # one opened -- the retrieval the agent actually performs.
-    "prior_fraud":       0.92,   # measured +0.92 (3,224 fraud / 248 cleared); was a guessed 0.30
-    "prior_cleared":     0.00,   # measured +6.48, the WRONG sign for a guessed -0.30: a card
-                                 # with an earlier cleared alarm was later confirmed as fraud 1,684
+    # Case memory, measured by prep/calibrate.py against only the cases that had CLOSED
+    # before each one opened -- an outcome is not known while a case is still being worked.
+    "prior_fraud":       0.95,   # measured +0.95 (3,146 fraud / 234 cleared); was a guessed 0.30
+    "prior_cleared":     0.00,   # measured +6.46, the WRONG sign for a guessed -0.30: a card
+                                 # with an earlier cleared alarm was later confirmed as fraud 1,646
                                  # times and cleared 0. That is how cases were reopened, not a fact
                                  # about fraud, so it is cited as memory and scored at zero.
-    "device_prior_fraud": 1.67,  # measured +1.67 (590 / 21); was a guessed 1.00
+    "device_prior_fraud": 1.32,  # measured +1.32 (396 / 20); was a guessed 1.00. Cutting on
+                                 # opened_at had read +1.67 off cases not yet closed.
     "customer_report":   1.00,   # an independent statement by the cardholder (R2)
     # A SIMULATED reply is not an observation. The dataset ships no customer or analyst
     # responses, so these are damped well below what a real reply would justify: assuming

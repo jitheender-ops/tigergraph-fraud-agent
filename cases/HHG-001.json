@@ -3,7 +3,7 @@
   "case": {
     "status": "closed_fraud",
     "verdict": "fraud",
-    "fraud_probability": 0.87,
+    "fraud_probability": 0.88,
     "pattern": "account_takeover",
     "pattern_description": "",
     "affected_txn_ids": [
@@ -69,7 +69,7 @@
       "CC-2462",
       "CC-3378"
     ],
-    "summary": "The risk score on card C12382-K1 for a $77.07 in-person transaction on 2016-12-04 returned one card-detail match flag (M1-M9) as F. The bank had 4 confirmed-fraud cases already closed on this card (CC-3587, CC-2964, CC-1673, CC-1066), with patterns of card_not_present_new_device and out_of_region_use. The transaction was assessed as mixed-channel activity consistent with stolen credentials at probability 0.87, with 1 transaction(s) and $77.07 of exposure.",
+    "summary": "The risk score on card C12382-K1 for a $77.07 in-person transaction on 2016-12-04 returned a fraud probability of 0.88 with exposure of $77.07. One card-detail match flag (M1-M9) came back F, and the bank has 4 confirmed-fraud case(s) already closed on this card (CC-3587, CC-2964, CC-1673, CC-1066) with pattern(s): card_not_present_new_device, out_of_region_use. The 5 closed cases whose transaction most resembles this one (CC-1479, CC-0478, CC-5465, CC-2462, CC-3378) closed as 5 confirmed fraud (account takeover, out of region use) and 0 cleared, though this memory carries no weight because it resembles the same features the score already uses. The pattern was assessed as mixed-channel activity consistent with stolen credentials. Policy rule R1 recommends `VERIFY_WITH_CUSTOMER` or `STEP_UP_AUTH` before any block when a case rests on a single signal and the assessed fraud probability is below 0.70.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-001"
   },
@@ -84,7 +84,7 @@
       {
         "action": "BLOCK_CARD",
         "route": "L1",
-        "reason": "Probability 0.87 on 2 independent pieces of evidence meets the policy 6 stopping bar for a defensible block."
+        "reason": "Probability 0.88 on 2 independent pieces of evidence meets the policy 6 stopping bar for a defensible block."
       }
     ],
     "final": [
@@ -96,7 +96,7 @@
       {
         "action": "BLOCK_CARD",
         "route": "L1",
-        "reason": "Probability 0.87 on 2 independent pieces of evidence meets the policy 6 stopping bar for a defensible block."
+        "reason": "Probability 0.88 on 2 independent pieces of evidence meets the policy 6 stopping bar for a defensible block."
       }
     ],
     "what_changed": "nothing"
@@ -109,8 +109,8 @@
     "total_amount_usd": 0,
     "activity_dates": []
   },
-  "stop_reason": "Policy 6: probability 0.87 is at or above 0.85 on 2 independent pieces of evidence, which is the bar for a defensible action. No further evidence was requested because none could change it.",
+  "stop_reason": "Policy 6: probability 0.88 is at or above 0.85 on 2 independent pieces of evidence, which is the bar for a defensible action. No further evidence was requested because none could change it.",
   "tool_calls": 12,
-  "tokens": 866,
-  "latency_s": 0.47
+  "tokens": 997,
+  "latency_s": 0.31
 }

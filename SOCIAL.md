@@ -40,7 +40,7 @@ What shipped:
   unweighted, because the transitive hull percolates into one giant component at every
   threshold I tested. I kept the negative result in the source with the sweep table.
 
-Seven of twenty cases end `uncertain`. That is not a failure mode — the policy has a
+Five of twenty cases end `uncertain`. That is not a failure mode — the policy has a
 rule for exactly that state, and the agent says plainly that the remaining uncertainty
 is the cardholder's own intent, which only the cardholder can resolve.
 
@@ -94,7 +94,7 @@ Kept the negative result in the source.
 
 ---
 
-7 of 20 cases end `uncertain`. Not a failure — the policy has a rule for that, and the
+5 of 20 cases end `uncertain`. Not a failure — the policy has a rule for that, and the
 agent says why: the remaining uncertainty is the cardholder's intent, and only the
 cardholder can resolve it. So it routes there instead of guessing.
 

@@ -30,6 +30,10 @@ def main():
     ap.add_argument("--out", default="cases")
     ap.add_argument("--case", action="append", help="run only these case ids")
     ap.add_argument("--no-llm", action="store_true")
+    # a comparison run must not overwrite the real case records in the graph with
+    # template prose -- which the documented backend_diff recipe used to do
+    ap.add_argument("--no-write", action="store_true",
+                    help="do not write case vertices to the graph")
     args = ap.parse_args()
 
     llm = None
@@ -82,7 +86,10 @@ def main():
         payload["status"] = out["case"]["status"]
         payload["summary"] = out["case"]["summary"]
         payload["stop_reason"] = out["stop_reason"]
-        b.write_case(payload)
+        if args.no_write:
+            out["case"]["written_to_graph"] = False
+        else:
+            b.write_case(payload)
 
         out["tool_calls"] = log.count
         out["tokens"] = llm.tokens_for_case() if llm else 0

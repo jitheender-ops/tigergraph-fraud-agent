@@ -31,7 +31,22 @@ def do_schema(conn):
 
 
 def do_queries(conn):
-    run_gsql(conn, (HERE / "queries.gsql").read_text(), "queries")
+    text = (HERE / "queries.gsql").read_text()
+    out = str(run_gsql(conn, text, "queries"))
+    # The bulk INSTALL on Community Edition fails intermittently -- and a failed batch
+    # leaves every query in it disabled, not just the one that broke. One at a time
+    # has never failed here, so that is the recovery, and anything still failing stops
+    # the load rather than leaving a graph whose tools answer "endpoint disabled".
+    if "fail" not in out.lower():
+        return
+    import re
+    names = re.findall(r"CREATE OR REPLACE QUERY (\w+)", text)
+    print(f"-- bulk install failed; installing {len(names)} queries one at a time", flush=True)
+    bad = [q for q in names
+           if "installation finished" not in str(conn.gsql(f"USE GRAPH {GRAPH}\nINSTALL QUERY {q}")).lower()]
+    if bad:
+        sys.exit(f"queries that would not install: {', '.join(bad)}")
+    print("   all installed")
 
 
 def export():

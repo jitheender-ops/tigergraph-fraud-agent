@@ -17,6 +17,7 @@ uv run python prep/rings.py             # connected components over the device g
 uv run python prep/build_corpus.py      # chunk + embed the policy, typologies, FinCEN PDFs
 uv run python prep/case_index.py        # feature index of closed cases, for similar-case memory
 uv run python graph/load.py --all       # schema + data + docs + queries into TigerGraph
+                                        # (retries one query at a time if the bulk install fails)
 uv run python run.py --backend tigergraph
 uv run python validate.py               # check all 20 answers against the spec
 uv run python monitor.py --top 5        # cases nobody asked for: the self-directed sweep
@@ -40,8 +41,8 @@ rather than the README:
 
 ```bash
 uv run python prep/parity.py            # 20/20 feature rows identical across backends
-uv run python run.py --backend duckdb     --no-llm --out build/cmp/duckdb
-uv run python run.py --backend tigergraph --no-llm --out build/cmp/tigergraph
+uv run python run.py --backend duckdb     --no-llm --no-write --out build/cmp/duckdb
+uv run python run.py --backend tigergraph --no-llm --no-write --out build/cmp/tigergraph
 uv run python prep/backend_diff.py build/cmp/duckdb build/cmp/tigergraph
 ```
 
@@ -277,11 +278,15 @@ quiet transaction in the book as fraud. It is dropped, and the two bands where b
 are present (0.70–0.85 at −0.40, ≥0.85 at −2.12, damped to −0.80) are the only ones used.
 The same selection pressure inflates the new-device signal, so that one is damped too.
 
-Case memory was the last set of guesses, and measuring it (each case against only the cases
-closed before it opened) moved all three: an earlier confirmed case on the card is +0.92
-(was 0.30), one on the device +1.67 (was 1.00). An earlier *cleared* case measured +6.48 —
-the wrong sign for the −0.30 it had — because cards were reopened for fraud, not
-exonerated; it is cited and scored at zero.
+Case memory was the last set of guesses. Measuring it moved all three: an earlier
+confirmed case on the card is +0.95 (was 0.30), one on the device +1.32 (was 1.00). An
+earlier *cleared* case measured +6.46 — the wrong sign for the −0.30 it had — because cards
+were reopened for fraud, not exonerated; it is cited and scored at zero. The cut is on the
+**close** date: an outcome is unknown while a case is still being worked, and cutting on
+the open date had read the device weight as +1.67 off cases that had not closed yet. Every
+memory lookup — both backends, the similar-case index, calibration and the backtest —
+uses the same cut, and console closes are dated on the dataset's clock so the replay
+retrieves them.
 
 `eval/backtest.py` refits everything on July–September and scores October. It reports the
 error counts, a calibration table and Brier score, and the verdict band a cost function
@@ -290,6 +295,12 @@ result beside the shipped band — the band is left at 0.30/0.70 because those c
 assumptions nobody in the dataset can supply. It also splits "uncertain" honestly: R8
 sends only the cases over $500 or with conflicting evidence to an analyst (18% of October);
 the rest are verified with the cardholder first (10%).
+
+The headline table counts *verdicts*, and a fraud verdict is not a blocked card: below 0.85
+R1 declines the pending authorisation and asks first. So the backtest also runs the policy
+engine on every held-out case and reports what actually happens to the customer. Of 144
+legitimate cardholders in October, **1** had a card blocked, 16 had an authorisation
+declined and were asked to verify, and 53 were never touched.
 
 ## Not inventing the customer's answer
 
@@ -354,9 +365,12 @@ ANALYST_TOKEN=... uv run python console_smoke.py   # every endpoint, against a r
 push. The dataset is not committed, so CI runs the checks that do not need it and the
 data-backed ones skip; the full suite, the backtest and Playwright run locally.
 
-Every change made through the console needs a token: `ANALYST_TOKEN` for steering,
-deciding, closing and replying, `APPROVER_TOKEN_L1` / `APPROVER_TOKEN_L2` to release held
-actions (the tier comes from the token, never the request). Reads stay open. Cross-origin
+Every change made through the console needs a token, and the token is a person:
+`CONSOLE_USERS="ana:analyst:tok1,lee:L1:tok2,kim:L2:tok3"`. The server takes both the name
+and the tier from the token — a name in the request body is ignored — so every case event
+and ledger entry records who did it, and an L1 cannot release L2 work. (The single
+`ANALYST_TOKEN` / `APPROVER_TOKEN_L1` / `_L2` still work, under generic names.) Reads stay
+open. Cross-origin
 calls are refused unless listed in `CONSOLE_ORIGINS`; the console itself goes through the
 Vite proxy and needs none.
 
