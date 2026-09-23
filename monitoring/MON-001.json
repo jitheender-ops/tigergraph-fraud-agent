@@ -94,11 +94,13 @@
     {
       "type": "customer_validation",
       "asked_after_step": 10,
+      "reason": "R1: probability 0.39 is below 0.70; ask the cardholder before taking any action with customer impact.",
       "assumed_response": "No reply within 24 hours. ASSUMPTION: no replies ship with this dataset, and nothing independent in the evidence points to what the cardholder would say. Inventing an answer here would manufacture certainty, so the agent assumes the case policy R4 is written for - the customer does not respond - and acts accordingly."
     },
     {
       "type": "analyst_info",
       "asked_after_step": 10,
+      "reason": "R8: the verdict is uncertain and exposure $2,394.82 exceeds $500; hand to a human analyst.",
       "assumed_response": "Analyst confirms no merchant-side chargeback or law-enforcement notice is attached to these transactions, so the graph evidence stands as gathered. ASSUMPTION: simulated; no analyst replies ship with the dataset."
     }
   ],
@@ -127,7 +129,7 @@
       {
         "action": "ESCALATE_TO_ANALYST",
         "route": "auto",
-        "reason": "R8: the verdict is uncertain and exposure $2,394.82 exceeds $500 or the evidence conflicts; hand to a human analyst."
+        "reason": "R8: the verdict is uncertain and exposure $2,394.82 exceeds $500; hand to a human analyst."
       }
     ],
     "final": [
@@ -167,7 +169,7 @@
     "total_amount_usd": 0,
     "activity_dates": []
   },
-  "stop_reason": "A verification response settled the question (policy 6): probability moved to 0.39 on 3 independent pieces of evidence and the action set follows directly. Further steps would not change it.",
+  "stop_reason": "Policy 6: probability 0.39 on 3 independent pieces of evidence sits between the stopping thresholds. Stopping here because the remaining uncertainty is the cardholder's own intent, which only the cardholder or an analyst can resolve; the recommended actions route it to them rather than resolving it in the graph.",
   "tool_calls": 10,
   "tokens": 1317,
   "latency_s": 0.36,

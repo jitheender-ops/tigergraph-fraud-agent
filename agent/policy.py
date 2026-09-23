@@ -227,7 +227,11 @@ def decide_actions(*, prob, verdict, exposure, signals, pattern, trigger_type,
 
     # ---- R8: uncertain and exposed
     if verdict == "uncertain" and (exposure > 500 or _conflicting(signals) or customer_denied):
-        _add(a, ESCALATE_TO_ANALYST, exposure, f"R8: the verdict is uncertain and exposure ${exposure:,.2f} exceeds $500 or the evidence conflicts; hand to a human analyst.")
+        # name the condition that actually fired; "$128 exceeds $500 or ..." misleads
+        why = (f"exposure ${exposure:,.2f} exceeds $500" if exposure > 500
+               else "the evidence conflicts" if _conflicting(signals)
+               else "the cardholder disputes a transaction the evidence does not settle")
+        _add(a, ESCALATE_TO_ANALYST, exposure, f"R8: the verdict is uncertain and {why}; hand to a human analyst.")
 
     # ---- R9: undocumented
     r9(a)

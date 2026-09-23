@@ -364,6 +364,8 @@ class Investigation:
         response is simulated from the evidence already in hand and the assumption is
         stated in full."""
         wanted = {a["action"] for a in initial}
+        # why each request was made is the rule that asked for it, verbatim
+        why = {a["action"]: a["reason"] for a in initial}
         reqs = []
         step_no = len(self.steps)
 
@@ -403,12 +405,14 @@ class Investigation:
                         "the customer does not respond - and acts accordingly.")
                 conf, den, reply = False, False, False
             reqs.append({"type": "customer_validation", "asked_after_step": step_no,
+                         "reason": why[pol.VERIFY_WITH_CUSTOMER],
                          "assumed_response": resp, "_confirmed": conf, "_denied": den,
                          "_no_reply": not reply})
 
         if pol.STEP_UP_AUTH in wanted and not reqs:
             passed = step_up_passes(f)
             reqs.append({"type": "step_up_auth", "asked_after_step": step_no, "_no_reply": False,
+                         "reason": why[pol.STEP_UP_AUTH],
                          "assumed_response": (
                              "One-time passcode completed successfully from the cardholder's "
                              "registered number."
@@ -422,6 +426,7 @@ class Investigation:
 
         if pol.ESCALATE_TO_ANALYST in wanted:
             reqs.append({"type": "analyst_info", "asked_after_step": step_no, "_no_reply": False,
+                         "reason": why[pol.ESCALATE_TO_ANALYST],
                          "assumed_response": (
                              "Analyst confirms no merchant-side chargeback or law-enforcement "
                              "notice is attached to these transactions, so the graph evidence "

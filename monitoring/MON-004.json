@@ -70,6 +70,7 @@
     {
       "type": "customer_validation",
       "asked_after_step": 10,
+      "reason": "R1: the case rests on a single signal and assessed probability is 0.38, below 0.70. Verify before any block.",
       "assumed_response": "No reply within 24 hours. ASSUMPTION: no replies ship with this dataset, and nothing independent in the evidence points to what the cardholder would say. Inventing an answer here would manufacture certainty, so the agent assumes the case policy R4 is written for - the customer does not respond - and acts accordingly."
     }
   ],
@@ -128,7 +129,7 @@
     "total_amount_usd": 0,
     "activity_dates": []
   },
-  "stop_reason": "A verification response settled the question (policy 6): probability moved to 0.38 on 1 independent pieces of evidence and the action set follows directly. Further steps would not change it.",
+  "stop_reason": "Policy 6: probability 0.38 on 1 independent pieces of evidence sits between the stopping thresholds. Stopping here because the remaining uncertainty is the cardholder's own intent, which only the cardholder or an analyst can resolve; the recommended actions route it to them rather than resolving it in the graph.",
   "tool_calls": 10,
   "tokens": 990,
   "latency_s": 0.13,

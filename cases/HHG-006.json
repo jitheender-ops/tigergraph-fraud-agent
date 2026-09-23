@@ -115,7 +115,7 @@
       {
         "action": "ESCALATE_TO_ANALYST",
         "route": "auto",
-        "reason": "R8: the verdict is uncertain and exposure $1,906.07 exceeds $500 or the evidence conflicts; hand to a human analyst."
+        "reason": "R8: the verdict is uncertain and exposure $1,906.07 exceeds $500; hand to a human analyst."
       }
     ],
     "what_changed": "nothing"

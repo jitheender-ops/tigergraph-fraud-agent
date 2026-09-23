@@ -77,6 +77,7 @@
     {
       "type": "analyst_info",
       "asked_after_step": 10,
+      "reason": "R8: the verdict is uncertain and the evidence conflicts; hand to a human analyst.",
       "assumed_response": "Analyst confirms no merchant-side chargeback or law-enforcement notice is attached to these transactions, so the graph evidence stands as gathered. ASSUMPTION: simulated; no analyst replies ship with the dataset."
     }
   ],
@@ -105,7 +106,7 @@
       {
         "action": "ESCALATE_TO_ANALYST",
         "route": "auto",
-        "reason": "R8: the verdict is uncertain and exposure $59.67 exceeds $500 or the evidence conflicts; hand to a human analyst."
+        "reason": "R8: the verdict is uncertain and the evidence conflicts; hand to a human analyst."
       }
     ],
     "final": [
@@ -127,7 +128,7 @@
       {
         "action": "ESCALATE_TO_ANALYST",
         "route": "auto",
-        "reason": "R8: the verdict is uncertain and exposure $59.67 exceeds $500 or the evidence conflicts; hand to a human analyst."
+        "reason": "R8: the verdict is uncertain and the evidence conflicts; hand to a human analyst."
       }
     ],
     "what_changed": "Analyst confirms no merchant-side chargeback or law-enforcement notice is attached to these transactions, so the graph evidence stands as gathered, moving assessed probability to 0.50. Dropped: VERIFY_WITH_CUSTOMER."
@@ -140,7 +141,7 @@
     "total_amount_usd": 0,
     "activity_dates": []
   },
-  "stop_reason": "A verification response settled the question (policy 6): probability moved to 0.50 on 2 independent pieces of evidence and the action set follows directly. Further steps would not change it.",
+  "stop_reason": "Policy 6: probability 0.50 on 2 independent pieces of evidence sits between the stopping thresholds. Stopping here because the remaining uncertainty is the cardholder's own intent, which only the cardholder or an analyst can resolve; the recommended actions route it to them rather than resolving it in the graph.",
   "tool_calls": 10,
   "tokens": 897,
   "latency_s": 0.63

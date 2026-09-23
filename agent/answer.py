@@ -75,7 +75,8 @@ def build(trigger, r, llm=None, backend=None) -> dict:
         },
         "evidence_requests": [
             {"type": q["type"], "asked_after_step": q["asked_after_step"],
-             "assumed_response": q["assumed_response"]} for q in r["requests"]
+             "reason": q["reason"], "assumed_response": q["assumed_response"]}
+            for q in r["requests"]
         ],
         "next_best_actions": {
             "initial": [{"action": a["action"], "route": a["route"], "reason": a["reason"]}
@@ -267,5 +268,8 @@ def _what_changed(r):
 
 def _stop(r):
     import policy as pol
+    # "answered" means a reply that carried information. An analyst note that changes
+    # nothing, or a customer who never replied, did not settle anything.
+    answered = any(q["_confirmed"] or q["_denied"] for q in r["requests"])
     return pol.stop_reason(r["prob"], r["n_ind"], r["verdict"], bool(r["requests"]),
-                           bool(r["requests"]))
+                           answered)

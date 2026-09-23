@@ -205,7 +205,8 @@
     {
       "type": "step_up_auth",
       "asked_after_step": 10,
-      "assumed_response": "Step-up authentication was not completed; the challenge expired unanswered. ASSUMPTION: simulated; no authentication responses ship with the dataset."
+      "reason": "R5: require step-up authentication before any further activity on the card.",
+      "assumed_response": "Step-up authentication was not completed; the challenge expired unanswered. ASSUMPTION: simulated; no authentication responses ship with the dataset. Derived from the session (new device or proxy fails it), not from the agent's own probability."
     }
   ],
   "next_best_actions": {

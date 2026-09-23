@@ -141,11 +141,13 @@
     {
       "type": "customer_validation",
       "asked_after_step": 10,
+      "reason": "R1: probability 0.73 is below the 0.85 stopping bar in policy 6; confirm with the cardholder before any action with customer impact.",
       "assumed_response": "Cardholder states they did not make the transaction and still holds the card. ASSUMPTION: no replies ship with this dataset. This one is drawn from 2 independent incriminating findings in the graph, not from the agent's own probability."
     },
     {
       "type": "analyst_info",
       "asked_after_step": 10,
+      "reason": "R9: an undocumented pattern is escalated to a human analyst with the evidence.",
       "assumed_response": "Analyst confirms no merchant-side chargeback or law-enforcement notice is attached to these transactions, so the graph evidence stands as gathered. ASSUMPTION: simulated; no analyst replies ship with the dataset."
     }
   ],

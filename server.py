@@ -35,6 +35,9 @@ from run import get_backend
 BACKEND = os.getenv("CONSOLE_BACKEND", "tigergraph")
 CASES, MONITORING = pathlib.Path("cases"), pathlib.Path("monitoring")
 API_CASES = pathlib.Path("build/api_cases")
+# The case record -- every challenge, deepen, approve, override, release and close. It
+# lived only in memory, so a restart erased the decision history the brief asks for.
+EVENTS = pathlib.Path("build/case_events.jsonl")
 
 app = FastAPI(title="Fraud Investigation Console")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"],
@@ -108,10 +111,21 @@ class Case:
         # threadpool, so this is not theoretical.
         self.lock = threading.Lock()
 
-    def log(self, kind, detail, **extra):
-        self.events.append({"at": dt.datetime.now().isoformat(timespec="seconds"),
-                            "kind": kind, "detail": detail, **extra})
-        return self.events[-1]
+    def log(self, kind, detail, persist=True, **extra):
+        ev = {"at": dt.datetime.now().isoformat(timespec="seconds"),
+              "kind": kind, "detail": detail, **extra}
+        self.events.append(ev)
+        if persist:
+            EVENTS.parent.mkdir(exist_ok=True)
+            with open(EVENTS, "a") as fh:
+                fh.write(json.dumps({"case_id": self.answer["case_id"], **ev}, default=str) + "\n")
+        return ev
+
+    def mark_closed(self, outcome):
+        """Closing is a status change, not just a flag beside the case file."""
+        self.closed = outcome
+        self.answer["case"]["status"] = ("closed_fraud" if outcome == "confirmed_fraud"
+                                         else "closed_legitimate")
 
 
 STORE: dict[str, Case] = {}
@@ -140,6 +154,11 @@ def load():
             cid = a["case_id"]
             if cid in triggers:
                 STORE[cid] = Case(a, triggers[cid], source)
+    if EVENTS.exists():
+        for line in EVENTS.read_text().splitlines():
+            ev = json.loads(line) if line.strip() else {}
+            if ev.get("case_id") in STORE:
+                STORE[ev.pop("case_id")].events.append(ev)
     _recover_closed()
     print(f"console: {len(STORE)} cases loaded, backend={BACKEND}")
 
@@ -162,8 +181,10 @@ def _recover_closed():
         except Exception:                        # noqa: BLE001 - absence is not an error
             continue
         if row:
-            c.closed = row.get("outcome")
-            c.log("recovered", f"already closed as {c.closed} in a previous session")
+            c.mark_closed(row.get("outcome"))
+            if not any(e["kind"] == "close" for e in c.events):
+                c.log("recovered", f"already closed as {c.closed} in a previous session",
+                      persist=False)
 
 
 def closed_case_id(cid: str) -> str:
@@ -189,6 +210,8 @@ def rerun(c: Case) -> dict:
     before_ring, c.ring_size = getattr(c, "ring_size", None), _ring_size(ring)
     before = c.answer
     c.answer = out
+    if c.closed:                 # a re-run recomputes status; the analyst's close stands
+        c.mark_closed(c.closed)
     return {
         "case": out,
         "signals": _signals(c),
@@ -619,7 +642,7 @@ def close(cid: str, body: Close):
         "p_connected_cards": a["case"]["connected_card_ids"],
     }
     written = _write_closed_case(payload)
-    c.closed = body.outcome
+    c.mark_closed(body.outcome)
     c.log("close", f"closed as {body.outcome}; written to the graph as {case_id}",
           graph_case_id=case_id, written=written)
     return {"closed_case_id": case_id, "written_to_graph": written, "events": c.events}

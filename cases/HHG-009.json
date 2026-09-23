@@ -73,6 +73,7 @@
     {
       "type": "customer_validation",
       "asked_after_step": 10,
+      "reason": "R1: probability 0.73 is below the 0.85 stopping bar in policy 6; confirm with the cardholder before any action with customer impact.",
       "assumed_response": "Cardholder, shown the charge history, recognises the amount as a recurring charge they had forgotten and confirms it is theirs. ASSUMPTION: no replies ship with this dataset. This one is drawn from an independent feature of the data - 5 charges of this exact amount across 3 months, a median 34 days apart - not from the agent's own probability."
     }
   ],
