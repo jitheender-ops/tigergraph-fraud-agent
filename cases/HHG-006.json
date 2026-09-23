@@ -52,6 +52,18 @@
         ]
       },
       {
+        "claim": "The 5 closed cases whose transaction most resembles this one (CC-3907, CC-3707, CC-4868, CC-0415, CC-2518) closed as 5 confirmed fraud (card not present new device, undocumented) and 0 cleared. Cited as memory; it carries no weight, because it resembles on the same features the score already uses",
+        "source": "graph",
+        "ref": "query:similar_cases",
+        "entity_ids": [
+          "CC-3907",
+          "CC-3707",
+          "CC-4868",
+          "CC-0415",
+          "CC-2518"
+        ]
+      },
+      {
         "claim": "The cardholder contacted the bank stating they did not make this purchase",
         "source": "customer",
         "ref": "trigger:customer_report",
@@ -72,8 +84,14 @@
         "entity_ids": []
       }
     ],
-    "similar_prior_cases": [],
-    "summary": "Customer C07297-K1 disputed an online transaction of $482.12 on 2016-11-21 on card C07297-K1, yielding case C07297-K1 with exposure of $1,906.07. The cardholder denied making the purchase, while graph evidence showed a New device, an amount 8.2x the card's median and above its 95th percentile, and a card history of 2% online. The conflicting evidence produced an uncertain verdict at probability 0.27 under pattern account_takeover.",
+    "similar_prior_cases": [
+      "CC-3907",
+      "CC-3707",
+      "CC-4868",
+      "CC-0415",
+      "CC-2518"
+    ],
+    "summary": "Customer C07297-K1 reported on 2016-11-21 that they did not make an online transaction of $482.12 on card C07297-K1, which is 8.2x the card's median and above its 95th percentile, while the identity record marks the device as New and the card's history is 2% online. The conflicting evidence produced a verdict of uncertain at probability 0.27 with pattern account_takeover and exposure of $1,906.07 for case CC-2518, and the 5 closed cases whose transaction most resembles this one closed as 5 confirmed fraud and 0 cleared. Per policy rule R2, the recommended actions are `BLOCK_CARD` and `CREATE_CASE`, with `FILE_REPORT` added because the exposure exceeds $1,000.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-006"
   },
@@ -128,8 +146,8 @@
     "total_amount_usd": 0,
     "activity_dates": []
   },
-  "stop_reason": "Policy 6: probability 0.27 on 3 independent pieces of evidence sits between the stopping thresholds. Stopping here because the remaining uncertainty is the cardholder's own intent, which only the cardholder or an analyst can resolve; the recommended actions route it to them rather than resolving it in the graph.",
-  "tool_calls": 11,
-  "tokens": 875,
+  "stop_reason": "Policy 6: probability 0.27 on 3 independent pieces of evidence sits between the stopping thresholds, and every request the agent may make without approval has been made. The remaining uncertainty is the cardholder's own intent, which only the cardholder or an analyst can resolve; the recommended actions route it to them rather than resolving it in the graph.",
+  "tool_calls": 13,
+  "tokens": 1026,
   "latency_s": 0.14
 }

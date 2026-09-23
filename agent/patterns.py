@@ -75,9 +75,14 @@ W = {
                                  # hardware at all, which is why it still counts for something.
     "analyst_request":   1.00,   # a trained analyst already saw cross-card activity
     "recurring":         0.00,   # measured +0.26: policy R7 drives the action, not the score
-    "prior_fraud":       0.30,   # weak memory prior, not separately measured
-    "prior_cleared":    -0.30,
-    "device_prior_fraud": 1.00,  # this exact device already produced a confirmed case
+    # Case memory, measured by prep/calibrate.py against only the cases closed BEFORE each
+    # one opened -- the retrieval the agent actually performs.
+    "prior_fraud":       0.92,   # measured +0.92 (3,224 fraud / 248 cleared); was a guessed 0.30
+    "prior_cleared":     0.00,   # measured +6.48, the WRONG sign for a guessed -0.30: a card
+                                 # with an earlier cleared alarm was later confirmed as fraud 1,684
+                                 # times and cleared 0. That is how cases were reopened, not a fact
+                                 # about fraud, so it is cited as memory and scored at zero.
+    "device_prior_fraud": 1.67,  # measured +1.67 (590 / 21); was a guessed 1.00
     "customer_report":   1.00,   # an independent statement by the cardholder (R2)
     # A SIMULATED reply is not an observation. The dataset ships no customer or analyst
     # responses, so these are damped well below what a real reply would justify: assuming
@@ -85,6 +90,10 @@ W = {
     # confidence the investigation has not earned.
     "customer_denied":   1.20,
     "customer_confirmed": -1.20,
+    # a simulated step-up is derived from the match flags, which are already scored, so
+    # it carries half a customer reply rather than counting that fact at full weight again
+    "step_up_passed":    -0.60,
+    "step_up_failed":     0.60,
     "episode":           0.00,   # cleared cases are single-transaction BY CONSTRUCTION;
                                  # scoring episode size would be scoring our own choice
 }

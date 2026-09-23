@@ -67,7 +67,7 @@ def main():
             "graph_case_id": f"CASE-2016-{t['case_id'].split('-')[1]}",
             "source_case_id": t["case_id"], "customer_id": t["customer_id"],
             "card_id": t["card_id"], "opened_at": t["opened_at"],
-            "status": {"fraud": "closed_fraud", "legitimate": "closed_legitimate"}.get(r["verdict"], "open"),
+            "status": "",
             "verdict": r["verdict"], "fraud_probability": round(r["prob"], 2),
             "pattern": r["pattern"], "pattern_description": r["pattern_desc"],
             "exposure_usd": round(r["exposure"], 2), "summary": "",
@@ -77,6 +77,9 @@ def main():
             "prior_cases": [p["case_id"] for p in r["prior"]][:8],
         }
         out = ans.build(t, r, llm=llm, backend=b)
+        # the answer file decides status (open while evidence is pending, escalated when
+        # handed to an analyst); the graph record must not reach its own conclusion
+        payload["status"] = out["case"]["status"]
         payload["summary"] = out["case"]["summary"]
         payload["stop_reason"] = out["stop_reason"]
         b.write_case(payload)

@@ -20,7 +20,7 @@ from dotenv import load_dotenv
 load_dotenv()
 import math
 
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -34,14 +34,43 @@ from run import get_backend
 
 BACKEND = os.getenv("CONSOLE_BACKEND", "tigergraph")
 CASES, MONITORING = pathlib.Path("cases"), pathlib.Path("monitoring")
-API_CASES = pathlib.Path("build/api_cases")
+# Everything the console writes lives under one directory, so tests and e2e runs can
+# point it somewhere disposable instead of at the real case record.
+STATE = pathlib.Path(os.getenv("CONSOLE_STATE_DIR", "build"))
+TRIGGERS = STATE / "triggers.json"
+API_CASES = STATE / "api_cases"
 # The case record -- every challenge, deepen, approve, override, release and close. It
 # lived only in memory, so a restart erased the decision history the brief asks for.
-EVENTS = pathlib.Path("build/case_events.jsonl")
+EVENTS = STATE / "case_events.jsonl"
 
 app = FastAPI(title="Fraud Investigation Console")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"],
-                   allow_headers=["*"])
+# The console is served through the Vite proxy, so a browser never needs cross-origin
+# access. Anything else that wants it has to be named.
+app.add_middleware(CORSMiddleware, allow_methods=["GET", "POST"],
+                   allow_origins=[o for o in os.getenv(
+                       "CONSOLE_ORIGINS", "http://localhost:5173").split(",") if o],
+                   allow_headers=["content-type", "x-analyst-token", "x-approver-token"])
+
+
+def _token_ok(token: str | None) -> bool:
+    """An analyst token, or an approver's -- an approver is also an analyst."""
+    wants = [os.getenv(k) for k in ("ANALYST_TOKEN", "APPROVER_TOKEN_L1", "APPROVER_TOKEN_L2")]
+    return bool(token) and any(w and hmac.compare_digest(token, w) for w in wants)
+
+
+@app.middleware("http")
+async def writes_need_a_token(request: Request, call_next):
+    """Every write -- steer, decide, close, blacklist, open, reply, release -- needs a
+    token. Checked here, once, so an endpoint added later cannot forget it. Reads stay
+    open: the console is a local tool, and a 401 on the case list helps nobody."""
+    if request.method not in ("GET", "HEAD", "OPTIONS") and request.url.path.startswith("/api/"):
+        tok = request.headers.get("x-analyst-token") or request.headers.get("x-approver-token")
+        if not _token_ok(tok):
+            from fastapi.responses import JSONResponse
+            return JSONResponse(status_code=401, content={
+                "detail": "a valid X-Analyst-Token is required for changes "
+                          "(set ANALYST_TOKEN in .env)"})
+    return await call_next(request)
 
 # One backend for the process. get_backend() opens a connection each time it is called,
 # and on the MCP path it starts a whole server subprocess -- once per request was a leak,
@@ -105,6 +134,7 @@ class Case:
         self.closed: str | None = None
         self.signals = None        # real Signal objects, filled by the first re-run
         self.features = None       # the feature row, for the step-up simulation
+        self.replies: dict[str, dict] = {}   # real replies, by evidence-request type
 
         # Steering re-runs the investigation and writes back onto this object; two
         # requests for one case must not interleave. FastAPI runs sync endpoints in a
@@ -132,7 +162,7 @@ STORE: dict[str, Case] = {}
 
 
 def load():
-    tp = pathlib.Path("build/triggers.json")
+    tp = TRIGGERS
     if not tp.exists():
         print("console: build/triggers.json is missing -- run `uv run python run.py` "
               "first. Starting empty so /api/health still answers.")
@@ -158,7 +188,11 @@ def load():
         for line in EVENTS.read_text().splitlines():
             ev = json.loads(line) if line.strip() else {}
             if ev.get("case_id") in STORE:
-                STORE[ev.pop("case_id")].events.append(ev)
+                c = STORE[ev.pop("case_id")]
+                c.events.append(ev)
+                # a recorded reply is evidence, so it survives a restart with the case
+                if ev.get("kind") == "reply":
+                    c.replies[ev["type"]] = {k: ev[k] for k in ("outcome", "note", "at")}
     _recover_closed()
     print(f"console: {len(STORE)} cases loaded, backend={BACKEND}")
 
@@ -202,7 +236,8 @@ def rerun(c: Case) -> dict:
     log = ToolLog()
     b = backend(log)
     r = Investigation(b, c.trigger, suppress=c.suppressed,
-                      analyst_signals=c.analyst_signals, ring_cap=c.ring_cap).run()
+                      analyst_signals=c.analyst_signals, ring_cap=c.ring_cap,
+                      replies=c.replies).run()
     out = ans.build(c.trigger, r, backend=b)
     out["tool_calls"], out["tokens"] = log.count, 0
     c.signals, c.features = r["signals"], r["f"]
@@ -362,7 +397,7 @@ def stepup(cid: str):
         passed = step_up_passes(c.features)     # same rule the offline loop uses
         c.analyst_signals = [x for x in c.analyst_signals if x.name != "step_up"]
         c.analyst_signals.append(P.Signal(
-            "step_up", P.W["customer_confirmed"] if passed else P.W["customer_denied"],
+            "step_up", P.W["step_up_passed"] if passed else P.W["step_up_failed"],
             ("One-time passcode completed from the cardholder's registered number."
              if passed else
              "Step-up authentication was not completed; the challenge expired "
@@ -462,7 +497,7 @@ def network(cid: str):
 
     for pc in a["case"]["similar_prior_cases"][:8]:
         nodes.append({"id": pc, "kind": "closed_case", "label": pc})
-        edges.append({"from": card, "to": pc, "kind": "HAS_CLOSED_CASE"})
+        edges.append({"from": card, "to": pc, "kind": "RETRIEVED"})
 
     ring = getattr(c, "ring_size", None)
     return {"nodes": nodes, "edges": edges, "ring_size": ring,
@@ -524,6 +559,32 @@ def decide(cid: str, body: Decision):
           replaced=[a["action"] for a in final])
     return {"action": body.action, "route": route, "result": rec,
             "ledger": X.history(cid), "events": c.events}
+
+
+class Reply(BaseModel):
+    type: str = Field(..., pattern="^(customer_validation|step_up_auth|analyst_info)$")
+    outcome: str = Field(..., pattern="^(confirmed|denied|no_reply)$")
+    note: str = Field("", max_length=500)
+
+
+@app.post("/api/case/{cid}/reply")
+def reply(cid: str, body: Reply):
+    """A real answer to a request the agent made. It replaces the simulated one and the
+    case is re-investigated on it -- the reply queue the dataset could not supply."""
+    c = get(cid)
+    if c.closed:
+        raise HTTPException(409, "case is closed")
+    asked = {q["type"] for q in c.answer.get("evidence_requests", [])}
+    if body.type not in asked:
+        raise HTTPException(409, f"the agent did not request {body.type} on {cid}; "
+                                 f"open requests: {sorted(asked) or 'none'}")
+    at = dt.datetime.now().isoformat(timespec="seconds")
+    with c.lock:
+        c.replies[body.type] = {"outcome": body.outcome, "note": body.note.strip(), "at": at}
+        res = rerun(c)
+    c.log("reply", f"{body.type}: {body.outcome}", type=body.type, outcome=body.outcome,
+          note=body.note.strip(), at=at, moved=res["changed"]["probability"])
+    return res
 
 
 class Release(BaseModel):
@@ -598,9 +659,8 @@ def open_case(body: NewCase):
     # persisted beside the other answer files so a restart does not lose the case
     API_CASES.mkdir(parents=True, exist_ok=True)
     (API_CASES / f"{cid}.json").write_text(json.dumps(out, indent=2, default=str))
-    tp = pathlib.Path("build/triggers.json")
-    have = json.loads(tp.read_text()) if tp.exists() else {}
-    tp.write_text(json.dumps({**have, cid: trigger}, indent=1, default=str))
+    have = json.loads(TRIGGERS.read_text()) if TRIGGERS.exists() else {}
+    TRIGGERS.write_text(json.dumps({**have, cid: trigger}, indent=1, default=str))
     c = STORE[cid] = Case(out, trigger, "api")
     c.signals, c.features = r["signals"], r["f"]
     c.log("open", f"investigation triggered by {body.trigger_type}")

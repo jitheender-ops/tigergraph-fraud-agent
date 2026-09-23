@@ -3,7 +3,7 @@
   "case": {
     "status": "closed_fraud",
     "verdict": "fraud",
-    "fraud_probability": 0.79,
+    "fraud_probability": 0.87,
     "pattern": "account_takeover",
     "pattern_description": "",
     "affected_txn_ids": [
@@ -34,6 +34,18 @@
         ]
       },
       {
+        "claim": "The 5 closed cases whose transaction most resembles this one (CC-1479, CC-0478, CC-5465, CC-2462, CC-3378) closed as 5 confirmed fraud (account takeover, out of region use) and 0 cleared. Cited as memory; it carries no weight, because it resembles on the same features the score already uses",
+        "source": "graph",
+        "ref": "query:similar_cases",
+        "entity_ids": [
+          "CC-1479",
+          "CC-0478",
+          "CC-5465",
+          "CC-2462",
+          "CC-3378"
+        ]
+      },
+      {
         "claim": "Known fraud pattern 5: Account takeover: Account takeover. Mixed-channel activity inconsistent with the cardholder, often with device and match-flag anomalies, pointing to stolen credentials rather than a stolen number.",
         "source": "document",
         "ref": "document:fraud_patterns#Account takeover",
@@ -50,20 +62,18 @@
       "CC-3587",
       "CC-2964",
       "CC-1673",
-      "CC-1066"
+      "CC-1066",
+      "CC-1479",
+      "CC-0478",
+      "CC-5465",
+      "CC-2462",
+      "CC-3378"
     ],
-    "summary": "The risk score on card C12382-K1 was evaluated for a $77.07 in person transaction on 2016-12-04. One card-detail match flag (M1-M9) came back F on this transaction, and the bank has 4 confirmed-fraud case(s) already closed on this card (CC-3587, CC-2964, CC-1673, CC-1066), pattern(s): card_not_present_new_device, out_of_region_use. The activity was assessed as mixed-channel activity consistent with stolen credentials at probability 0.79, with 1 transaction(s) and $77.07 of exposure, resulting in a fraud verdict.",
+    "summary": "The risk score on card C12382-K1 for a $77.07 in-person transaction on 2016-12-04 returned one card-detail match flag (M1-M9) as F. The bank had 4 confirmed-fraud cases already closed on this card (CC-3587, CC-2964, CC-1673, CC-1066), with patterns of card_not_present_new_device and out_of_region_use. The transaction was assessed as mixed-channel activity consistent with stolen credentials at probability 0.87, with 1 transaction(s) and $77.07 of exposure.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-001"
   },
-  "evidence_requests": [
-    {
-      "type": "customer_validation",
-      "asked_after_step": 10,
-      "reason": "R1: probability 0.79 is below the 0.85 stopping bar in policy 6; confirm with the cardholder before any action with customer impact.",
-      "assumed_response": "No reply within 24 hours. ASSUMPTION: no replies ship with this dataset, and nothing independent in the evidence points to what the cardholder would say. Inventing an answer here would manufacture certainty, so the agent assumes the case policy R4 is written for - the customer does not respond - and acts accordingly."
-    }
-  ],
+  "evidence_requests": [],
   "next_best_actions": {
     "initial": [
       {
@@ -72,44 +82,24 @@
         "reason": "Policy 3a: probability is at or above 0.30, so a case is opened."
       },
       {
-        "action": "VERIFY_WITH_CUSTOMER",
-        "route": "auto",
-        "reason": "R1: probability 0.79 is below the 0.85 stopping bar in policy 6; confirm with the cardholder before any action with customer impact."
-      },
-      {
-        "action": "STEP_UP_AUTH",
-        "route": "auto",
-        "reason": "R1: require step-up authentication on further activity while verification is outstanding."
-      },
-      {
-        "action": "DECLINE_TRANSACTION",
+        "action": "BLOCK_CARD",
         "route": "L1",
-        "reason": "R4: decline the pending authorisation while the card stays active, given assessed probability 0.79."
-      },
-      {
-        "action": "MONITOR_CARD",
-        "route": "auto",
-        "reason": "R4: raise monitoring sensitivity for 72 hours."
+        "reason": "Probability 0.87 on 2 independent pieces of evidence meets the policy 6 stopping bar for a defensible block."
       }
     ],
     "final": [
       {
-        "action": "MONITOR_CARD",
-        "route": "auto",
-        "reason": "R4: no reply within 24 hours; keep the card active under raised monitoring."
-      },
-      {
-        "action": "DECLINE_TRANSACTION",
-        "route": "L1",
-        "reason": "R4: decline pending authorisations while the verification is unanswered."
-      },
-      {
         "action": "CREATE_CASE",
         "route": "auto",
-        "reason": "Policy 3a: a case is opened because evidence was requested."
+        "reason": "Policy 3a: probability is at or above 0.30, so a case is opened."
+      },
+      {
+        "action": "BLOCK_CARD",
+        "route": "L1",
+        "reason": "Probability 0.87 on 2 independent pieces of evidence meets the policy 6 stopping bar for a defensible block."
       }
     ],
-    "what_changed": "No reply within 24 hours, moving assessed probability to 0.79. Dropped: STEP_UP_AUTH, VERIFY_WITH_CUSTOMER."
+    "what_changed": "nothing"
   },
   "sar": {
     "file": false,
@@ -119,8 +109,8 @@
     "total_amount_usd": 0,
     "activity_dates": []
   },
-  "stop_reason": "Policy 6: probability 0.79 on 1 independent pieces of evidence sits between the stopping thresholds. Stopping here because the remaining uncertainty is the cardholder's own intent, which only the cardholder or an analyst can resolve; the recommended actions route it to them rather than resolving it in the graph.",
-  "tool_calls": 10,
-  "tokens": 790,
-  "latency_s": 0.39
+  "stop_reason": "Policy 6: probability 0.87 is at or above 0.85 on 2 independent pieces of evidence, which is the bar for a defensible action. No further evidence was requested because none could change it.",
+  "tool_calls": 12,
+  "tokens": 866,
+  "latency_s": 0.47
 }

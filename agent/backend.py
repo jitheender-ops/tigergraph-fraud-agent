@@ -13,7 +13,7 @@ TOOL_NAMES = [
     "card_testing_probe", "prior_cases_for_card", "prior_cases_for_device",
     "customer_confirmed_cards",
     "connected_cards", "region_cluster", "device_reach", "ring_component",
-    "doc_search", "email_intel", "cross_case_entities", "write_case",
+    "doc_search", "email_intel", "cross_case_entities", "write_case", "similar_cases",
 ]
 
 
@@ -21,7 +21,7 @@ CASE_LOG = "build/graph_cases.jsonl"
 # Cases an analyst closes from the console while it runs on the DuckDB mirror. The mirror
 # is opened read-only, so they land here and a temp view folds them into closed_case --
 # every memory query then retrieves them exactly as TigerGraph retrieves a ClosedCase.
-CLOSED_LOG = "build/console_closed_cases.jsonl"
+CLOSED_LOG = os.path.join(os.getenv("CONSOLE_STATE_DIR", "build"), "console_closed_cases.jsonl")
 _CLOSED_COLS = {
     "case_id": "VARCHAR", "customer_id": "VARCHAR", "card_id": "VARCHAR",
     "opened_at": "TIMESTAMP", "closed_at": "TIMESTAMP", "outcome": "VARCHAR",
@@ -245,6 +245,14 @@ class DuckDBBackend:
         members = [c for c in df.card_id.tolist() if c != card_id]
         return {"ring_id": card_id, "ring_size": len(members) + 1, "members": members[:25]}
 
+    def similar_cases(self, f, before=None, k=5):
+        """Nearest closed cases by transaction profile. Shared by both backends: a
+        lookup over an offline index of the closed cases, not a traversal."""
+        import similar
+        hits = similar.nearest(f, before, k)
+        self.log.record("similar_cases", {"txn_id": str(f.get("txn_id"))}, len(hits))
+        return hits
+
     def email_intel(self, domain):
         """The one evidence source outside the institution. Shared by both backends: it
         is a vendor lookup, not a graph traversal, so there is nothing to express twice."""
@@ -463,6 +471,14 @@ class TigerGraphBackend:
         members = sorted(c for c in out.get("members", []) if c != card_id)
         return {"ring_id": out.get("ring_id", ""),
                 "ring_size": int(out.get("ring_size", 1) or 1), "members": members[:25]}
+
+    def similar_cases(self, f, before=None, k=5):
+        """Nearest closed cases by transaction profile. Shared by both backends: a
+        lookup over an offline index of the closed cases, not a traversal."""
+        import similar
+        hits = similar.nearest(f, before, k)
+        self.log.record("similar_cases", {"txn_id": str(f.get("txn_id"))}, len(hits))
+        return hits
 
     def email_intel(self, domain):
         """The one evidence source outside the institution. Shared by both backends: it

@@ -1,9 +1,9 @@
 {
   "case_id": "MON-002",
   "case": {
-    "status": "escalated",
-    "verdict": "uncertain",
-    "fraud_probability": 0.63,
+    "status": "open",
+    "verdict": "fraud",
+    "fraud_probability": 0.76,
     "pattern": "account_takeover",
     "pattern_description": "",
     "affected_txn_ids": [
@@ -41,6 +41,18 @@
         ]
       },
       {
+        "claim": "The 5 closed cases whose transaction most resembles this one (CC-3361, CC-4839, CC-4470, CC-4562, CC-5544) closed as 5 confirmed fraud (account takeover, out of region use) and 0 cleared. Cited as memory; it carries no weight, because it resembles on the same features the score already uses",
+        "source": "graph",
+        "ref": "query:similar_cases",
+        "entity_ids": [
+          "CC-3361",
+          "CC-4839",
+          "CC-4470",
+          "CC-4562",
+          "CC-5544"
+        ]
+      },
+      {
         "claim": "Connected components over the device-sharing graph place this card in a bounded component of 2 cards (C11164-K1), linked transitively through device profiles each used by no more than 8 cards. A component this small is a genuine shared origin rather than a common configuration.",
         "source": "graph",
         "ref": "query:ring_component",
@@ -65,25 +77,64 @@
         "source": "document",
         "ref": "document:fraud_policy#R6",
         "entity_ids": []
+      },
+      {
+        "claim": "Step-up authentication was not completed",
+        "source": "customer",
+        "ref": "evidence_request:step_up_auth",
+        "entity_ids": []
+      },
+      {
+        "claim": "Policy rule R4: No reply within 24 hours: R4. No reply within 24 hours. Recommend `MONITOR_CARD` and `DECLINE_TRANSACTION` for pending authorizations. Escalate if exposure exceeds $500.",
+        "source": "document",
+        "ref": "document:fraud_policy#R4",
+        "entity_ids": []
+      },
+      {
+        "claim": "fincen sar narrative: reported activity. When did the suspicious activity take place? If the activity takes place over a period of time, indicate the date when the suspicious activity was first noticed and describe the duration of the activity. Filers will often provide a tabular presentation of the suspicious account activities (transactions in and out).",
+        "source": "document",
+        "ref": "document:fincen_sar_narrative#chunk 8",
+        "entity_ids": []
+      },
+      {
+        "claim": "fincen sar complete: reported activity. When did the suspicious activity take place? If the activity takes place over a period of time, indicate the date when the suspicious activity was first noticed and describe the duration of the activity. Filers will often provide a tabular presentation of the suspicious account activities (transactions in and out).",
+        "source": "document",
+        "ref": "document:fincen_sar_complete#chunk 8",
+        "entity_ids": []
       }
     ],
-    "similar_prior_cases": [],
-    "summary": "Monitoring sweep on card C12352-K2 over a $2,161.07 in person transaction on 2016-12-14 produced a verdict of uncertain at probability 0.63. Pattern: account_takeover. Exposure: $2,161.07. Against the transaction, 4 of the card-detail match flags M1-M9 came back F, $2,161.07 is 36.6x this card's median and above its 95th percentile, and the device-sharing graph placed the card in a bounded component of 2 cards (C11164-K1). External email-domain intelligence classified 'gmail.com' as a free webmail address, and the known fraud pattern documented mixed-channel activity inconsistent with the cardholder pointing to stolen credentials rather than a stolen number. Policy rule R8 recommended ESCALATE_TO_ANALYST because the evidence conflicts, and policy rule R6 recommended naming 1 other card(s) transacted through the same device profile in the window for MONITOR_CONNECTED_CARDS. Case C12352-K2 remains open with exposure of $2,161.07 if the activity is fraudulent.",
+    "similar_prior_cases": [
+      "CC-3361",
+      "CC-4839",
+      "CC-4470",
+      "CC-4562",
+      "CC-5544"
+    ],
+    "summary": "Monitoring sweep on card C12352-K2 over a $2,161.07 in person transaction on 2016-12-14 resulted in a fraud verdict at probability 0.76 with account takeover pattern and $2,161.07 of exposure. Four of the card-detail match flags M1-M9 came back F, step-up authentication was not completed, and $2,161.07 is 36.6x this card's median and above its 95th percentile. Connected components over the device-sharing graph placed this card in a bounded component of 2 cards (C11164-K1), linked transitively through device profiles each used by no more than 8 cards. Five closed cases whose transaction most resembles this one (CC-3361, CC-4839, CC-4470, CC-4562, CC-5544) closed as 5 confirmed fraud (account takeover, out of region use) and 0 cleared. Under policy rule R6, 1 other card(s) transacted through the same device profile in the window and are named for monitoring.",
     "written_to_graph": true,
-    "graph_case_id": "CASE-2016-002"
+    "graph_case_id": "CASE-2016-M002"
   },
   "evidence_requests": [
     {
       "type": "customer_validation",
-      "asked_after_step": 10,
+      "asked_after_step": 11,
       "reason": "R1: probability 0.63 is below 0.70; ask the cardholder before taking any action with customer impact.",
-      "assumed_response": "No reply within 24 hours. ASSUMPTION: no replies ship with this dataset, and nothing independent in the evidence points to what the cardholder would say. Inventing an answer here would manufacture certainty, so the agent assumes the case policy R4 is written for - the customer does not respond - and acts accordingly."
+      "assumed_response": "No reply within 24 hours. ASSUMPTION: no replies ship with this dataset, and nothing independent in the evidence points to what the cardholder would say. Inventing an answer here would manufacture certainty, so the agent assumes the case policy R4 is written for - the customer does not respond - and acts accordingly.",
+      "simulated": true
+    },
+    {
+      "type": "step_up_auth",
+      "asked_after_step": 12,
+      "reason": "Policy 5: the cardholder did not answer the verification request, and step-up authentication is the other channel the agent may use without approval.",
+      "assumed_response": "Step-up authentication was not completed; the challenge expired unanswered. ASSUMPTION: simulated; no authentication responses ship with the dataset. Derived from the card-detail match flags (a mismatch fails it), not from the agent's own probability.",
+      "simulated": true
     },
     {
       "type": "analyst_info",
-      "asked_after_step": 10,
-      "reason": "R8: the verdict is uncertain and exposure $2,161.07 exceeds $500; hand to a human analyst.",
-      "assumed_response": "Analyst confirms no merchant-side chargeback or law-enforcement notice is attached to these transactions, so the graph evidence stands as gathered. ASSUMPTION: simulated; no analyst replies ship with the dataset."
+      "asked_after_step": 13,
+      "reason": "R4: no reply and exposure $2,161.07 exceeds $500; escalate to a human analyst.",
+      "assumed_response": "Analyst confirms no merchant-side chargeback or law-enforcement notice is attached to these transactions, so the graph evidence stands as gathered. ASSUMPTION: simulated; no analyst replies ship with the dataset.",
+      "simulated": true
     }
   ],
   "next_best_actions": {
@@ -139,22 +190,34 @@
         "action": "MONITOR_CONNECTED_CARDS",
         "route": "auto",
         "reason": "R6: shared device-sharing component of 2 cards links 1 other card(s); place them under monitoring."
+      },
+      {
+        "action": "FILE_REPORT",
+        "route": "L2",
+        "reason": "Policy 3a: fraud established and exposure $2,161.07 exceeds $1,000."
       }
     ],
-    "what_changed": "No reply within 24 hours, moving assessed probability to 0.63. Added: DECLINE_TRANSACTION. Dropped: VERIFY_WITH_CUSTOMER."
+    "what_changed": "No reply within 24 hours, moving assessed probability to 0.76. Added: DECLINE_TRANSACTION, FILE_REPORT. Dropped: VERIFY_WITH_CUSTOMER."
   },
   "sar": {
-    "file": false,
-    "reason": "Policy 3a: a report requires fraud confirmed or strongly suspected. Assessed probability 0.63 with verdict 'uncertain' does not meet that bar.",
-    "narrative": "",
-    "subjects": [],
-    "total_amount_usd": 0,
-    "activity_dates": []
+    "file": true,
+    "reason": "Policy 3a: fraud established and exposure $2,161.07 exceeds $1,000.",
+    "narrative": "On 2016-12-14, card C12352-K2 belonging to customer C12352 was used for one transaction totaling $2,161.07 under product code W and billed in region 330.0. During this in-person activity, 4 of the card-detail match flags M1-M9 came back F, step-up authentication was not completed, and no reply within 24 hours was received from the cardholder, an assumption recorded in the case file because no cardholder replies were available to this investigation. Connected components over the device-sharing graph placed this card in a bounded component of 2 cards (C11164-K1) linked transitively through device profiles each used by no more than 8 cards, indicating a common actor operating across more than one cardholder. The transaction amount of $2,161.07 was 36.6x this card's median and above its 95th percentile, while the 5 closed cases whose transaction most resembles this one\u2014CC-3361, CC-4839, CC-4470, CC-4562, and CC-5544\u2014closed as 5 confirmed fraud (account takeover, out of region use) and 0 cleared. This activity is consistent with known fraud pattern 5 for account takeover, specifically mixed-channel activity inconsistent with the cardholder, often with device and match-flag anomalies pointing to stolen credentials rather than a stolen number. The activity is suspicious because it is assessed at a 0.76 probability of being fraudulent based on 3 independent pieces of evidence drawn from the transaction graph and the institution's closed-case history, and the filing is made because the loss exposure of $2,161.07 exceeds the institution's $1,000 reporting threshold. Policy rule R8 was triggered because the evidence conflicts, leading to escalation to a fraud analyst, and policy rule R6 was triggered by the shared origin with C11164-K1, resulting in the creation of an internal investigation case, the filing of a report, the placement of the cards under monitoring, and the decline of the pending authorization.",
+    "subjects": [
+      "C12352",
+      "C12352-K2",
+      "C11164-K1"
+    ],
+    "total_amount_usd": 2161.07,
+    "activity_dates": [
+      "2016-12-14",
+      "2016-12-14"
+    ]
   },
-  "stop_reason": "Policy 6: probability 0.63 on 2 independent pieces of evidence sits between the stopping thresholds. Stopping here because the remaining uncertainty is the cardholder's own intent, which only the cardholder or an analyst can resolve; the recommended actions route it to them rather than resolving it in the graph.",
-  "tool_calls": 10,
-  "tokens": 1118,
-  "latency_s": 0.17,
+  "stop_reason": "Policy 6: probability 0.76 on 3 independent pieces of evidence sits between the stopping thresholds, and the evidence-request budget is spent. The remaining uncertainty is the cardholder's own intent, which only the cardholder or an analyst can resolve; the recommended actions route it to them rather than resolving it in the graph.",
+  "tool_calls": 15,
+  "tokens": 3371,
+  "latency_s": 0.2,
   "trigger": {
     "type": "monitoring_sweep",
     "text": "Self-directed sweep. Connected components over the device-sharing graph put card C12352-K2 in a bounded component of 2 cards sharing 1 device profile(s), moving $17,501.41 across 72 transactions since 2016-11-02. No model score, cardholder report or analyst request opened this."

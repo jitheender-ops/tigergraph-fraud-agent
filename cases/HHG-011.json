@@ -3,7 +3,7 @@
   "case": {
     "status": "closed_fraud",
     "verdict": "fraud",
-    "fraud_probability": 0.9,
+    "fraud_probability": 0.84,
     "pattern": "card_testing",
     "pattern_description": "",
     "affected_txn_ids": [
@@ -128,6 +128,18 @@
         ]
       },
       {
+        "claim": "The 5 closed cases whose transaction most resembles this one (CC-4800, CC-0290, CC-5285, CC-3576, CC-3473) closed as 5 confirmed fraud (card not present fraud, card not present new device, card testing) and 0 cleared. Cited as memory; it carries no weight, because it resembles on the same features the score already uses",
+        "source": "graph",
+        "ref": "query:similar_cases",
+        "entity_ids": [
+          "CC-4800",
+          "CC-0290",
+          "CC-5285",
+          "CC-3576",
+          "CC-3473"
+        ]
+      },
+      {
         "claim": "The cardholder contacted the bank stating they did not make this purchase",
         "source": "customer",
         "ref": "trigger:customer_report",
@@ -169,12 +181,6 @@
         "entity_ids": []
       },
       {
-        "claim": "Cardholder denies the transaction on contact",
-        "source": "customer",
-        "ref": "evidence_request:step_up_auth",
-        "entity_ids": []
-      },
-      {
         "claim": "fincen sar narrative: reported activity. When did the suspicious activity take place? If the activity takes place over a period of time, indicate the date when the suspicious activity was first noticed and describe the duration of the activity. Filers will often provide a tabular presentation of the suspicious account activities (transactions in and out).",
         "source": "document",
         "ref": "document:fincen_sar_narrative#chunk 8",
@@ -195,20 +201,18 @@
       "CC-3039",
       "CC-2799",
       "CC-2673",
-      "CC-2247"
+      "CC-2247",
+      "CC-4800",
+      "CC-0290",
+      "CC-5285",
+      "CC-3576",
+      "CC-3473"
     ],
-    "summary": "The customer reported that they did not make the $131.30 online transaction on 2016-12-29 on card C11923-K2. The case was assessed as fraud at probability 0.90 with exposure of $2,609.02. The $131.30 amount was 4.6x the card's median and above its 95th percentile. Three online authorizations under $5 occurred in the 24h before the flagged transaction, matching the card_testing pattern. The device profile 'SM-G610F Build/NRD90M | unknown | chrome 66.0 for android | unknown' was shared with 2 other card(s) across 3 customer(s). The card is linked to 10 closed confirmed-fraud cases including CC-4501, CC-3905, CC-3206, and CC-3039. Under policy R2, the cardholder denial triggers a `BLOCK_CARD` and `CREATE_CASE` recommendation, and under policy R6 the shared device profile must be named for monitoring.",
+    "summary": "The cardholder reported on 2016-12-29 that they did not make a $131.30 online purchase on card C11923-K2. The bank has 10 closed confirmed-fraud cases on this card, specifically CC-4501, CC-3905, CC-3206, and CC-3039, with patterns card_not_present_new_device and card_testing. The identity record marked the device New, 59 transactions occurred in the 48 hours ending at the flagged transaction, and 3 online authorisations under $5 happened in the 24h before the flagged transaction. The device profile 'SM-G610F Build/NRD90M | unknown | chrome 66.0 for android | unknown' was shared with 2 other card(s) across 3 customer(s), and the transaction was 4.6x this card's median and above its 95th percentile. The case was assessed as fraud at probability 0.84 with 25 transaction(s) and $2,609.02 of exposure, and 2 other card(s) transacted through the same device profile in the window and are named for monitoring.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-011"
   },
-  "evidence_requests": [
-    {
-      "type": "step_up_auth",
-      "asked_after_step": 10,
-      "reason": "R5: require step-up authentication before any further activity on the card.",
-      "assumed_response": "Step-up authentication was not completed; the challenge expired unanswered. ASSUMPTION: simulated; no authentication responses ship with the dataset. Derived from the session (new device or proxy fails it), not from the agent's own probability."
-    }
-  ],
+  "evidence_requests": [],
   "next_best_actions": {
     "initial": [
       {
@@ -234,7 +238,7 @@
       {
         "action": "VERIFY_WITH_CUSTOMER",
         "route": "auto",
-        "reason": "R1: probability 0.73 is below 0.70; ask the cardholder before taking any action with customer impact."
+        "reason": "R1: probability 0.84 is below 0.70; ask the cardholder before taking any action with customer impact."
       },
       {
         "action": "MONITOR_CARD",
@@ -289,12 +293,12 @@
         "reason": "Policy 3a: fraud established and exposure $2,609.02 exceeds $1,000."
       }
     ],
-    "what_changed": "Step-up authentication was not completed; the challenge expired unanswered, moving assessed probability to 0.90. Dropped: VERIFY_WITH_CUSTOMER."
+    "what_changed": "nothing"
   },
   "sar": {
     "file": true,
     "reason": "Policy 3a: fraud established and exposure $2,609.02 exceeds $1,000.",
-    "narrative": "Between 2016-12-22 and 2016-12-29, online product code C card C11923-K2 belonging to customer C11923 was used for 25 transactions totalling $2,609.02, including the flagged $131.30 transaction on 2016-12-29. During the 48 hours ending at that flagged transaction, 59 transactions occurred on the card, and in the preceding 24 hours there were 3 online authorizations under $5 followed by the larger purchase, which aligns with the card testing sequence described in policy R5. The activity was conducted from the device profile 'SM-G610F Build/NRD90M | unknown | chrome 66.0 for android | unknown', which was also used within 30 days to 2016-12-29 by cards C03938-K1 and C05595-K1, indicating a common actor operating across more than one cardholder. The bank's closed investigations already record 10 confirmed fraud cases on this card (CC-4743, CC-4501, CC-3905, CC-3206), and the card is linked to the giant device-sharing component containing 2,500 cards. The cardholder denied the transaction on contact, and it is assumed in the case file that step-up authentication was not completed because the challenge expired unanswered, as no cardholder replies were available to this investigation. The activity is suspicious because it is consistent with testing of a stolen card number before use, assessed at a 0.90 probability of being fraudulent on 6 independent pieces of evidence, and the filing is made because the $2,609.02 loss exposure exceeds the $1,000 reporting threshold.",
+    "narrative": "Between 2016-12-22 and 2016-12-29, card C11923-K2 belonging to customer C11923 was used for 25 transaction(s) totalling $2,609.02, of which the transaction that triggered this investigation was $131.30 on 2016-12-29, and the activity was conducted online under product code C from the device profile 'SM-G610F Build/NRD90M | unknown | chrome 66.0 for android | unknown'. The cardholder contacted the bank stating they did not make this purchase, and 59 transactions occurred on this card in the 48 hours ending at the flagged one, while 3 online authorisations under $5 on this card in the 24h before the flagged transaction, followed by a larger purchase, match the testing sequence policy R5 describes. The same device profile was used by 2 other card(s) in the thirty days to 2016-12-29, specifically C03938-K1 and C05595-K1, indicating a common actor operating across more than one cardholder, and the bank's closed investigations already record 10 confirmed fraud case(s) on this card (CC-4501, CC-3905, CC-3206, CC-3039). We assumed that the activity is suspicious because it is consistent with testing of a stolen card number before use, assessed at a 84% probability of being fraudulent on 6 independent pieces of evidence drawn from the transaction graph and the institution's closed-case history, and we further assumed that the filing is made because the loss exposure of $2,609.02 exceeds the institution's $1,000 reporting threshold. The pending authorisation has been declined, step-up authentication has been required for further activity, the card has been blocked and scheduled for reissue, an internal investigation case has been opened, the card has been placed under heightened monitoring, and the cards sharing the same origin have been placed under monitoring, while the 5 closed cases whose transaction most resembles this one (CC-4800, CC-0290, CC-5285, CC-3576, CC-3473) closed as 5 confirmed fraud (card not present fraud, card not present new device, card testing) and 0 cleared.",
     "subjects": [
       "C11923",
       "C11923-K2",
@@ -308,8 +312,8 @@
       "2016-12-29"
     ]
   },
-  "stop_reason": "A verification response settled the question (policy 6): probability moved to 0.90 on 6 independent pieces of evidence and the action set follows directly. Further steps would not change it.",
-  "tool_calls": 16,
-  "tokens": 3728,
-  "latency_s": 1.46
+  "stop_reason": "Policy 6: probability 0.84 on 6 independent pieces of evidence sits between the stopping thresholds, and every request the agent may make without approval has been made. The remaining uncertainty is the cardholder's own intent, which only the cardholder or an analyst can resolve; the recommended actions route it to them rather than resolving it in the graph.",
+  "tool_calls": 18,
+  "tokens": 4135,
+  "latency_s": 1.59
 }

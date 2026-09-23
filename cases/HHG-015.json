@@ -3,7 +3,7 @@
   "case": {
     "status": "closed_legitimate",
     "verdict": "legitimate",
-    "fraud_probability": 0.01,
+    "fraud_probability": 0.03,
     "pattern": "none",
     "pattern_description": "",
     "affected_txn_ids": [],
@@ -64,6 +64,18 @@
         ]
       },
       {
+        "claim": "The 5 closed cases whose transaction most resembles this one (CC-0735, CC-2959, CC-0882, CC-2261, CC-0528) closed as 2 confirmed fraud (card not present new device) and 3 cleared. Cited as memory; it carries no weight, because it resembles on the same features the score already uses",
+        "source": "graph",
+        "ref": "query:similar_cases",
+        "entity_ids": [
+          "CC-0735",
+          "CC-2959",
+          "CC-0882",
+          "CC-2261",
+          "CC-0528"
+        ]
+      },
+      {
         "claim": "Connected components place this card in the graph's giant device-sharing component (2,500 cards). Transitive device sharing percolates at every threshold tested, so membership is not evidence of a ring and carries no weight here; it is recorded because policy R6 asks for the shared element to be named.",
         "source": "graph",
         "ref": "query:ring_component",
@@ -94,9 +106,14 @@
     "similar_prior_cases": [
       "CC-3886",
       "CC-1313",
-      "CC-0615"
+      "CC-0615",
+      "CC-0735",
+      "CC-2959",
+      "CC-0882",
+      "CC-2261",
+      "CC-0528"
     ],
-    "summary": "The risk score on card C03042-K1 for the $599.94 transaction on 2016-11-17 was 0.77. The bank has 2 confirmed-fraud case(s) already closed on this card (CC-3886, CC-0615), pattern(s): card_not_present_new_device. The card has no billing history in region 327.0, the external email-domain intelligence classifies 'anonymous.com' as a masked address, and the identity record marks this device New for the account, which is consistent with 83% of cleared alarms. The amount is 6.0x this card's median and above its 95th percentile, yet large outliers appear on 16% of cleared alarms and 6% of confirmed fraud. The card belongs to the giant device-sharing component (2,500 cards), and the model risk score of 0.77 falls in a band with 817 confirmed frauds against 234 cleared alarms, yielding a likelihood ratio of 0.67. Assessed as legitimate at fraud probability 0.01, with case ID unstated and exposure at $0.00.",
+    "summary": "Risk score on card C03042-K1 over a $599.94 online transaction on 2016-11-17 was 0.77, and the identity record marked the device as New, while the card had no billing history in region 327.0 and external intelligence classified 'anonymous.com' as a masked address. The bank had 2 confirmed-fraud case(s) already closed on this card (CC-3886, CC-0615), and pattern(s): card_not_present_new_device. The transaction was assessed as legitimate at probability 0.03, the model placed 817 confirmed frauds against 234 cleared alarms in the 0.70-0.85 band with a likelihood ratio of 0.67, and exposure was $0.00.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-015"
   },
@@ -106,7 +123,7 @@
       {
         "action": "ALLOW_TRANSACTION",
         "route": "auto",
-        "reason": "R1 and policy 6: probability 0.01 with 5 independent pieces of evidence pointing away from fraud; the transaction stands."
+        "reason": "R1 and policy 6: probability 0.03 with 6 independent pieces of evidence pointing away from fraud; the transaction stands."
       },
       {
         "action": "CLOSE_NO_FRAUD",
@@ -118,7 +135,7 @@
       {
         "action": "ALLOW_TRANSACTION",
         "route": "auto",
-        "reason": "R1 and policy 6: probability 0.01 with 5 independent pieces of evidence pointing away from fraud; the transaction stands."
+        "reason": "R1 and policy 6: probability 0.03 with 6 independent pieces of evidence pointing away from fraud; the transaction stands."
       },
       {
         "action": "CLOSE_NO_FRAUD",
@@ -130,14 +147,14 @@
   },
   "sar": {
     "file": false,
-    "reason": "Policy 3a: a report requires fraud confirmed or strongly suspected. Assessed probability 0.01 with verdict 'legitimate' does not meet that bar.",
+    "reason": "Policy 3a: a report requires fraud confirmed or strongly suspected. Assessed probability 0.03 with verdict 'legitimate' does not meet that bar.",
     "narrative": "",
     "subjects": [],
     "total_amount_usd": 0,
     "activity_dates": []
   },
-  "stop_reason": "Policy 6: probability 0.01 is at or below 0.15 on 5 independent pieces of evidence; the alarm is explained and further investigation would not change the outcome.",
-  "tool_calls": 13,
-  "tokens": 1307,
-  "latency_s": 0.61
+  "stop_reason": "Policy 6: probability 0.03 is at or below 0.15 on 6 independent pieces of evidence; the alarm is explained and further investigation would not change the outcome.",
+  "tool_calls": 15,
+  "tokens": 1316,
+  "latency_s": 0.62
 }

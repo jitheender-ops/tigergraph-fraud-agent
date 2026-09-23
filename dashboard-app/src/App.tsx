@@ -5,10 +5,10 @@ import { ScrambleText } from './components/ScrambleText';
 import { SpotlightCard } from './components/SpotlightCard';
 import { Waterfall, Network, Timeline, PriorCase } from './components/Views';
 import { RouteChip, OpenCase } from './components/Decide';
-import { ACTIONS } from './api';
+import { ACTIONS, api, authHeaders, token } from './api';
 import { Intelligence, Ledger } from './components/Intel';
 
-const API = 'http://localhost:8000/api';
+const API = '/api';   // through the Vite proxy: same origin, no CORS
 
 export default function App() {
   const [data, setData] = useState<any[]>([]);
@@ -24,6 +24,8 @@ export default function App() {
   const [byMoney, setByMoney] = useState(true);
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState(false);
+  const [notice, setNotice] = useState('');
+  const [tok, setTok] = useState(token.get());
 
   useEffect(() => {
     fetchCases();
@@ -58,11 +60,13 @@ export default function App() {
     if (!selectedCaseId) return;
     setLoading(true);
     try {
-      await fetch(`${API}/case/${selectedCaseId}/${endpoint}`, {
+      const res = await fetch(`${API}/case/${selectedCaseId}/${endpoint}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: payload ? JSON.stringify(payload) : undefined
       });
+      // a refused change must say so; it used to fail silently
+      setNotice(res.ok ? '' : `${endpoint}: ${(await res.text()).slice(0, 200)}`);
       // Refresh active case state
       const r = await fetch(`${API}/case/${selectedCaseId}`);
       setActiveCase(await r.json());
@@ -169,6 +173,12 @@ export default function App() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-paper font-sans">
+      {notice && (
+        <div role="alert" onClick={() => setNotice('')}
+          className="fixed bottom-4 right-4 z-50 max-w-md bg-crimson text-white text-sm px-4 py-3 shadow-editorial cursor-pointer">
+          {notice}
+        </div>
+      )}
       
       {/* Sidebar */}
       <motion.div 
@@ -210,6 +220,10 @@ export default function App() {
               Recurring
             </button>
           </div>
+          <input value={tok} type="password" autoComplete="off" aria-label="Analyst token"
+            onChange={(e) => { setTok(e.target.value); token.set(e.target.value); }}
+            placeholder="Analyst token (needed for any change)"
+            className="mt-4 w-full border border-line px-3 py-2 text-xs font-mono bg-paper focus:outline-none focus:border-crimson" />
         </div>
 
         <button onClick={() => setByMoney(b => !b)}
@@ -500,6 +514,27 @@ export default function App() {
                             {q.type} · after step {q.asked_after_step}
                           </div>
                           <div className="text-ink/80 leading-relaxed">{q.assumed_response}</div>
+                          {q.simulated && !activeCase.closed && (
+                            <div className="flex flex-wrap gap-2 mt-3 items-center">
+                              <span className="font-mono text-[10px] uppercase tracking-widest text-muted">Record the real reply:</span>
+                              {(['confirmed', 'denied', 'no_reply'] as const).map((o) => (
+                                <button key={o} disabled={loading}
+                                  onClick={async () => {
+                                    setLoading(true);
+                                    try {
+                                      await api.reply(activeCase.case_id, q.type, o, '');
+                                      const r = await fetch(`${API}/case/${activeCase.case_id}`);
+                                      setActiveCase(await r.json());
+                                      fetchCases(); setNotice('');
+                                    } catch (e) { setNotice(String(e).slice(0, 200)); }
+                                    setLoading(false);
+                                  }}
+                                  className="px-3 py-1 border border-line text-[10px] font-bold uppercase tracking-widest hover:border-ink hover:text-ink transition-colors disabled:opacity-30">
+                                  {o.replace('_', ' ')}
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>

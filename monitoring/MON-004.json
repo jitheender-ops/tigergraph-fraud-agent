@@ -1,21 +1,19 @@
 {
   "case_id": "MON-004",
   "case": {
-    "status": "escalated",
-    "verdict": "uncertain",
-    "fraud_probability": 0.38,
-    "pattern": "card_not_present_fraud",
+    "status": "closed_legitimate",
+    "verdict": "legitimate",
+    "fraud_probability": 0.25,
+    "pattern": "none",
     "pattern_description": "",
-    "affected_txn_ids": [
-      "3423666"
-    ],
-    "first_suspicious_txn_id": "3423666",
+    "affected_txn_ids": [],
+    "first_suspicious_txn_id": "",
     "connected_card_ids": [
       "C05979-K1",
       "C12940-K1"
     ],
     "connected_device_profiles": [],
-    "exposure_usd": 977.77,
+    "exposure_usd": 0.0,
     "evidence": [
       {
         "claim": "$977.77 is 8.7x this card's median and above its 95th percentile. Counter-intuitively this is mildly exculpatory: large outliers appear on 16% of cleared alarms and 6% of confirmed fraud, because confirmed fraud tends to stay inside the cardholder's normal range to avoid attention",
@@ -31,6 +29,18 @@
         "ref": "external:email_domain_intel",
         "entity_ids": [
           "gmail.com"
+        ]
+      },
+      {
+        "claim": "The 5 closed cases whose transaction most resembles this one (CC-2463, CC-5397, CC-5082, CC-2379, CC-4776) closed as 5 confirmed fraud (account takeover, out of region use) and 0 cleared. Cited as memory; it carries no weight, because it resembles on the same features the score already uses",
+        "source": "graph",
+        "ref": "query:similar_cases",
+        "entity_ids": [
+          "CC-2463",
+          "CC-5397",
+          "CC-5082",
+          "CC-2379",
+          "CC-4776"
         ]
       },
       {
@@ -59,19 +69,39 @@
         "source": "document",
         "ref": "document:fraud_policy#R6",
         "entity_ids": []
+      },
+      {
+        "claim": "Step-up authentication passed",
+        "source": "customer",
+        "ref": "evidence_request:step_up_auth",
+        "entity_ids": []
       }
     ],
-    "similar_prior_cases": [],
-    "summary": "Monitoring sweep on card C00081-K2 over a $977.77 in person transaction on 2016-11-02 yielded a verdict of uncertain at probability 0.38 with exposure of $977.77. The evidence conflicts because $977.77 is 8.7x this card's median and above its 95th percentile, while external intelligence classifies 'gmail.com' as a baseline free webmail address, and graph analysis places this card in a bounded component of 3 cards (C05979-K1, C12940-K1) linked through device profiles each used by no more than 8 cards. Per policy rule R8, the case should be escalated to an analyst, and per policy rule R6, 2 other card(s) transacted through the same device profile in the window were named for monitoring.",
+    "similar_prior_cases": [
+      "CC-2463",
+      "CC-5397",
+      "CC-5082",
+      "CC-2379",
+      "CC-4776"
+    ],
+    "summary": "A monitoring sweep on card C00081-K2 over a $977.77 in person transaction on 2016-11-02 assessed the event as legitimate at probability 0.25 with exposure of $0.00. The $977.77 amount is 8.7x this card's median and above its 95th percentile, and step-up authentication passed for customer ID linked to case ID. Connected components over the device-sharing graph placed this card in a bounded component of 3 cards including C05979-K1 and C12940-K1, which is a genuine shared origin rather than a common configuration. The 5 closed cases whose transaction most resembles this one, CC-2463, CC-5397, CC-5082, CC-2379, and CC-4776, closed as 5 confirmed fraud and 0 cleared, and the external 'gmail.com' domain is baseline context appearing on 3,667 confirmed frauds and 573 cleared alarms. Policy rule R8 recommends escalation when uncertain and exposed, yet no escalation was triggered, and 2 other card(s) transacted through the same device profile in the window and are named for monitoring.",
     "written_to_graph": true,
-    "graph_case_id": "CASE-2016-004"
+    "graph_case_id": "CASE-2016-M004"
   },
   "evidence_requests": [
     {
       "type": "customer_validation",
-      "asked_after_step": 10,
+      "asked_after_step": 11,
       "reason": "R1: the case rests on a single signal and assessed probability is 0.38, below 0.70. Verify before any block.",
-      "assumed_response": "No reply within 24 hours. ASSUMPTION: no replies ship with this dataset, and nothing independent in the evidence points to what the cardholder would say. Inventing an answer here would manufacture certainty, so the agent assumes the case policy R4 is written for - the customer does not respond - and acts accordingly."
+      "assumed_response": "No reply within 24 hours. ASSUMPTION: no replies ship with this dataset, and nothing independent in the evidence points to what the cardholder would say. Inventing an answer here would manufacture certainty, so the agent assumes the case policy R4 is written for - the customer does not respond - and acts accordingly.",
+      "simulated": true
+    },
+    {
+      "type": "step_up_auth",
+      "asked_after_step": 12,
+      "reason": "Policy 5: the cardholder did not answer the verification request, and step-up authentication is the other channel the agent may use without approval.",
+      "assumed_response": "One-time passcode completed successfully from the cardholder's registered number. ASSUMPTION: simulated; no authentication responses ship with the dataset. Derived from the card-detail match flags (a mismatch fails it), not from the agent's own probability.",
+      "simulated": true
     }
   ],
   "next_best_actions": {
@@ -94,45 +124,35 @@
     ],
     "final": [
       {
+        "action": "ALLOW_TRANSACTION",
+        "route": "auto",
+        "reason": "R1 and policy 6: probability 0.25 with 2 independent pieces of evidence pointing away from fraud; the transaction stands."
+      },
+      {
+        "action": "CLOSE_NO_FRAUD",
+        "route": "auto",
+        "reason": "Policy 6: the evidence settles the question; close as legitimate."
+      },
+      {
         "action": "MONITOR_CARD",
         "route": "auto",
-        "reason": "R4: no reply within 24 hours; keep the card active under raised monitoring."
-      },
-      {
-        "action": "DECLINE_TRANSACTION",
-        "route": "L1",
-        "reason": "R4: decline pending authorisations while the verification is unanswered."
-      },
-      {
-        "action": "ESCALATE_TO_ANALYST",
-        "route": "auto",
-        "reason": "R4: no reply and exposure $977.77 exceeds $500; escalate to a human analyst."
-      },
-      {
-        "action": "CREATE_CASE",
-        "route": "auto",
-        "reason": "Policy 3a: a case is opened because evidence was requested."
-      },
-      {
-        "action": "MONITOR_CONNECTED_CARDS",
-        "route": "auto",
-        "reason": "R6: shared device-sharing component of 3 cards links 2 other card(s); place them under monitoring."
+        "reason": "Residual uncertainty is low but non-zero; keep 72-hour monitoring without customer impact."
       }
     ],
-    "what_changed": "No reply within 24 hours, moving assessed probability to 0.38. Added: DECLINE_TRANSACTION, ESCALATE_TO_ANALYST, MONITOR_CONNECTED_CARDS. Dropped: VERIFY_WITH_CUSTOMER."
+    "what_changed": "No reply within 24 hours, moving assessed probability to 0.25. Added: ALLOW_TRANSACTION, CLOSE_NO_FRAUD. Dropped: CREATE_CASE, VERIFY_WITH_CUSTOMER."
   },
   "sar": {
     "file": false,
-    "reason": "Policy 3a: a report requires fraud confirmed or strongly suspected. Assessed probability 0.38 with verdict 'uncertain' does not meet that bar.",
+    "reason": "Policy 3a: a report requires fraud confirmed or strongly suspected. Assessed probability 0.25 with verdict 'legitimate' does not meet that bar.",
     "narrative": "",
     "subjects": [],
     "total_amount_usd": 0,
     "activity_dates": []
   },
-  "stop_reason": "Policy 6: probability 0.38 on 1 independent pieces of evidence sits between the stopping thresholds. Stopping here because the remaining uncertainty is the cardholder's own intent, which only the cardholder or an analyst can resolve; the recommended actions route it to them rather than resolving it in the graph.",
-  "tool_calls": 10,
-  "tokens": 990,
-  "latency_s": 0.13,
+  "stop_reason": "Policy 6: probability 0.25 on 2 independent pieces of evidence sits between the stopping thresholds, and every request the agent may make without approval has been made. The remaining uncertainty is the cardholder's own intent, which only the cardholder or an analyst can resolve; the recommended actions route it to them rather than resolving it in the graph.",
+  "tool_calls": 12,
+  "tokens": 1169,
+  "latency_s": 0.14,
   "trigger": {
     "type": "monitoring_sweep",
     "text": "Self-directed sweep. Connected components over the device-sharing graph put card C00081-K2 in a bounded component of 3 cards sharing 2 device profile(s), moving $7,102.69 across 48 transactions since 2016-11-02. No model score, cardholder report or analyst request opened this."

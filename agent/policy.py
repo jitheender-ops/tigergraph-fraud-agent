@@ -263,24 +263,37 @@ def apply_sar(actions, file_report: bool, exposure: float, reason: str) -> list[
     return actions
 
 
-def stop_reason(prob, n_ind, verdict, asked, answered) -> str:
-    """Policy 6."""
-    if answered:
+def at_stop_bar(prob, n_ind) -> bool:
+    """Policy 6: a defensible decision needs 0.85+ or 0.15- on two independent pieces."""
+    return (prob >= 0.85 or prob <= 0.15) and n_ind >= 2
+
+
+def stop_reason(prob, n_ind, kind) -> str:
+    """Policy 6, worded by why the evidence loop actually exited: `threshold` (the bar was
+    met), `answered` (a reply settled the question), `exhausted` (nothing left the agent
+    may ask without approval) or `budget` (the round limit)."""
+    # 0.849 printed as "0.85 ... between the thresholds" contradicts itself on the page
+    shown = f"{prob:.2f}"
+    if shown in ("0.85", "0.15") and not at_stop_bar(prob, n_ind):
+        shown = f"{prob:.3f}"
+    if kind == "answered":
         return (f"A verification response settled the question (policy 6): probability moved to "
-                f"{prob:.2f} on {n_ind} independent pieces of evidence and the action set follows "
+                f"{shown} on {n_ind} independent pieces of evidence and the action set follows "
                 f"directly. Further steps would not change it.")
-    if prob >= 0.85 and n_ind >= 2:
-        return (f"Policy 6: probability {prob:.2f} is at or above 0.85 on {n_ind} independent "
-                f"pieces of evidence, which is the bar for a defensible action.")
-    if prob <= 0.15 and n_ind >= 2:
-        return (f"Policy 6: probability {prob:.2f} is at or below 0.15 on {n_ind} independent "
+    if kind == "threshold" and prob >= 0.85:
+        return (f"Policy 6: probability {shown} is at or above 0.85 on {n_ind} independent "
+                f"pieces of evidence, which is the bar for a defensible action. No further "
+                f"evidence was requested because none could change it.")
+    if kind == "threshold":
+        return (f"Policy 6: probability {shown} is at or below 0.15 on {n_ind} independent "
                 f"pieces of evidence; the alarm is explained and further investigation would not "
                 f"change the outcome.")
-    return (f"Policy 6: probability {prob:.2f} on {n_ind} independent pieces of evidence sits "
-            f"between the stopping thresholds. Stopping here because the remaining uncertainty "
-            f"is the cardholder's own intent, which only the cardholder or an analyst can "
-            f"resolve; the recommended actions route it to them rather than resolving it in the "
-            f"graph.")
+    tail = ("every request the agent may make without approval has been made"
+            if kind == "exhausted" else "the evidence-request budget is spent")
+    return (f"Policy 6: probability {shown} on {n_ind} independent pieces of evidence sits "
+            f"between the stopping thresholds, and {tail}. The remaining uncertainty is the "
+            f"cardholder's own intent, which only the cardholder or an analyst can resolve; "
+            f"the recommended actions route it to them rather than resolving it in the graph.")
 
 
 def demo():
@@ -409,6 +422,16 @@ def demo():
         "two region signals are one piece of evidence"
     assert independent_evidence_count([S("m_flags_2plus", 1.0), S("burst", 1.0)]) == 2
     assert independent_evidence_count([S("m_flags_2plus", 0.2)]) == 0, "weak signals don't count"
+
+    # --- policy 6 is a bar, and the stop reason says which exit was taken ---
+    assert at_stop_bar(0.9, 2) and at_stop_bar(0.1, 3)
+    assert not at_stop_bar(0.9, 1), "one piece of evidence never meets the bar"
+    assert not at_stop_bar(0.5, 4)
+    assert "settled" in stop_reason(0.5, 2, "answered")
+    assert "0.85" in stop_reason(0.9, 2, "threshold")
+    assert "has been made" in stop_reason(0.5, 2, "exhausted")
+    assert "budget" in stop_reason(0.5, 2, "budget")
+    assert "0.849" in stop_reason(0.849, 4, "exhausted"), "never print 0.85 below the bar"
 
     print("policy.py: all rule checks passed (R1-R10, routing, 3a, scoring)")
 

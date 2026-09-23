@@ -15,6 +15,7 @@ uv run python prep/derive.py            # card_id, device profiles, baselines
 uv run python prep/validate_card_id.py  # the derivation is load-bearing; assert it
 uv run python prep/rings.py             # connected components over the device graph
 uv run python prep/build_corpus.py      # chunk + embed the policy, typologies, FinCEN PDFs
+uv run python prep/case_index.py        # feature index of closed cases, for similar-case memory
 uv run python graph/load.py --all       # schema + data + docs + queries into TigerGraph
 uv run python run.py --backend tigergraph
 uv run python validate.py               # check all 20 answers against the spec
@@ -54,14 +55,28 @@ only when the case vertex really landed in TigerGraph.
 trigger ──▶ investigate ──▶ assess ──▶ request evidence ──▶ re-assess ──▶ act ──▶ explain ──▶ remember
 ```
 
-Seven graph calls per case, on average: pull the flagged transaction, read the card's own
+About a dozen tool calls per case: pull the flagged transaction, read the card's own
 baseline, expand through the device profile to other cards, check the card's history in
 the billing region, probe for a card-testing sequence, retrieve prior closed cases for the
-card and the device, then reconstruct the episode and size the exposure.
+card and the device and the most similar closed cases, look the email domain up, then
+reconstruct the episode and size the exposure.
 
-The agent then scores the evidence, classifies the pattern, recommends an initial action
-set, asks for whatever evidence the policy says it may ask for, folds the response back in,
-and re-recommends. Both recommendations are recorded, with what changed between them.
+The agent then scores the evidence, classifies the pattern and recommends an initial action
+set. Gathering more evidence is a loop, and policy 6 is its condition rather than a caption
+written afterwards: before each request the agent checks whether it already holds a
+defensible decision (≥0.85 or ≤0.15 on two independent pieces of evidence); if not, it asks
+for the next thing policy 5 lets it ask without approval — the cardholder, then step-up
+authentication, then an analyst — re-scores on the reply, and recomputes what the policy
+wants. It stops on the bar, on a reply that settles the question, when nothing is left to
+ask, or after three rounds, and `stop_reason` names which. Every request records the rule
+that asked for it. Both recommendations are recorded, with what changed between them.
+
+Memory is retrieved two ways: by identity (closed cases on this card or this device) and by
+resemblance — the five closed cases whose anchor transaction most resembles this one, from
+an index over the scorer's own features (`prep/case_index.py`, `agent/similar.py`). Every
+cleared case carries pattern `none`, so resemblance has to be read off the transaction, not
+the label. Neighbours are cited, not scored: they resemble on features the score already
+counts.
 
 ## The console: arguing with the agent
 
@@ -262,6 +277,20 @@ quiet transaction in the book as fraud. It is dropped, and the two bands where b
 are present (0.70–0.85 at −0.40, ≥0.85 at −2.12, damped to −0.80) are the only ones used.
 The same selection pressure inflates the new-device signal, so that one is damped too.
 
+Case memory was the last set of guesses, and measuring it (each case against only the cases
+closed before it opened) moved all three: an earlier confirmed case on the card is +0.92
+(was 0.30), one on the device +1.67 (was 1.00). An earlier *cleared* case measured +6.48 —
+the wrong sign for the −0.30 it had — because cards were reopened for fraud, not
+exonerated; it is cited and scored at zero.
+
+`eval/backtest.py` refits everything on July–September and scores October. It reports the
+error counts, a calibration table and Brier score, and the verdict band a cost function
+would pick on the training half (`--review-cost`, `--false-block-cost`), with its held-out
+result beside the shipped band — the band is left at 0.30/0.70 because those costs are
+assumptions nobody in the dataset can supply. It also splits "uncertain" honestly: R8
+sends only the cases over $500 or with conflicting evidence to an analyst (18% of October);
+the rest are verified with the cardholder first (10%).
+
 ## Not inventing the customer's answer
 
 The dataset ships no customer or analyst replies, and the agent is allowed to ask. The easy
@@ -270,9 +299,18 @@ only manufactures confidence. Here the assumed reply is derived from a feature t
 cardholder's answer would actually turn on: a subscription cadence (same amount, same
 product code, three or more months, ~30 days apart) implies a confirmation; two or more
 independent incriminating findings imply a denial; and when nothing independent points
-either way, the agent assumes **no reply**, which policy R4 already covers. Simulated
-replies carry ±1.20 rather than the ±1.9/−2.4 a real answer would justify, and every
-assumption is written into `evidence_requests` in full.
+either way, the agent assumes **no reply**, which policy R4 already covers. A simulated
+step-up fails when the card-detail match flags fail — a mismatch measures as fraud, whereas
+a New device, the obvious choice, sits on 83% of *cleared* alerts — and because those flags
+are already scored it carries half a customer reply's weight. Passing a passcode proves who
+holds the phone, not who made a past purchase, so it moves the score and never counts as
+the cardholder confirming the charge. Simulated replies carry ±1.20 rather than the
+±1.9/−2.4 a real answer would justify, and every assumption is written into
+`evidence_requests` in full, marked `simulated`.
+
+When a real answer arrives, `POST /api/case/{id}/reply` (or the buttons under *Evidence
+Requested*) records it against the request, the case is re-investigated on it, and it
+survives a restart in the case record.
 
 ## Policy as code
 
@@ -291,22 +329,36 @@ discarded and the deterministic draft stands.
 
 ```
 prep/        to_parquet.py  derive.py  calibrate.py  validate_card_id.py
-             rings.py  build_corpus.py  parity.py  backend_diff.py
+             rings.py  build_corpus.py  parity.py  backend_diff.py  case_index.py
 eval/        backtest.py
 graph/       schema.gsql  queries.gsql  load.py
 agent/       features.py  patterns.py  policy.py  episode.py  investigate.py
              answer.py  backend.py  mcp_backend.py  retrieve.py  external.py
-             execute.py  llm.py  tg.py
+             execute.py  llm.py  tg.py  similar.py
 cases/       HHG-001.json … HHG-020.json
 monitoring/  MON-001.json … MON-005.json  index.md
 dashboard-app/  the analyst console (React + Vite); server.py is its API
 run.py       monitor.py  server.py  validate.py  run.sh  .mcp.json
+tests/       test_agent.py (pytest)      dashboard-app/e2e/  (Playwright)
 ```
 
-Three modules carry a runnable self-check rather than a test suite:
-`uv run python agent/retrieve.py` asserts that every policy situation retrieves its own
-rule, `uv run python agent/mcp_backend.py` checks the MCP envelope parser, and
-`uv run python prep/validate_card_id.py` asserts the card-ID derivation.
+Checks:
+
+```bash
+uv run pytest -q                          # rules, permission boundary, console flow
+cd dashboard-app && npx playwright test   # the console, driven in Chromium
+ANALYST_TOKEN=... uv run python console_smoke.py   # every endpoint, against a running server
+```
+
+`.github/workflows/ci.yml` runs pytest and a type-check and build of the console on every
+push. The dataset is not committed, so CI runs the checks that do not need it and the
+data-backed ones skip; the full suite, the backtest and Playwright run locally.
+
+Every change made through the console needs a token: `ANALYST_TOKEN` for steering,
+deciding, closing and replying, `APPROVER_TOKEN_L1` / `APPROVER_TOKEN_L2` to release held
+actions (the tier comes from the token, never the request). Reads stay open. Cross-origin
+calls are refused unless listed in `CONSOLE_ORIGINS`; the console itself goes through the
+Vite proxy and needs none.
 
 `validate.py` checks all twenty answers against the spec: every required field present,
 every enum legal, every ID present in the dataset, every approval route matching the policy

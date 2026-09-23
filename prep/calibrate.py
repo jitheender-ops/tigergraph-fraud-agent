@@ -76,3 +76,29 @@ ep = con.sql("""SELECT outcome,
    avg(n_txns) AS avg_txns FROM closed_case GROUP BY 1""").df()
 print()
 print(ep.to_string())
+
+# --- case memory: what an earlier closed case on the same card or device is worth -------
+# prior_fraud / prior_cleared / device_prior_fraud were set by hand. Each case is scored
+# only against cases closed BEFORE it opened, exactly as the agent retrieves them.
+print()
+print("== case memory ==")
+mem = con.sql("""
+  SELECT a.case_id, a.outcome,
+    EXISTS (SELECT 1 FROM closed_case b WHERE b.card_id = a.card_id
+            AND b.opened_at < a.opened_at AND b.outcome = 'confirmed_fraud') AS card_fraud,
+    EXISTS (SELECT 1 FROM closed_case b WHERE b.card_id = a.card_id
+            AND b.opened_at < a.opened_at AND b.outcome = 'cleared') AS card_cleared,
+    EXISTS (SELECT 1 FROM feat f JOIN closed_case b ON b.opened_at < a.opened_at
+              AND b.outcome = 'confirmed_fraud' AND b.card_id <> a.card_id
+            JOIN tx t ON t.txn_id = TRY_CAST(split_part(b.txn_ids, '|', 1) AS BIGINT)
+            WHERE f.key_id = a.case_id AND f.dev_specific = 1 AND f.dev_cards <= 50
+              AND t.device_profile = f.device_profile) AS device_fraud
+  FROM closed_case a""").df()
+MEMORY = {}
+for name, col in (("prior_fraud", "card_fraud"), ("prior_cleared", "card_cleared"),
+                  ("device_prior_fraud", "device_fraud")):
+    nf = int(mem[mem.outcome == "confirmed_fraud"][col].sum())
+    nc = int(mem[mem.outcome == "cleared"][col].sum())
+    pf, pc = (nf + 0.5) / (len(fraud) + 1), (nc + 0.5) / (len(clear) + 1)
+    MEMORY[name] = math.log(pf / pc)
+    print(f"{name:22} {pf:>11.4f} {pc:>11.4f} {pf/pc:>8.2f} {math.log(pf/pc):>8.2f}   {nf:>7} {nc:>7}")

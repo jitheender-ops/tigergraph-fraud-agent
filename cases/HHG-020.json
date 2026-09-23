@@ -3,7 +3,7 @@
   "case": {
     "status": "closed_legitimate",
     "verdict": "legitimate",
-    "fraud_probability": 0.23,
+    "fraud_probability": 0.24,
     "pattern": "none",
     "pattern_description": "",
     "affected_txn_ids": [],
@@ -48,50 +48,93 @@
         ]
       },
       {
+        "claim": "The 5 closed cases whose transaction most resembles this one (CC-1806, CC-3048, CC-1883, CC-2219, CC-0162) closed as 5 confirmed fraud (card not present new device) and 0 cleared. Cited as memory; it carries no weight, because it resembles on the same features the score already uses",
+        "source": "graph",
+        "ref": "query:similar_cases",
+        "entity_ids": [
+          "CC-1806",
+          "CC-3048",
+          "CC-1883",
+          "CC-2219",
+          "CC-0162"
+        ]
+      },
+      {
         "claim": "Known fraud pattern 5: Account takeover: Account takeover. Mixed-channel activity inconsistent with the cardholder, often with device and match-flag anomalies, pointing to stolen credentials rather than a stolen number.",
         "source": "document",
         "ref": "document:fraud_patterns#Account takeover",
         "entity_ids": []
       },
       {
-        "claim": "Fraud Policy - 6. Stopping: Stop investigating when one of these holds: - Fraud probability is at or above 0.85, or at or below 0.15, supported by at least two independent pieces of evidence - A verification response settles the question - Further steps are unlikely to change the decision. Say so in `stop_reason` Investigations that continue past a defensible decision waste time. Investigations that stop before one create risk.",
+        "claim": "Policy rule R1: Verify before you block on a weak signal: R1. Verify before you block on a weak signal. If the case rests on a single signal (including a risk score alone) and your assessed fraud probability is below 0.70, recommend `VERIFY_WITH_CUSTOMER` or `STEP_UP_AUTH` before any block. Blocking a legitimate customer on one signal is a policy breach.",
         "source": "document",
-        "ref": "document:fraud_policy#6. Stopping",
+        "ref": "document:fraud_policy#R1",
+        "entity_ids": []
+      },
+      {
+        "claim": "Step-up authentication passed",
+        "source": "customer",
+        "ref": "evidence_request:step_up_auth",
         "entity_ids": []
       }
     ],
     "similar_prior_cases": [
       "CC-2447",
-      "CC-2277"
+      "CC-2277",
+      "CC-1806",
+      "CC-3048",
+      "CC-1883",
+      "CC-2219",
+      "CC-0162"
     ],
-    "summary": "The risk score on card C12265-K2 over a $125.08 online transaction on 2016-12-03 was assessed as legitimate at fraud probability 0.23, and exposure was $0.00. The bank has 2 confirmed-fraud case(s) already closed on this card (CC-2447, CC-2277), pattern(s): account_takeover. For the cardholder, the identity record marked this device New for the account, and the transaction was online on a card whose history is 5% online. The external email-domain intelligence classified 'yahoo.com' as a free webmail address, and known fraud pattern 5 described account takeover as mixed-channel activity inconsistent with the cardholder, often with device and match-flag anomalies, pointing to stolen credentials rather than a stolen number. The investigation stopped because further steps were unlikely to change the decision.",
+    "summary": "Risk score on card C12265-K2 over a $125.08 online transaction on 2016-12-03 assessed the case as legitimate at fraud probability 0.24 with $0.00 exposure under case ID CC-2447 and CC-2277, which are 2 confirmed-fraud case(s) already closed on this card with pattern(s): account_takeover. For the cardholder, the identity record marked this device New for the account, the 5 closed cases most resembling this one (CC-1806, CC-3048, CC-1883, CC-2219, CC-0162) closed as 5 confirmed fraud and 0 cleared, and step-up authentication passed. An online transaction on a card whose history is 5% online was mildly exculpatory, and external email-domain intelligence classified 'yahoo.com' as a free webmail address carrying no weight. The pattern was identified as account_takeover, and policy rule R1 recommended verifying before blocking on a weak signal.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-020"
   },
-  "evidence_requests": [],
+  "evidence_requests": [
+    {
+      "type": "customer_validation",
+      "asked_after_step": 11,
+      "reason": "R1: probability 0.36 is below 0.70; ask the cardholder before taking any action with customer impact.",
+      "assumed_response": "No reply within 24 hours. ASSUMPTION: no replies ship with this dataset, and nothing independent in the evidence points to what the cardholder would say. Inventing an answer here would manufacture certainty, so the agent assumes the case policy R4 is written for - the customer does not respond - and acts accordingly.",
+      "simulated": true
+    },
+    {
+      "type": "step_up_auth",
+      "asked_after_step": 12,
+      "reason": "Policy 5: the cardholder did not answer the verification request, and step-up authentication is the other channel the agent may use without approval.",
+      "assumed_response": "One-time passcode completed successfully from the cardholder's registered number. ASSUMPTION: simulated; no authentication responses ship with the dataset. Derived from the card-detail match flags (a mismatch fails it), not from the agent's own probability.",
+      "simulated": true
+    }
+  ],
   "next_best_actions": {
     "initial": [
       {
-        "action": "ALLOW_TRANSACTION",
+        "action": "CREATE_CASE",
         "route": "auto",
-        "reason": "R1 and policy 6: probability 0.23 with 2 independent pieces of evidence pointing away from fraud; the transaction stands."
+        "reason": "Policy 3a: probability is at or above 0.30 with the verdict still uncertain."
       },
       {
-        "action": "CLOSE_NO_FRAUD",
+        "action": "VERIFY_WITH_CUSTOMER",
         "route": "auto",
-        "reason": "Policy 6: the evidence settles the question; close as legitimate."
+        "reason": "R1: probability 0.36 is below 0.70; ask the cardholder before taking any action with customer impact."
       },
       {
         "action": "MONITOR_CARD",
         "route": "auto",
-        "reason": "Residual uncertainty is low but non-zero; keep 72-hour monitoring without customer impact."
+        "reason": "R4: keep the card active under raised monitoring while the question is open."
+      },
+      {
+        "action": "ESCALATE_TO_ANALYST",
+        "route": "auto",
+        "reason": "R8: the verdict is uncertain and the evidence conflicts; hand to a human analyst."
       }
     ],
     "final": [
       {
         "action": "ALLOW_TRANSACTION",
         "route": "auto",
-        "reason": "R1 and policy 6: probability 0.23 with 2 independent pieces of evidence pointing away from fraud; the transaction stands."
+        "reason": "R1 and policy 6: probability 0.24 with 4 independent pieces of evidence pointing away from fraud; the transaction stands."
       },
       {
         "action": "CLOSE_NO_FRAUD",
@@ -104,18 +147,18 @@
         "reason": "Residual uncertainty is low but non-zero; keep 72-hour monitoring without customer impact."
       }
     ],
-    "what_changed": "nothing"
+    "what_changed": "No reply within 24 hours, moving assessed probability to 0.24. Added: ALLOW_TRANSACTION, CLOSE_NO_FRAUD. Dropped: CREATE_CASE, ESCALATE_TO_ANALYST, VERIFY_WITH_CUSTOMER."
   },
   "sar": {
     "file": false,
-    "reason": "Policy 3a: a report requires fraud confirmed or strongly suspected. Assessed probability 0.23 with verdict 'legitimate' does not meet that bar.",
+    "reason": "Policy 3a: a report requires fraud confirmed or strongly suspected. Assessed probability 0.24 with verdict 'legitimate' does not meet that bar.",
     "narrative": "",
     "subjects": [],
     "total_amount_usd": 0,
     "activity_dates": []
   },
-  "stop_reason": "Policy 6: probability 0.23 on 2 independent pieces of evidence sits between the stopping thresholds. Stopping here because the remaining uncertainty is the cardholder's own intent, which only the cardholder or an analyst can resolve; the recommended actions route it to them rather than resolving it in the graph.",
-  "tool_calls": 11,
-  "tokens": 916,
+  "stop_reason": "Policy 6: probability 0.24 on 4 independent pieces of evidence sits between the stopping thresholds, and every request the agent may make without approval has been made. The remaining uncertainty is the cardholder's own intent, which only the cardholder or an analyst can resolve; the recommended actions route it to them rather than resolving it in the graph.",
+  "tool_calls": 13,
+  "tokens": 1044,
   "latency_s": 0.13
 }

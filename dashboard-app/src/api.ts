@@ -2,10 +2,20 @@
 // side; none of it edits an answer file in the browser.
 export type Diff = Record<string, [unknown, unknown]>;
 
+// The analyst token every change needs. Session-scoped, so it dies with the tab; storage
+// can be blocked (private windows), so every access is guarded.
+export const token = {
+  get: (): string => { try { return sessionStorage.getItem('analystToken') ?? ''; } catch { return ''; } },
+  set: (t: string) => { try { sessionStorage.setItem('analystToken', t); } catch { /* memory only */ } },
+};
+export const authHeaders = (): Record<string, string> =>
+  token.get() ? { 'X-Analyst-Token': token.get() } : {};
+
 async function call<T>(path: string, body?: unknown, headers: Record<string, string> = {}): Promise<T> {
   const res = await fetch(`/api${path}`, {
     method: body === undefined ? 'GET' : 'POST',
-    headers: body === undefined ? headers : { 'content-type': 'application/json', ...headers },
+    headers: body === undefined ? headers
+      : { 'content-type': 'application/json', ...authHeaders(), ...headers },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (!res.ok) throw new Error((await res.text()).slice(0, 300));
@@ -31,6 +41,8 @@ export const api = {
   // the approval tier comes from the token, server side; the UI only carries it
   release: (id: string, action: string, approver: string, token: string) =>
     call<any>(`/case/${id}/release`, { action, approver }, { 'X-Approver-Token': token }),
+  reply: (id: string, type: string, outcome: 'confirmed' | 'denied' | 'no_reply', note: string) =>
+    call<any>(`/case/${id}/reply`, { type, outcome, note }),
   open: (card_id: string, txn_id: number, trigger_type: string, trigger_text: string) =>
     call<any>('/cases', { card_id, txn_id, trigger_type, trigger_text }),
 };

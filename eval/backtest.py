@@ -28,6 +28,7 @@ import duckdb
 import pandas as pd
 
 import external as X
+import policy as pol
 import patterns as P
 from features import FEATURE_SQL
 
@@ -92,6 +93,23 @@ def measure(train: pd.DataFrame) -> dict[str, float]:
     return out
 
 
+def measure_memory(train: pd.DataFrame, by_case: dict) -> dict[str, float]:
+    """prior_fraud / prior_cleared on the training half: an earlier closed case on the
+    same card, as the agent retrieves it. prior_cleared stays pinned at zero whatever it
+    measures, for the selection reason patterns.W gives; it is printed so it can be seen."""
+    has = lambda outcome: train.key_id.map(
+        lambda k: any(p["outcome"] == outcome for p in by_case.get(k, [])))
+    fraud = train.outcome == "confirmed_fraud"
+    out = {}
+    for name, outcome in (("prior_fraud", "confirmed_fraud"), ("prior_cleared", "cleared")):
+        hit = has(outcome)
+        pf = (int((hit & fraud).sum()) + 0.5) / (int(fraud.sum()) + 1)
+        pc = (int((hit & ~fraud).sum()) + 0.5) / (int((~fraud).sum()) + 1)
+        out[name] = round(math.log(pf / pc), 2)
+    out["_prior_cleared_measured"], out["prior_cleared"] = out["prior_cleared"], 0.0
+    return out
+
+
 def refit_email(train: pd.DataFrame) -> dict[str, float]:
     """The external source's weights, refit on the training half too.
 
@@ -120,17 +138,39 @@ def score(row, prior, email_w) -> float:
     backtest evaluates a different agent from the one that ships. No episode and no live
     device ring: a closed case has neither, and inventing them would be the same mistake
     in the other direction."""
+    return score_full(row, prior, email_w)[0]
+
+
+def score_full(row, prior, email_w):
+    """score(), plus the signals -- R8's conflict test needs them."""
     sig = P.score_signals(row, {"txn_ids": [str(row["txn_id"])]},
                           {"cards": []}, prior)
     total = sum(s.weight for s in sig)
     dom = row.get("p_email")
     cls = X._intel().get(str(dom).strip().lower(), "unknown") if dom else "unknown"
     total += email_w.get(cls, 0.0)
-    return 1.0 / (1.0 + math.exp(-total))
+    return 1.0 / (1.0 + math.exp(-total)), sig
 
 
-def verdict(p):
-    return "fraud" if p >= 0.70 else "legitimate" if p <= 0.30 else "uncertain"
+def verdict(p, lo=0.30, hi=0.70):
+    return "fraud" if p >= hi else "legitimate" if p <= lo else "uncertain"
+
+
+BANDS = [(lo / 100, hi / 100) for lo in range(15, 50, 5) for hi in range(55, 90, 5)]
+
+
+def fit_band(probs, truth, exposure, review_cost, block_cost):
+    """The verdict band that minimises what the mistakes cost on the TRAINING half:
+    missed loss + false blocks x block_cost + cases sent for review x review_cost.
+    Both costs are inputs, not facts -- nobody in this dataset prices them -- so they
+    are printed beside the answer rather than buried in it."""
+    best = None
+    for lo, hi in BANDS:
+        c = confusion([verdict(p, lo, hi) for p in probs], truth, exposure)
+        cost = c["missed"] + c["fp"] * block_cost + (c["unc_f"] + c["unc_c"]) * review_cost
+        if best is None or cost < best[0]:
+            best = (cost, lo, hi)
+    return best
 
 
 def confusion(pred, truth, exposure):
@@ -157,6 +197,10 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--insample", action="store_true",
                     help="also score with the shipped weights, to size the overfit")
+    ap.add_argument("--review-cost", type=float, default=25.0,
+                    help="assumed cost of one case reviewed (analyst or customer contact)")
+    ap.add_argument("--false-block-cost", type=float, default=300.0,
+                    help="assumed cost of blocking a legitimate cardholder")
     args = ap.parse_args()
 
     con = duckdb.connect("build/fraud.db", read_only=True)
@@ -188,6 +232,11 @@ def main():
             {"case_id": r.prior_id, "outcome": r.outcome, "pattern": r.pattern})
 
     fitted = measure(train)
+    memory = measure_memory(train, by_case)
+    print(f"memory on the training half: prior_fraud {memory['prior_fraud']:+.2f} "
+          f"[{P.W['prior_fraud']:+.2f}], prior_cleared measured "
+          f"{memory.pop('_prior_cleared_measured'):+.2f}, used 0.00 (selection)")
+    fitted.update(memory)
     email_w = refit_email(train)
     print("weights refitted on the training half (shipped value in brackets):")
     for k, v in fitted.items():
@@ -246,8 +295,8 @@ def main():
     print(f"\nagent, out of sample: {agent['tp']:,} caught, {agent['fn']:,} missed, "
           f"{agent['fp']:,} false blocks, ${agent['missed']:,.0f} of loss let through,\n"
           f"and {agent['unc_f'] + agent['unc_c']:,} of {len(rows):,} "
-          f"({(agent['unc_f'] + agent['unc_c']) / len(rows):.0%}) declined and routed to "
-          f"a human under R8.\n")
+          f"({(agent['unc_f'] + agent['unc_c']) / len(rows):.0%}) judged too close to call "
+          f"(split below into analyst and automatic verification).\n")
     print("break-even against it:\n")
     for label, c in results:
         if label.startswith("agent, weights from train"):
@@ -266,6 +315,70 @@ def main():
             print(f"  {label:34} loses on both axes -- more false blocks AND more loss")
         else:
             print(f"  {label:34} dominates on both axes")
+
+    # --- where "uncertain" actually goes ------------------------------------------
+    # Uncertain is not "sent to a human". R8 escalates only when exposure is over $500
+    # or the evidence conflicts; the rest are verified with the cardholder or step-up
+    # first, automatically. Counting both as analyst load overstated it.
+    original = dict(P.W)
+    P.W.update(fitted)
+    try:
+        full = [score_full(r, by_case.get(r["key_id"], []), email_w) for r in rows]
+    finally:
+        P.W.clear(); P.W.update(original)
+    probs = [p for p, _ in full]
+    unc = [(r, sig) for r, (p, sig) in zip(rows, full) if verdict(p) == "uncertain"]
+    to_analyst = sum(1 for r, sig in unc
+                     if float(r["exposure_usd"] or 0) > 500 or pol._conflicting(sig))
+    print(f"\nof the {len(unc):,} uncertain: {to_analyst:,} ({to_analyst / len(rows):.0%} of all "
+          f"cases) meet R8 and go to an analyst; {len(unc) - to_analyst:,} "
+          f"({(len(unc) - to_analyst) / len(rows):.0%}) are verified automatically first.")
+
+    # --- calibration ---------------------------------------------------------------
+    # Prior 0 (even odds) is chosen for the exam set, where half the cases are legitimate.
+    # This history is 89% fraud, so the probabilities SHOULD read low against it; the
+    # table shows by how much, bin by bin, rather than asserting it.
+    print("\ncalibration on the held-out month (prior 0 is set for a 50/50 exam set):")
+    print(f"  {'predicted':>11} {'cases':>7} {'observed fraud':>15}")
+    for b in range(10):
+        idx = [i for i, p in enumerate(probs) if b / 10 <= p < (b + 1) / 10 or (b == 9 and p == 1)]
+        if idx:
+            obs = sum(truth[i] == "confirmed_fraud" for i in idx) / len(idx)
+            print(f"  {b / 10:.1f}-{(b + 1) / 10:.1f} {len(idx):>7,} {obs:>15.0%}")
+    brier = sum((p - (t == "confirmed_fraud")) ** 2 for p, t in zip(probs, truth)) / len(probs)
+    print(f"  Brier score {brier:.3f}")
+
+    # --- the verdict band, fitted rather than assumed -------------------------------
+    tr_rows = train.to_dict("records")
+    P.W.update(fitted)
+    try:
+        tr_probs = [score(r, by_case.get(r["key_id"], []), email_w) for r in tr_rows]
+    finally:
+        P.W.clear(); P.W.update(original)
+    _, lo, hi = fit_band(tr_probs, [r["outcome"] for r in tr_rows],
+                         [float(r["exposure_usd"] or 0) for r in tr_rows],
+                         args.review_cost, args.false_block_cost)
+    print(f"\nverdict band fitted on the training half at ${args.review_cost:,.0f}/review and "
+          f"${args.false_block_cost:,.0f}/false block: {lo:.2f}-{hi:.2f} "
+          f"(shipped 0.30-0.70). On the held-out month:")
+    for label, (a, b) in (("shipped 0.30-0.70", (0.30, 0.70)), (f"fitted {lo:.2f}-{hi:.2f}", (lo, hi))):
+        c = confusion([verdict(p, a, b) for p in probs], truth, exposure)
+        print(f"  {label:20} false blocks {c['fp']:>4}  missed ${c['missed']:>9,.0f}  "
+              f"uncertain {(c['unc_f'] + c['unc_c']) / len(rows):>4.0%}")
+
+    # --- memory by resemblance, held out ---------------------------------------------
+    # Neighbours are drawn only from cases closed before each test case opened.
+    try:
+        import similar
+        hits = [similar.nearest(r, r["opened_at"], 5) for r in rows]
+        knn = ["fraud" if sum(h["outcome"] == "confirmed_fraud" for h in hs) >= 3 else "legitimate"
+               for hs in hits]
+        c = confusion(knn, truth, exposure)
+        print(f"\nsimilar-case memory alone (majority of 5 nearest earlier cases): "
+              f"{c['tp']:,} caught, {c['fp']:,} false blocks, ${c['missed']:,.0f} missed. "
+              f"Cited, not scored: it reads the features the score already uses.")
+    except FileNotFoundError as e:
+        print(f"\n(similar-case memory skipped: {e})")
 
     # Computed, not written down: a closing line with the numbers typed into it goes
     # stale the first time a signal changes, and then the summary is a lie.

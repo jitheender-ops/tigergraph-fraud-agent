@@ -5,7 +5,7 @@ Missing fields score zero, invented IDs score zero, and sar.file must agree with
 whether FILE_REPORT appears in the final actions. All three are checked here, plus
 that every ID actually exists in the dataset.
 """
-import json, pathlib, sys
+import json, os, pathlib, sys
 import duckdb
 
 ACTIONS = {"ALLOW_TRANSACTION","DECLINE_TRANSACTION","MONITOR_CARD","MONITOR_CONNECTED_CARDS",
@@ -34,7 +34,7 @@ def main(out="cases"):
     cards = {r[0] for r in con.sql("SELECT DISTINCT card_id FROM tx").fetchall()}
     ccs = {r[0] for r in con.sql("SELECT case_id FROM closed_case").fetchall()}
     # cases an analyst closed from the console on the DuckDB mirror are real memory too
-    log = pathlib.Path("build/console_closed_cases.jsonl")
+    log = pathlib.Path(os.getenv("CONSOLE_STATE_DIR", "build")) / "console_closed_cases.jsonl"
     if log.exists():
         ccs |= {json.loads(l)["case_id"] for l in log.read_text().splitlines() if l.strip()}
     devs = {r[0] for r in con.sql("SELECT DISTINCT device_profile FROM tx WHERE device_profile IS NOT NULL").fetchall()}

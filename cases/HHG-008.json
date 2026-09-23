@@ -3,7 +3,7 @@
   "case": {
     "status": "closed_fraud",
     "verdict": "fraud",
-    "fraud_probability": 0.87,
+    "fraud_probability": 0.93,
     "pattern": "card_not_present_fraud",
     "pattern_description": "",
     "affected_txn_ids": [
@@ -60,6 +60,18 @@
         ]
       },
       {
+        "claim": "The 5 closed cases whose transaction most resembles this one (CC-1973, CC-4777, CC-3440, CC-2406, CC-1914) closed as 5 confirmed fraud (card not present fraud, card not present new device) and 0 cleared. Cited as memory; it carries no weight, because it resembles on the same features the score already uses",
+        "source": "graph",
+        "ref": "query:similar_cases",
+        "entity_ids": [
+          "CC-1973",
+          "CC-4777",
+          "CC-3440",
+          "CC-2406",
+          "CC-1914"
+        ]
+      },
+      {
         "claim": "The cardholder contacted the bank stating they did not make this purchase",
         "source": "customer",
         "ref": "trigger:customer_report",
@@ -103,9 +115,14 @@
       "CC-3928",
       "CC-3728",
       "CC-3566",
-      "CC-3422"
+      "CC-3422",
+      "CC-1973",
+      "CC-4777",
+      "CC-3440",
+      "CC-2406",
+      "CC-1914"
     ],
-    "summary": "The cardholder denied the $55.68 online transaction on 2016-12-19 on card C13171-K2. The case was assessed as card_not_present_fraud at probability 0.87 with $284.65 of exposure across 8 transaction(s). The 48 hours preceding the flagged event contained 14 transactions on this card, and the bank had 18 confirmed-fraud case(s) already closed on this card, specifically CC-5010, CC-4485, CC-4163, and CC-3928. The device-sharing component contained 2,500 cards, and known fraud pattern 2 describes card-not-present fraud involving a burst of two to four transactions within 48 hours. Per policy rule R2, `BLOCK_CARD` and `CREATE_CASE` were recommended, with `FILE_REPORT` to be added if exposure exceeds $1,000 or the case connects to a shared device profile or another card's fraud.",
+    "summary": "The customer reported on card C13171-K2 that they did not make an online purchase of $55.68 on 2016-12-19. The bank had 18 confirmed-fraud case(s) already closed on this card (CC-5010, CC-4485, CC-4163, CC-3928) with pattern(s): card_not_present_fraud, card_not_present_new_device, and the transaction was assessed as card-not-present use of the number without the card at probability 0.93 with 8 transaction(s) and $284.65 of exposure.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-008"
   },
@@ -125,7 +142,7 @@
       {
         "action": "VERIFY_WITH_CUSTOMER",
         "route": "auto",
-        "reason": "R1: probability 0.87 is below 0.70; ask the cardholder before taking any action with customer impact."
+        "reason": "R1: probability 0.93 is below 0.70; ask the cardholder before taking any action with customer impact."
       },
       {
         "action": "MONITOR_CARD",
@@ -160,8 +177,8 @@
     "total_amount_usd": 0,
     "activity_dates": []
   },
-  "stop_reason": "Policy 6: probability 0.87 is at or above 0.85 on 2 independent pieces of evidence, which is the bar for a defensible action.",
-  "tool_calls": 10,
-  "tokens": 980,
-  "latency_s": 0.71
+  "stop_reason": "Policy 6: probability 0.93 is at or above 0.85 on 3 independent pieces of evidence, which is the bar for a defensible action. No further evidence was requested because none could change it.",
+  "tool_calls": 12,
+  "tokens": 1044,
+  "latency_s": 0.63
 }

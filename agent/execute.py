@@ -13,7 +13,7 @@ startup, because a record of decisions that a restart erases is not a record.
 from __future__ import annotations
 import datetime as dt, hashlib, json, os, pathlib, threading
 
-LEDGER = pathlib.Path("build/action_ledger.jsonl")
+LEDGER = pathlib.Path(os.getenv("CONSOLE_STATE_DIR", "build")) / "action_ledger.jsonl"
 _LOCK = threading.Lock()
 
 # What each action does to the world, in the words the downstream system would use.

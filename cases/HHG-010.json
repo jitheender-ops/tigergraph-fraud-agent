@@ -55,6 +55,18 @@
         ]
       },
       {
+        "claim": "The 5 closed cases whose transaction most resembles this one (CC-0996, CC-4444, CC-3692, CC-1751, CC-1335) closed as 5 confirmed fraud (card not present new device) and 0 cleared. Cited as memory; it carries no weight, because it resembles on the same features the score already uses",
+        "source": "graph",
+        "ref": "query:similar_cases",
+        "entity_ids": [
+          "CC-0996",
+          "CC-4444",
+          "CC-3692",
+          "CC-1751",
+          "CC-1335"
+        ]
+      },
+      {
         "claim": "Known fraud pattern 3: Card-not-present fraud from a new device: Card-not-present fraud from a new device. Same as above, with the identity record marking the device as `New` for this account, sometimes behind a proxy. Stronger than pattern 2, still not proof: people buy new phones.",
         "source": "document",
         "ref": "document:fraud_patterns#Card-not-present fraud from a new device",
@@ -68,9 +80,14 @@
       }
     ],
     "similar_prior_cases": [
-      "CC-0873"
+      "CC-0873",
+      "CC-0996",
+      "CC-4444",
+      "CC-3692",
+      "CC-1751",
+      "CC-1335"
     ],
-    "summary": "Risk score on card C10434-K1 over a $1,000.03 online transaction on 2016-12-02 was assessed as legitimate at fraud probability 0.02 with case ID CC-0873, and exposure was $0.00. The identity record marked this device New for the account, and external email-domain intelligence classified 'anonymous.com' as a masked address with a log-likelihood ratio of -1.39. The model risk score was 0.90, 1 previous alarm on this card was investigated and cleared under CC-0873, and $1,000.03 represented 11.1x this card's median and was above its 95th percentile.",
+    "summary": "Risk score on card C10434-K1 over a $1,000.03 online transaction on 2016-12-02. For the cardholder: External email-domain intelligence classifies 'anonymous.com' as a masked address -- the processor withheld it rather than the cardholder choosing an anonymous one. The identity record marks this device New for the account. Assessed as legitimate at fraud probability 0.02; no transaction is treated as part of a fraud episode and exposure is zero.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-010"
   },
@@ -111,7 +128,7 @@
     "activity_dates": []
   },
   "stop_reason": "Policy 6: probability 0.02 is at or below 0.15 on 4 independent pieces of evidence; the alarm is explained and further investigation would not change the outcome.",
-  "tool_calls": 11,
-  "tokens": 996,
-  "latency_s": 0.11
+  "tool_calls": 13,
+  "tokens": 1152,
+  "latency_s": 0.12
 }

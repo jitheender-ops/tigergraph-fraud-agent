@@ -30,13 +30,19 @@ def is_recurring_charge(f) -> bool:
             and 20 <= float(gap) <= 45)
 
 
+MAX_EVIDENCE_ROUNDS = 3
+
+
 def step_up_passes(f) -> bool:
     """Simulated OTP outcome. The code goes to the cardholder's registered phone, so it
-    fails when the party transacting is not the cardholder. Deciding it off our own
-    probability would only echo the prior back as evidence; instead it turns on what the
-    session itself shows: a device this card has used before, not behind a proxy.
+    fails when the party transacting is not the cardholder. It turns on the card-detail
+    match flags -- the identity check in the data -- because a mismatch is what measures
+    as fraud (+1.0 log-odds). An earlier rule failed it on a New device, which is the
+    wrong way round here: New devices sit on 83% of cleared alerts and 18% of fraud.
+    The flags are already scored, so the reply is weighted at half a customer's
+    (patterns.W step_up_*) to avoid counting one fact twice.
     ponytail: a heuristic stand-in; replace with the real auth response when one exists."""
-    return not f.get("dev_new") and not f.get("proxy")
+    return int(f.get("m_false_n") or 0) == 0
 
 
 def device_link_is_meaningful(f) -> bool:
@@ -61,7 +67,7 @@ def device_link_is_meaningful(f) -> bool:
 
 class Investigation:
     def __init__(self, backend, trigger, llm=None, now=None,
-                 suppress=None, analyst_signals=None, ring_cap=None):
+                 suppress=None, analyst_signals=None, ring_cap=None, replies=None):
         """suppress / analyst_signals are how a human steers the investigation.
 
         An analyst who says "ignore the out-of-region flag, the customer is on holiday"
@@ -84,6 +90,8 @@ class Investigation:
         self.suppress = set(suppress or ())
         self.analyst_signals = list(analyst_signals or ())
         self.ring_cap = ring_cap
+        # replies an analyst recorded against a request type; they replace the simulation
+        self.replies = dict(replies or {})
         self._docs_seen: set[str] = set()
         self.t0 = time.time()
 
@@ -132,6 +140,8 @@ class Investigation:
         if f["device_profile"] and f["dev_specific"] and f["dev_cards"] <= 50:
             d = self.b.prior_cases_for_device(f["device_profile"], before=self.now)
             dev_prior = d.to_dict("records") if len(d) else []
+        # memory by resemblance: closed cases whose transaction looks like this one
+        similar_hits = self.b.similar_cases(f, before=self.now)
         # R10: the customer's cards the bank has already confirmed as defrauded
         confirmed_cards = set(self.b.customer_confirmed_cards(t["customer_id"],
                                                               before=self.now))
@@ -170,6 +180,12 @@ class Investigation:
                     f"This exact device profile already appears in {len(conf)} confirmed-fraud "
                     f"case(s) the bank closed ({', '.join(c['case_id'] for c in conf[:4])})",
                     [c["case_id"] for c in conf[:6]], "query:prior_cases_for_device"))
+
+        if similar_hits:
+            import similar
+            self.signals.append(P.Signal("similar_cases", 0.0, similar.claim(similar_hits),
+                                         [h["case_id"] for h in similar_hits],
+                                         "query:similar_cases"))
 
         prob = pol.probability(self.signals)
         trigger_type = t["trigger_type"]
@@ -257,18 +273,50 @@ class Investigation:
                                              pattern == P.P_UNDOC and bool(connected))
         initial = pol.apply_sar(initial, file0, exposure, why0)
 
-        # ---- gather more evidence if the policy calls for it ---------------
-        requests, answered = self._request_evidence(initial, prob, recurring, f, verdict)
-        if requests:
-            prob, verdict, exposure = self._reassess(prob, requests, episode, verdict)
+        # ---- gather more evidence, one request at a time ----------------------
+        # Policy 6 is the loop condition, not a caption written afterwards: before each
+        # request the agent checks whether it already has a defensible decision, asks
+        # for the next piece of evidence the policy allows only if it does not, and
+        # re-scores on the reply. `stop_kind` records which exit it took.
+        def reply_state(reqs):
+            # Only the cardholder's own answer confirms or denies a transaction. Passing
+            # a passcode proves who holds the phone, not who made a past purchase, so
+            # step-up moves the score (its own signal) and nothing else.
+            reqs = [r for r in reqs if r["type"] == "customer_validation"]
+            confirmed = any(r["_confirmed"] for r in reqs)
+            # the cardholder's report is a denial, but a later confirmation supersedes
+            # it: the two must never both be live or the action set contradicts itself.
+            denied = (any(r["_denied"] for r in reqs)
+                      or (customer_disputed and not recurring)) and not confirmed
+            return confirmed, denied, any(r.get("_no_reply") for r in reqs)
+
+        requests, wanted, stop_kind = [], initial, "budget"
+        for _ in range(MAX_EVIDENCE_ROUNDS):
+            if pol.at_stop_bar(prob, pol.independent_evidence_count(self.signals)):
+                stop_kind = "threshold"
+                break
+            kind = self._next_request(wanted, requests, recurring)
+            if kind is None:
+                stop_kind = "exhausted"
+                break
+            self.step(f"request evidence: {kind}")
+            r = self._ask(kind, wanted, f, recurring)
+            requests.append(r)
+            prob, verdict, exposure = self._reassess(prob, [r], episode, verdict)
+            if kind == "customer_validation" and (r["_confirmed"] or r["_denied"]):
+                stop_kind = "answered"
+                break
+            confirmed, denied, silent = reply_state(requests)
+            wanted = pol.decide_actions(
+                prob=prob, verdict=verdict, exposure=exposure, signals=self.signals,
+                pattern=pattern if verdict != "legitimate" else "none",
+                trigger_type=trigger_type, customer_denied=denied,
+                customer_confirmed=confirmed, recurring=recurring, connected_cards=connected,
+                shared_element=shared_element, n_confirmed_cards=len(confirmed_cards),
+                phase="initial", no_reply=silent)
 
         n_ind = pol.independent_evidence_count(self.signals)
-        customer_confirmed = any(r["_confirmed"] for r in requests)
-        no_reply = any(r.get("_no_reply") for r in requests)
-        # the cardholder's report is a denial, but a later confirmation supersedes it:
-        # the two must never both be live or the action set contradicts itself.
-        customer_denied = (any(r["_denied"] for r in requests)
-                           or (customer_disputed and not recurring)) and not customer_confirmed
+        customer_confirmed, customer_denied, no_reply = reply_state(requests)
         # A confirmation from the cardholder settles it: the case closes as legitimate and
         # nothing may still be counted as exposure.
         # A simulated confirmation closes the case only if the probability actually lands
@@ -317,10 +365,10 @@ class Investigation:
             "pattern_desc": pattern_desc, "signals": self.signals, "prob": prob,
             "verdict": verdict, "exposure": exposure, "connected": connected,
             "devices": [f["device_profile"]] if f["device_profile"] and f["dev_specific"] else [],
-            "prior": prior, "dev_prior": dev_prior, "ring": ring,
+            "prior": prior, "dev_prior": dev_prior, "ring": ring, "similar": similar_hits,
             "initial": initial, "final": final, "requests": requests,
             "sar_file": file1, "sar_reason": why1, "n_ind": n_ind, "steps": self.steps,
-            "recurring": recurring, "answered": bool(requests),
+            "recurring": recurring, "stop_kind": stop_kind,
             "confirmed_cards": sorted(confirmed_cards),
             "latency_s": round(time.time() - self.t0, 2),
         }
@@ -358,28 +406,59 @@ class Investigation:
             return "legitimate"
         return "uncertain"
 
-    def _request_evidence(self, initial, prob, recurring, f, verdict):
-        """Policy 5: the agent may ask the customer, request step-up auth, or ask an
-        analyst without approval. Replies are not provided in this round, so the
-        response is simulated from the evidence already in hand and the assumption is
-        stated in full."""
-        wanted = {a["action"] for a in initial}
-        # why each request was made is the rule that asked for it, verbatim
-        why = {a["action"]: a["reason"] for a in initial}
-        reqs = []
-        step_no = len(self.steps)
-
+    def _next_request(self, wanted, done, recurring):
+        """The next piece of evidence policy 5 lets the agent ask for without approval,
+        in order of how directly it answers the open question: the cardholder first,
+        then the authentication channel, then an analyst. Each is asked at most once."""
+        want = {a["action"] for a in wanted}
+        asked = {r["type"] for r in done}
         # A customer report IS the cardholder's denial. Asking them the same question
         # again and counting the same answer twice would inflate the probability off one
         # fact. The exception is a recurring charge: "is this subscription yours?" is a
         # genuinely different question from "did you make this purchase?".
         already_denied = self.t["trigger_type"] == "customer_report" and not recurring
-        if pol.VERIFY_WITH_CUSTOMER in wanted and not already_denied:
-            # The assumed reply must not be a function of our own probability, or it only
-            # amplifies the prior and adds no information. It is derived instead from a
-            # feature the cardholder's answer would actually turn on, and where nothing
-            # independent points either way the honest assumption is no reply at all --
-            # which policy R4 already covers.
+        silent = any(r.get("_no_reply") for r in done)
+        if (pol.VERIFY_WITH_CUSTOMER in want and "customer_validation" not in asked
+                and not already_denied):
+            return "customer_validation"
+        # a cardholder who does not answer can still be reached through step-up; one who
+        # has already disputed the charge cannot be told anything new by it
+        if ("step_up_auth" not in asked and not already_denied
+                and (pol.STEP_UP_AUTH in want or silent)):
+            return "step_up_auth"
+        if pol.ESCALATE_TO_ANALYST in want and "analyst_info" not in asked:
+            return "analyst_info"
+        return None
+
+    def _ask(self, kind, wanted, f, recurring):
+        """Ask for one piece of evidence. A real reply recorded through the console wins;
+        otherwise the dataset ships none, so the reply is simulated from a feature of the
+        data -- never from the agent's own probability -- and says so."""
+        why = {a["action"]: a["reason"] for a in wanted}
+        reason = {
+            "customer_validation": why.get(pol.VERIFY_WITH_CUSTOMER),
+            "step_up_auth": why.get(pol.STEP_UP_AUTH) or (
+                "Policy 5: the cardholder did not answer the verification request, and "
+                "step-up authentication is the other channel the agent may use without "
+                "approval."),
+            "analyst_info": why.get(pol.ESCALATE_TO_ANALYST),
+        }[kind]
+        req = {"type": kind, "asked_after_step": len(self.steps), "reason": reason}
+
+        real = self.replies.get(kind)
+        if real:
+            out = real["outcome"]
+            if kind == "step_up_auth":
+                return {**req, "_passed": out == "confirmed", "_confirmed": False,
+                        "_denied": False, "_no_reply": out == "no_reply", "simulated": False,
+                        "assumed_response": f"REPLY RECEIVED {real.get('at', '')}: "
+                                            f"{real.get('note') or out}"}
+            return {**req, "_confirmed": out == "confirmed", "_denied": out == "denied",
+                    "_no_reply": out == "no_reply", "simulated": False,
+                    "assumed_response": f"REPLY RECEIVED {real.get('at', '')}: "
+                                        f"{real.get('note') or out}"}
+
+        if kind == "customer_validation":
             strong = sum(1 for x in self.signals if x.weight >= 0.7)
             if recurring:
                 resp = ("Cardholder, shown the charge history, recognises the amount as a "
@@ -404,41 +483,44 @@ class Investigation:
                         "certainty, so the agent assumes the case policy R4 is written for - "
                         "the customer does not respond - and acts accordingly.")
                 conf, den, reply = False, False, False
-            reqs.append({"type": "customer_validation", "asked_after_step": step_no,
-                         "reason": why[pol.VERIFY_WITH_CUSTOMER],
-                         "assumed_response": resp, "_confirmed": conf, "_denied": den,
-                         "_no_reply": not reply})
+            return {**req, "assumed_response": resp, "_confirmed": conf, "_denied": den,
+                    "_no_reply": not reply, "simulated": True}
 
-        if pol.STEP_UP_AUTH in wanted and not reqs:
+        if kind == "step_up_auth":
             passed = step_up_passes(f)
-            reqs.append({"type": "step_up_auth", "asked_after_step": step_no, "_no_reply": False,
-                         "reason": why[pol.STEP_UP_AUTH],
-                         "assumed_response": (
-                             "One-time passcode completed successfully from the cardholder's "
-                             "registered number."
-                             if passed else
-                             "Step-up authentication was not completed; the challenge expired "
-                             "unanswered.")
-                             + " ASSUMPTION: simulated; no authentication responses ship with "
-                               "the dataset. Derived from the session (new device or proxy "
-                               "fails it), not from the agent's own probability.",
-                         "_confirmed": passed, "_denied": not passed})
+            return {**req, "_no_reply": False, "_passed": passed, "_confirmed": False,
+                    "_denied": False,
+                    "simulated": True, "assumed_response": (
+                        "One-time passcode completed successfully from the cardholder's "
+                        "registered number." if passed else
+                        "Step-up authentication was not completed; the challenge expired "
+                        "unanswered.")
+                    + " ASSUMPTION: simulated; no authentication responses ship with the "
+                      "dataset. Derived from the card-detail match flags (a mismatch fails "
+                      "it), not from the agent's own probability."}
 
-        if pol.ESCALATE_TO_ANALYST in wanted:
-            reqs.append({"type": "analyst_info", "asked_after_step": step_no, "_no_reply": False,
-                         "reason": why[pol.ESCALATE_TO_ANALYST],
-                         "assumed_response": (
-                             "Analyst confirms no merchant-side chargeback or law-enforcement "
-                             "notice is attached to these transactions, so the graph evidence "
-                             "stands as gathered. ASSUMPTION: simulated; no analyst replies "
-                             "ship with the dataset."),
-                         "_confirmed": False, "_denied": False})
-        return reqs, bool(reqs)
+        return {**req, "_no_reply": False, "_confirmed": False, "_denied": False,
+                "simulated": True, "assumed_response": (
+                    "Analyst confirms no merchant-side chargeback or law-enforcement notice "
+                    "is attached to these transactions, so the graph evidence stands as "
+                    "gathered. ASSUMPTION: simulated; no analyst replies ship with the "
+                    "dataset.")}
 
     def _reassess(self, prob, requests, episode, verdict):
         """Fold the simulated responses back in as evidence and re-score."""
         for r in requests:
-            if r["_denied"]:
+            if r["type"] == "step_up_auth":
+                if r.get("_no_reply"):
+                    continue
+                ok = r["_passed"]
+                self.signals.append(P.Signal(
+                    "step_up_passed" if ok else "step_up_failed",
+                    # halved only when simulated off the already-scored match flags
+                    P.W["step_up_passed" if ok else "step_up_failed"] if r.get("simulated", True)
+                    else P.W["customer_confirmed" if ok else "customer_denied"],
+                    "Step-up authentication " + ("passed" if ok else "was not completed"),
+                    [], "evidence_request:step_up_auth", source="customer"))
+            elif r["_denied"]:
                 self.signals.append(P.Signal("customer_denied", P.W["customer_denied"],
                     "Cardholder denies the transaction on contact", [], f"evidence_request:{r['type']}",
                     source="customer"))

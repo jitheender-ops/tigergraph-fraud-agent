@@ -3,7 +3,7 @@
   "case": {
     "status": "closed_fraud",
     "verdict": "fraud",
-    "fraud_probability": 0.95,
+    "fraud_probability": 0.97,
     "pattern": "account_takeover",
     "pattern_description": "",
     "affected_txn_ids": [
@@ -67,6 +67,18 @@
         ]
       },
       {
+        "claim": "The 5 closed cases whose transaction most resembles this one (CC-5441, CC-1870, CC-0092, CC-4496, CC-5559) closed as 5 confirmed fraud (account takeover, out of region use) and 0 cleared. Cited as memory; it carries no weight, because it resembles on the same features the score already uses",
+        "source": "graph",
+        "ref": "query:similar_cases",
+        "entity_ids": [
+          "CC-5441",
+          "CC-1870",
+          "CC-0092",
+          "CC-4496",
+          "CC-5559"
+        ]
+      },
+      {
         "claim": "The cardholder contacted the bank stating they did not make this purchase",
         "source": "customer",
         "ref": "trigger:customer_report",
@@ -110,9 +122,13 @@
       "CC-4436",
       "CC-4070",
       "CC-3899",
-      "CC-3634"
+      "CC-3634",
+      "CC-1870",
+      "CC-0092",
+      "CC-4496",
+      "CC-5559"
     ],
-    "summary": "On 2016-11-27, the cardholder denied an in person transaction for $39.08 on card C02354-K2. Four of the card-detail match flags M1-M9 came back F, and 95 transactions occurred on this card in the 48 hours ending at the flagged one. The card has 19 confirmed-fraud case(s) already closed on it, specifically CC-5558, CC-5441, CC-4942, and CC-4721. The transaction was assessed as fraud at probability 0.95, pattern account_takeover, with $769.01 of exposure, under case ID 12345.",
+    "summary": "Customer report on card C02354-K2 over a $39.08 in person transaction on 2016-11-27. Against it, 4 of the card-detail match flags M1-M9 came back F, 95 transactions occurred in the 48 hours ending at the flagged one, and the card is linked to 19 closed confirmed-fraud cases including CC-5558, CC-5441, CC-4942, and CC-4721. The cardholder contacted the bank stating they did not make this purchase, and the case was assessed as fraud at probability 0.97 with 13 transaction(s) and $769.01 of exposure under pattern account_takeover. The 5 closed cases most resembling this one are CC-5441, CC-1870, CC-0092, CC-4496, and CC-5559, and the card sits in a giant device-sharing component of 2,500 cards. Policy R2 recommends `BLOCK_CARD` and `CREATE_CASE`, and the case ID is unstated.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-018"
   },
@@ -132,7 +148,7 @@
       {
         "action": "VERIFY_WITH_CUSTOMER",
         "route": "auto",
-        "reason": "R1: probability 0.95 is below 0.70; ask the cardholder before taking any action with customer impact."
+        "reason": "R1: probability 0.97 is below 0.70; ask the cardholder before taking any action with customer impact."
       },
       {
         "action": "MONITOR_CARD",
@@ -167,8 +183,8 @@
     "total_amount_usd": 0,
     "activity_dates": []
   },
-  "stop_reason": "Policy 6: probability 0.95 is at or above 0.85 on 3 independent pieces of evidence, which is the bar for a defensible action.",
-  "tool_calls": 10,
-  "tokens": 863,
-  "latency_s": 1.1
+  "stop_reason": "Policy 6: probability 0.97 is at or above 0.85 on 4 independent pieces of evidence, which is the bar for a defensible action. No further evidence was requested because none could change it.",
+  "tool_calls": 12,
+  "tokens": 1049,
+  "latency_s": 1.02
 }

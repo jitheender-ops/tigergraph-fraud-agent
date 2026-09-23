@@ -10,7 +10,7 @@ repeatedly.
   uv run python console_smoke.py
 """
 from __future__ import annotations
-import json, sys, urllib.error, urllib.request
+import json, os, sys, urllib.error, urllib.request
 
 BASE = "http://localhost:8000/api"
 DEVICE = "SM-G610F Build/NRD90M | unknown | chrome 66.0 for android | unknown"
@@ -22,7 +22,8 @@ def call(path, body=None, method=None, timeout=300):
     with no body at all, so it has to be stateable."""
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(
-        BASE + path, data, {"content-type": "application/json"},
+        BASE + path, data, {"content-type": "application/json",
+                            "x-analyst-token": os.getenv("ANALYST_TOKEN", "")},
         method=method or ("POST" if body is not None else "GET"))
     try:
         return json.load(urllib.request.urlopen(req, timeout=timeout))
@@ -127,6 +128,13 @@ def main():
        len(call("/intelligence?min_cases=10")["entities"]) <= len(intel["entities"]))
 
     # --- writes to the graph -------------------------------------------------
+    # A blacklist is a confirmed-fraud case on a real device, and memory retrieves it for
+    # every later investigation on that device -- so a routine smoke run must not leave
+    # one behind. It runs only when asked: --graph-writes. (It polluted HHG-011 once.)
+    if "--graph-writes" not in sys.argv:
+        print("  skip blacklist writes                 pass --graph-writes on a disposable graph")
+        print(f"\n{'all console checks passed' if not failures else f'{failures} FAILED'}")
+        sys.exit(1 if failures else 0)
     b1 = call("/device/blacklist", {"device_profile": DEVICE, "note": "smoke test"})
     b2 = call("/device/blacklist", {"device_profile": DEVICE, "note": "smoke test"})
     ok("blacklist writes", b1.get("closed_case_id"), b1.get("closed_case_id"))

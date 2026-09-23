@@ -3,7 +3,7 @@
   "case": {
     "status": "closed_fraud",
     "verdict": "fraud",
-    "fraud_probability": 0.85,
+    "fraud_probability": 0.91,
     "pattern": "account_takeover",
     "pattern_description": "",
     "affected_txn_ids": [
@@ -51,6 +51,18 @@
         ]
       },
       {
+        "claim": "The 5 closed cases whose transaction most resembles this one (CC-0136, CC-4744, CC-5427, CC-3543, CC-4325) closed as 5 confirmed fraud (account takeover, out of region use) and 0 cleared. Cited as memory; it carries no weight, because it resembles on the same features the score already uses",
+        "source": "graph",
+        "ref": "query:similar_cases",
+        "entity_ids": [
+          "CC-0136",
+          "CC-4744",
+          "CC-5427",
+          "CC-3543",
+          "CC-4325"
+        ]
+      },
+      {
         "claim": "The cardholder contacted the bank stating they did not make this purchase",
         "source": "customer",
         "ref": "trigger:customer_report",
@@ -92,9 +104,14 @@
       "CC-3327",
       "CC-2935",
       "CC-2817",
-      "CC-1589"
+      "CC-1589",
+      "CC-0136",
+      "CC-4744",
+      "CC-5427",
+      "CC-3543",
+      "CC-4325"
     ],
-    "summary": "The case for card C08623-K2 concerns a $49.00 in-person transaction on 2016-12-10. Customer ID undisclosed reported they did not make the purchase, 3 of the card-detail match flags M1-M9 came back F, and 13 transactions occurred on the card in the 48 hours ending at the flagged one. The bank has 5 confirmed-fraud case(s) already closed on this card (CC-4957, CC-3682, CC-3327, CC-2935). External email-domain intelligence classifies 'me.com' as an address tied to a paid internet, cable or phone subscription, which means a billing relationship and a credit check stand behind it. The card was placed in the graph's giant device-sharing component (2,500 cards), and known fraud pattern 5 assessed the activity as mixed-channel consistent with stolen credentials at probability 0.85. The verdict is fraud with exposure of $49.00 and case ID undisclosed.",
+    "summary": "The cardholder reported that they did not make the $49.00 in-person transaction on 2016-12-10 on card C08623-K2, which was assessed as mixed-channel activity consistent with stolen credentials at probability 0.91. Three of the card-detail match flags M1-M9 came back F on this transaction, 13 transactions occurred on this card in the 48 hours ending at the flagged one, and the bank has 5 confirmed-fraud case(s) already closed on this card (CC-4957, CC-3682, CC-3327, CC-2935). External email-domain intelligence classifies 'me.com' as an address tied to a paid internet, cable or phone subscription, which means a billing relationship and a credit check stand behind it, pointing away from fraud with log-likelihood ratio -1.24, while known fraud pattern 5 identified account takeover with device and match-flag anomalies. Policy rule R2 recommends `BLOCK_CARD` and `CREATE_CASE`, and the case should be assigned case ID CC-0136, CC-4744, CC-5427, CC-3543, or CC-4325. The 5 closed cases whose transaction most resembles this one (CC-0136, CC-4744, CC-5427, CC-3543, CC-4325) closed as 5 confirmed fraud (account takeover, out of region use) and 0 cleared, and connected components placed this card in the graph's giant device-sharing component (2,500 cards). The exposure is $49.00 and the pattern is account_takeover.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-003"
   },
@@ -114,7 +131,7 @@
       {
         "action": "VERIFY_WITH_CUSTOMER",
         "route": "auto",
-        "reason": "R1: probability 0.85 is below 0.70; ask the cardholder before taking any action with customer impact."
+        "reason": "R1: probability 0.91 is below 0.70; ask the cardholder before taking any action with customer impact."
       },
       {
         "action": "MONITOR_CARD",
@@ -149,8 +166,8 @@
     "total_amount_usd": 0,
     "activity_dates": []
   },
-  "stop_reason": "Policy 6: probability 0.85 on 4 independent pieces of evidence sits between the stopping thresholds. Stopping here because the remaining uncertainty is the cardholder's own intent, which only the cardholder or an analyst can resolve; the recommended actions route it to them rather than resolving it in the graph.",
-  "tool_calls": 10,
-  "tokens": 1062,
-  "latency_s": 0.66
+  "stop_reason": "Policy 6: probability 0.91 is at or above 0.85 on 5 independent pieces of evidence, which is the bar for a defensible action. No further evidence was requested because none could change it.",
+  "tool_calls": 12,
+  "tokens": 1307,
+  "latency_s": 0.67
 }

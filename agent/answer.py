@@ -29,6 +29,10 @@ def build(trigger, r, llm=None, backend=None) -> dict:
     status = {"fraud": "closed_fraud", "legitimate": "closed_legitimate",
               "uncertain": "escalated" if any(a["action"] == "ESCALATE_TO_ANALYST"
                                               for a in r["final"]) else "open"}[verdict]
+    # The spec: "`open` means more evidence is still pending". A verification nobody
+    # answered is pending, so a case resting on it is not closed, whatever the verdict.
+    if verdict == "fraud" and any(q.get("_no_reply") for q in r["requests"]):
+        status = "open"
 
     evidence = [{
         "claim": s.claim,
@@ -38,11 +42,15 @@ def build(trigger, r, llm=None, backend=None) -> dict:
     } for s in sig]
 
     prior_ids = [p["case_id"] for p in r["prior"]][:8] + \
-                [p["case_id"] for p in r["dev_prior"]][:4]
+                [p["case_id"] for p in r["dev_prior"]][:4] + \
+                [h["case_id"] for h in r.get("similar", [])]
     prior_ids = list(dict.fromkeys(prior_ids))
 
     reported_pattern = pattern if verdict != "legitimate" else "none"
-    graph_case_id = f"CASE-2016-{trigger['case_id'].split('-')[1]}"
+    # HHG-001 and MON-001 once both claimed CASE-2016-001. Only the benchmark cases get
+    # the bare number; anything else keeps its prefix letter, as monitor.py writes it.
+    kind, num = trigger["case_id"].split("-", 1)
+    graph_case_id = f"CASE-2016-{'' if kind == 'HHG' else kind[0]}{num}"
     summary = _summary(trigger, r)
     if llm:
         summary = llm.polish_summary(summary, r) or summary
@@ -75,7 +83,8 @@ def build(trigger, r, llm=None, backend=None) -> dict:
         },
         "evidence_requests": [
             {"type": q["type"], "asked_after_step": q["asked_after_step"],
-             "reason": q["reason"], "assumed_response": q["assumed_response"]}
+             "reason": q["reason"], "assumed_response": q["assumed_response"],
+             "simulated": q.get("simulated", True)}
             for q in r["requests"]
         ],
         "next_best_actions": {
@@ -268,8 +277,4 @@ def _what_changed(r):
 
 def _stop(r):
     import policy as pol
-    # "answered" means a reply that carried information. An analyst note that changes
-    # nothing, or a customer who never replied, did not settle anything.
-    answered = any(q["_confirmed"] or q["_denied"] for q in r["requests"])
-    return pol.stop_reason(r["prob"], r["n_ind"], r["verdict"], bool(r["requests"]),
-                           answered)
+    return pol.stop_reason(r["prob"], r["n_ind"], r["stop_kind"])
