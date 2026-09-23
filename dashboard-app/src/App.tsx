@@ -4,7 +4,7 @@ import { AlertCircle, FileText, CheckCircle2, AlertTriangle, ShieldX, Briefcase,
 import { ScrambleText } from './components/ScrambleText';
 import { SpotlightCard } from './components/SpotlightCard';
 import { Waterfall, Network, Timeline, PriorCase } from './components/Views';
-import { RouteChip } from './components/Decide';
+import { RouteChip, OpenCase } from './components/Decide';
 import { ACTIONS } from './api';
 import { Intelligence, Ledger } from './components/Intel';
 
@@ -14,7 +14,7 @@ export default function App() {
   const [data, setData] = useState<any[]>([]);
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
   const [activeCase, setActiveCase] = useState<any | null>(null);
-  const [tab, setTab] = useState<'cases' | 'monitoring' | 'intel'>('cases');
+  const [tab, setTab] = useState<'cases' | 'monitoring' | 'api' | 'intel'>('cases');
   const [ledgerTick, setLedgerTick] = useState(0);
   
   // Interactions
@@ -198,6 +198,12 @@ export default function App() {
               Monitoring
             </button>
             <button
+              onClick={() => {setTab('api'); setSelectedCaseId(null);}}
+              className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider transition-colors ${tab === 'api' ? 'bg-white shadow-sm text-ink' : 'text-muted hover:text-ink'}`}
+            >
+              Live
+            </button>
+            <button
               onClick={() => {setTab('intel'); setSelectedCaseId(null);}}
               className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider transition-colors ${tab === 'intel' ? 'bg-white shadow-sm text-ink' : 'text-muted hover:text-ink'}`}
             >
@@ -213,6 +219,9 @@ export default function App() {
         </button>
 
         <div className="flex-1 overflow-y-auto">
+          {tab === 'api' && (
+            <OpenCase onOpened={(id) => { fetchCases(); setSelectedCaseId(id); }} />
+          )}
           {filteredData.map((item, idx) => (
             <motion.div 
               initial={{ opacity: 0, y: 10 }}

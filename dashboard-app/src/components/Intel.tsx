@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ShieldCheck, Clock } from 'lucide-react';
+import { api } from '../api';
 
 /** Memory that tells you something, rather than memory you can query.
  *
@@ -86,9 +87,22 @@ export function Intelligence({ onPickCase }: { onPickCase: (id: string) => void 
  *  this existed that was a label on a list. */
 export function Ledger({ caseId, refresh }: { caseId: string; refresh: number }) {
   const [d, setD] = useState<any>(null);
+  const [tick, setTick] = useState(0);
+  const [approver, setApprover] = useState('');
+  const [token, setToken] = useState('');
+  const [msg, setMsg] = useState('');
   useEffect(() => {
     fetch(`/api/case/${caseId}/ledger`).then(r => r.json()).then(setD).catch(() => {});
-  }, [caseId, refresh]);
+  }, [caseId, refresh, tick]);
+  const release = async (action: string) => {
+    try {
+      const r = await api.release(caseId, action, approver, token);
+      setMsg(`${action} released by ${r.result.approved_by} (${r.result.approver_level}).`);
+    } catch (e) {
+      setMsg(String(e).slice(0, 200));
+    }
+    setTick(t => t + 1);
+  };
   if (!d || !d.ledger.length) {
     return (
       <p className="text-muted font-serif italic">
@@ -97,8 +111,22 @@ export function Ledger({ caseId, refresh }: { caseId: string; refresh: number })
       </p>
     );
   }
+  const executed = new Set(d.ledger.filter((r: any) => r.status === 'executed').map((r: any) => r.action));
+  const held = d.ledger.some((r: any) => r.status !== 'executed' && !executed.has(r.action));
   return (
     <div className="border border-line bg-white divide-y divide-line">
+      {held && (
+        <div className="p-4 flex flex-wrap gap-2 items-center bg-paper">
+          <span className="font-mono text-[10px] uppercase tracking-widest text-muted">Approver</span>
+          <input value={approver} onChange={(e) => setApprover(e.target.value)} placeholder="name"
+            className="border border-line px-2 py-1 text-sm bg-white focus:outline-none focus:border-crimson" />
+          <input value={token} onChange={(e) => setToken(e.target.value)} placeholder="approver token"
+            type="password" autoComplete="off"
+            className="border border-line px-2 py-1 text-sm bg-white focus:outline-none focus:border-crimson" />
+          <span className="text-xs text-muted">The token sets your tier; L1 cannot release L2 work.</span>
+          {msg && <div className="w-full text-sm text-ink/80">{msg}</div>}
+        </div>
+      )}
       {d.ledger.map((r: any, i: number) => (
         <div key={i} className="p-4 flex flex-wrap gap-3 items-baseline">
           {r.status === 'executed'
@@ -112,6 +140,13 @@ export function Ledger({ caseId, refresh }: { caseId: string; refresh: number })
             <span className="font-mono text-[10px] text-emerald-700">{r.reference}</span>
           )}
           <span className="font-mono text-[10px] text-muted ml-auto">{r.at.split('T')[1]}</span>
+          {r.status !== 'executed' && !executed.has(r.action) && (
+            <button disabled={!approver || !token} onClick={() => release(r.action)}
+              className="px-3 py-1 border border-ink text-[10px] font-bold uppercase tracking-widest
+                         hover:bg-ink hover:text-paper transition-colors disabled:opacity-30">
+              Release ({r.route})
+            </button>
+          )}
           <div className="w-full text-sm text-ink/80">{r.effect}</div>
         </div>
       ))}

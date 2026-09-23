@@ -2,10 +2,10 @@
 // side; none of it edits an answer file in the browser.
 export type Diff = Record<string, [unknown, unknown]>;
 
-async function call<T>(path: string, body?: unknown): Promise<T> {
+async function call<T>(path: string, body?: unknown, headers: Record<string, string> = {}): Promise<T> {
   const res = await fetch(`/api${path}`, {
     method: body === undefined ? 'GET' : 'POST',
-    headers: body === undefined ? undefined : { 'content-type': 'application/json' },
+    headers: body === undefined ? headers : { 'content-type': 'application/json', ...headers },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (!res.ok) throw new Error((await res.text()).slice(0, 300));
@@ -28,6 +28,11 @@ export const api = {
     call<any>(`/case/${id}/close`, { outcome, note }),
   blacklist: (device_profile: string, note: string) =>
     call<any>('/device/blacklist', { device_profile, note }),
+  // the approval tier comes from the token, server side; the UI only carries it
+  release: (id: string, action: string, approver: string, token: string) =>
+    call<any>(`/case/${id}/release`, { action, approver }, { 'X-Approver-Token': token }),
+  open: (card_id: string, txn_id: number, trigger_type: string, trigger_text: string) =>
+    call<any>('/cases', { card_id, txn_id, trigger_type, trigger_text }),
 };
 
 // Every action the policy knows, for the override picker. Routing is decided server

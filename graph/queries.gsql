@@ -124,6 +124,19 @@ CREATE OR REPLACE QUERY prior_cases_for_card(STRING p_card_id) FOR GRAPH FraudIn
 }
 
 // ---------------------------------------------------------------------------
+// 6b. Policy R10: which of this customer's cards already carry a confirmed-fraud
+//     closed case. BLOCK_ALL_CARDS needs two; without this the rule cannot fire.
+// ---------------------------------------------------------------------------
+CREATE OR REPLACE QUERY customer_confirmed_cards(STRING p_customer_id) FOR GRAPH FraudInvestigation {
+  Start = {Customer.*};
+  C = SELECT c FROM Start:c WHERE c.customer_id == p_customer_id;
+  D = SELECT d FROM C:c -(OWNS>)- Card:d;
+  K = SELECT k FROM D:d -(HAS_CLOSED_CASE>)- ClosedCase:k
+      WHERE k.outcome == "confirmed_fraud";
+  PRINT K[K.case_id, K.card_id, K.opened_at] AS confirmed;
+}
+
+// ---------------------------------------------------------------------------
 // 7. Closed cases that touched this device profile — the strongest memory
 //    signal there is: this exact device already produced confirmed fraud.
 // ---------------------------------------------------------------------------

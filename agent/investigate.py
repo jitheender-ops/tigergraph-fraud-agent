@@ -30,6 +30,15 @@ def is_recurring_charge(f) -> bool:
             and 20 <= float(gap) <= 45)
 
 
+def step_up_passes(f) -> bool:
+    """Simulated OTP outcome. The code goes to the cardholder's registered phone, so it
+    fails when the party transacting is not the cardholder. Deciding it off our own
+    probability would only echo the prior back as evidence; instead it turns on what the
+    session itself shows: a device this card has used before, not behind a proxy.
+    ponytail: a heuristic stand-in; replace with the real auth response when one exists."""
+    return not f.get("dev_new") and not f.get("proxy")
+
+
 def device_link_is_meaningful(f) -> bool:
     """Is this device profile actually a link, or just a common configuration?
 
@@ -123,6 +132,9 @@ class Investigation:
         if f["device_profile"] and f["dev_specific"] and f["dev_cards"] <= 50:
             d = self.b.prior_cases_for_device(f["device_profile"], before=self.now)
             dev_prior = d.to_dict("records") if len(d) else []
+        # R10: the customer's cards the bank has already confirmed as defrauded
+        confirmed_cards = set(self.b.customer_confirmed_cards(t["customer_id"],
+                                                              before=self.now))
 
         # 6b. the one source outside the bank: what kind of email domain this is.
         self.step("look the purchaser email domain up with external intelligence")
@@ -240,7 +252,7 @@ class Investigation:
             pattern=pattern if verdict != "legitimate" else "none", trigger_type=trigger_type,
             customer_denied=customer_disputed and not recurring, customer_confirmed=False,
             recurring=recurring, connected_cards=connected, shared_element=shared_element,
-            n_confirmed_cards=0, phase="initial")
+            n_confirmed_cards=len(confirmed_cards), phase="initial")
         file0, why0 = pol.should_file_report(verdict, prob, exposure, bool(connected),
                                              pattern == P.P_UNDOC and bool(connected))
         initial = pol.apply_sar(initial, file0, exposure, why0)
@@ -277,12 +289,16 @@ class Investigation:
         else:
             exposure = episode["exposure"]
 
+        # this card joins the confirmed set only once the cardholder has denied it and
+        # the evidence agrees; the agent's own verdict alone is a suspicion.
+        if customer_denied and verdict == "fraud":
+            confirmed_cards.add(card_id)
         final = pol.decide_actions(
             prob=prob, verdict=verdict, exposure=exposure, signals=self.signals,
             pattern=pattern if verdict != "legitimate" else "none", trigger_type=trigger_type,
             customer_denied=customer_denied, customer_confirmed=customer_confirmed,
             recurring=recurring, connected_cards=connected, shared_element=shared_element,
-            n_confirmed_cards=0, phase="final", no_reply=no_reply)
+            n_confirmed_cards=len(confirmed_cards), phase="final", no_reply=no_reply)
         file1, why1 = pol.should_file_report(verdict, prob, exposure, bool(connected),
                                              pattern == P.P_UNDOC and bool(connected))
         final = pol.apply_sar(final, file1, exposure, why1)
@@ -305,6 +321,7 @@ class Investigation:
             "initial": initial, "final": final, "requests": requests,
             "sar_file": file1, "sar_reason": why1, "n_ind": n_ind, "steps": self.steps,
             "recurring": recurring, "answered": bool(requests),
+            "confirmed_cards": sorted(confirmed_cards),
             "latency_s": round(time.time() - self.t0, 2),
         }
 
@@ -390,16 +407,17 @@ class Investigation:
                          "_no_reply": not reply})
 
         if pol.STEP_UP_AUTH in wanted and not reqs:
-            passed = prob < 0.55
+            passed = step_up_passes(f)
             reqs.append({"type": "step_up_auth", "asked_after_step": step_no, "_no_reply": False,
                          "assumed_response": (
                              "One-time passcode completed successfully from the cardholder's "
-                             "registered number. ASSUMPTION: simulated; no authentication "
-                             "responses ship with the dataset."
+                             "registered number."
                              if passed else
                              "Step-up authentication was not completed; the challenge expired "
-                             "unanswered. ASSUMPTION: simulated; no authentication responses "
-                             "ship with the dataset."),
+                             "unanswered.")
+                             + " ASSUMPTION: simulated; no authentication responses ship with "
+                               "the dataset. Derived from the session (new device or proxy "
+                               "fails it), not from the agent's own probability.",
                          "_confirmed": passed, "_denied": not passed})
 
         if pol.ESCALATE_TO_ANALYST in wanted:

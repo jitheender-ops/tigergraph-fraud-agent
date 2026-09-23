@@ -33,6 +33,10 @@ def main(out="cases"):
     txns = {str(r[0]) for r in con.sql("SELECT txn_id FROM tx").fetchall()}
     cards = {r[0] for r in con.sql("SELECT DISTINCT card_id FROM tx").fetchall()}
     ccs = {r[0] for r in con.sql("SELECT case_id FROM closed_case").fetchall()}
+    # cases an analyst closed from the console on the DuckDB mirror are real memory too
+    log = pathlib.Path("build/console_closed_cases.jsonl")
+    if log.exists():
+        ccs |= {json.loads(l)["case_id"] for l in log.read_text().splitlines() if l.strip()}
     devs = {r[0] for r in con.sql("SELECT DISTINCT device_profile FROM tx WHERE device_profile IS NOT NULL").fetchall()}
     expect = [r[0] for r in con.sql("SELECT case_id FROM case_pack ORDER BY case_id").fetchall()]
 

@@ -12,7 +12,7 @@ not a judgement -- and even that is validated against the signals actually prese
   uv run uvicorn server:app --reload --port 8000
 """
 from __future__ import annotations
-import datetime as dt, hashlib, json, os, pathlib, sys, threading
+import datetime as dt, hashlib, hmac, json, os, pathlib, sys, threading
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "agent"))
 
@@ -20,7 +20,7 @@ from dotenv import load_dotenv
 load_dotenv()
 import math
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -29,11 +29,12 @@ import execute as X
 import patterns as P
 import policy as pol
 from backend import ToolLog
-from investigate import Investigation
+from investigate import Investigation, step_up_passes
 from run import get_backend
 
 BACKEND = os.getenv("CONSOLE_BACKEND", "tigergraph")
 CASES, MONITORING = pathlib.Path("cases"), pathlib.Path("monitoring")
+API_CASES = pathlib.Path("build/api_cases")
 
 app = FastAPI(title="Fraud Investigation Console")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"],
@@ -100,6 +101,7 @@ class Case:
         self.ring_cap: int | None = None
         self.closed: str | None = None
         self.signals = None        # real Signal objects, filled by the first re-run
+        self.features = None       # the feature row, for the step-up simulation
 
         # Steering re-runs the investigation and writes back onto this object; two
         # requests for one case must not interleave. FastAPI runs sync endpoints in a
@@ -132,7 +134,7 @@ def load():
         for k, v in list(t.items()):
             if isinstance(v, float) and v != v:
                 t[k] = None
-    for folder, source in ((CASES, "cases"), (MONITORING, "monitoring")):
+    for folder, source in ((CASES, "cases"), (MONITORING, "monitoring"), (API_CASES, "api")):
         for p in sorted(folder.glob("*.json")):
             a = json.loads(p.read_text())
             cid = a["case_id"]
@@ -182,7 +184,7 @@ def rerun(c: Case) -> dict:
                       analyst_signals=c.analyst_signals, ring_cap=c.ring_cap).run()
     out = ans.build(c.trigger, r, backend=b)
     out["tool_calls"], out["tokens"] = log.count, 0
-    c.signals = r["signals"]
+    c.signals, c.features = r["signals"], r["f"]
     ring = next((x for x in r["signals"] if x.name == "ring_component"), None)
     before_ring, c.ring_size = getattr(c, "ring_size", None), _ring_size(ring)
     before = c.answer
@@ -331,9 +333,10 @@ def stepup(cid: str):
     c = get(cid)
     if c.closed:
         raise HTTPException(409, "case is closed")
-    prob = c.answer["case"]["fraud_probability"]
-    passed = prob < 0.55       # same rule the offline loop uses
     with c.lock:
+        if c.features is None:
+            rerun(c)
+        passed = step_up_passes(c.features)     # same rule the offline loop uses
         c.analyst_signals = [x for x in c.analyst_signals if x.name != "step_up"]
         c.analyst_signals.append(P.Signal(
             "step_up", P.W["customer_confirmed"] if passed else P.W["customer_denied"],
@@ -473,6 +476,8 @@ def decide(cid: str, body: Decision):
     sees the L2 approval it demands.
     """
     c = get(cid)
+    if c.closed:
+        raise HTTPException(409, "case is closed")
     final = c.answer["next_best_actions"]["final"]
     if body.decision == "approve":
         done = [X.execute(cid, a, _ctx(c)) for a in final]
@@ -496,6 +501,87 @@ def decide(cid: str, body: Decision):
           replaced=[a["action"] for a in final])
     return {"action": body.action, "route": route, "result": rec,
             "ledger": X.history(cid), "events": c.events}
+
+
+class Release(BaseModel):
+    action: str
+    approver: str = Field(..., min_length=1, max_length=80)
+
+
+def _approver_level(token: str | None) -> str | None:
+    """The approval tier comes from the credential, never from the request body: an
+    analyst who could simply say "I am L2" would make the routing table decorative.
+    ponytail: static shared tokens from .env; swap for SSO roles before real use."""
+    for level in ("L2", "L1"):
+        want = os.getenv(f"APPROVER_TOKEN_{level}")
+        if want and token and hmac.compare_digest(token, want):
+            return level
+    return None
+
+
+@app.post("/api/case/{cid}/release")
+def release(cid: str, body: Release, x_approver_token: str | None = Header(None)):
+    """Release one action the policy held for L1/L2 approval. Until this existed an
+    approved case's BLOCK_CARD sat at awaiting_approval with no way to run it."""
+    c = get(cid)
+    if c.closed:
+        raise HTTPException(409, "case is closed")
+    level = _approver_level(x_approver_token)
+    if not level:
+        raise HTTPException(401, "a valid X-Approver-Token is required "
+                                 "(APPROVER_TOKEN_L1 / APPROVER_TOKEN_L2 in .env)")
+    try:
+        rec = X.release(cid, body.action, level, body.approver, _ctx(c))
+    except PermissionError as e:
+        raise HTTPException(403, str(e))
+    except LookupError as e:
+        raise HTTPException(404, str(e))
+    c.log("release", f"{body.approver} ({level}) released {body.action}",
+          action=body.action, approver=body.approver, level=level)
+    return {"result": rec, "ledger": X.history(cid), "events": c.events}
+
+
+class NewCase(BaseModel):
+    card_id: str
+    txn_id: int
+    trigger_type: str = Field(..., pattern="^(risk_score|customer_report|analyst_request)$")
+    trigger_text: str = ""
+
+
+@app.post("/api/cases")
+def open_case(body: NewCase):
+    """Trigger an investigation live. Every other case arrives from a batch run; this is
+    the entry point a model alert, a cardholder call or an analyst would actually use."""
+    cid = f"API-{body.txn_id}"
+    if cid in STORE:
+        raise HTTPException(409, f"{cid} is already open")
+    log = ToolLog()
+    b = backend(log)
+    try:
+        f = b.features(body.card_id, body.txn_id)
+    except (LookupError, IndexError):
+        raise HTTPException(404, f"transaction {body.txn_id} is not on card {body.card_id}")
+    risk = f.get("risk_score")
+    trigger = {
+        "case_id": cid, "opened_at": f["ts"], "trigger_type": body.trigger_type,
+        "trigger_text": body.trigger_text or f"{body.trigger_type} raised via the console API.",
+        "flagged_txn_id": body.txn_id, "card_id": body.card_id,
+        "customer_id": f["customer_id"],
+        "risk_score": None if risk is None or risk != risk else float(risk),
+    }
+    r = Investigation(b, trigger).run()
+    out = ans.build(trigger, r, backend=b)
+    out["tool_calls"], out["tokens"] = log.count, 0
+    # persisted beside the other answer files so a restart does not lose the case
+    API_CASES.mkdir(parents=True, exist_ok=True)
+    (API_CASES / f"{cid}.json").write_text(json.dumps(out, indent=2, default=str))
+    tp = pathlib.Path("build/triggers.json")
+    have = json.loads(tp.read_text()) if tp.exists() else {}
+    tp.write_text(json.dumps({**have, cid: trigger}, indent=1, default=str))
+    c = STORE[cid] = Case(out, trigger, "api")
+    c.signals, c.features = r["signals"], r["f"]
+    c.log("open", f"investigation triggered by {body.trigger_type}")
+    return {"case_id": cid, **out}
 
 
 class Close(BaseModel):
@@ -561,9 +647,13 @@ def blacklist(body: Blacklist):
     # the same everywhere, which is what an identifier derived from content has to be.
     digest = hashlib.blake2s(body.device_profile.encode(), digest_size=4).hexdigest()
     case_id = f"CC-BL{digest}"
+    # Memory queries only count cases opened before the investigation's own date, so a
+    # blacklist stamped at year end was invisible to every 2016 case. Stamp it just
+    # before the device's first transaction: the verdict covers everything it ran.
+    first = (txns.ts.min() - dt.timedelta(seconds=1)) if len(txns) else dt.datetime(2016, 1, 1)
     written = _write_closed_case({
         "p_case_id": case_id, "p_customer_id": "", "p_card_id": "",
-        "p_opened_at": "2016-12-31 23:59:59",
+        "p_opened_at": first.strftime("%Y-%m-%d %H:%M:%S"),
         "p_closed_at": dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "p_outcome": "confirmed_fraud", "p_pattern": "undocumented",
         "p_first_txn_id": txn_ids[0] if txn_ids else "", "p_n_txns": len(txn_ids),
@@ -591,11 +681,7 @@ def _ring_size(sig) -> int | None:
 
 
 def _write_closed_case(params) -> bool:
-    b = backend()
-    if not hasattr(b, "conn"):
-        return False          # duckdb mirror: nothing to write to
-    b.conn.runInstalledQuery("write_closed_case", params)
-    return True
+    return backend().write_closed_case(params)
 
 
 def _signal_names(c: Case) -> dict[str, str]:

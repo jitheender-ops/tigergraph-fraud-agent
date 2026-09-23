@@ -11,12 +11,24 @@ import datetime as dt, json, os
 TOOL_NAMES = [
     "card_window", "card_baseline", "device_neighbors", "region_history",
     "card_testing_probe", "prior_cases_for_card", "prior_cases_for_device",
+    "customer_confirmed_cards",
     "connected_cards", "region_cluster", "device_reach", "ring_component",
     "doc_search", "email_intel", "cross_case_entities", "write_case",
 ]
 
 
 CASE_LOG = "build/graph_cases.jsonl"
+# Cases an analyst closes from the console while it runs on the DuckDB mirror. The mirror
+# is opened read-only, so they land here and a temp view folds them into closed_case --
+# every memory query then retrieves them exactly as TigerGraph retrieves a ClosedCase.
+CLOSED_LOG = "build/console_closed_cases.jsonl"
+_CLOSED_COLS = {
+    "case_id": "VARCHAR", "customer_id": "VARCHAR", "card_id": "VARCHAR",
+    "opened_at": "TIMESTAMP", "closed_at": "TIMESTAMP", "outcome": "VARCHAR",
+    "pattern": "VARCHAR", "first_fraud_txn_id": "BIGINT", "txn_ids": "VARCHAR",
+    "n_txns": "BIGINT", "exposure_usd": "DOUBLE", "connected_card_ids": "VARCHAR",
+    "actions_taken": "VARCHAR", "report_filed": "BOOLEAN", "analyst_notes": "VARCHAR",
+}
 
 
 def reset_case_log(path: str = CASE_LOG):
@@ -47,6 +59,36 @@ class DuckDBBackend:
         import duckdb
         self.con = duckdb.connect(path, read_only=True)
         self.log = log or ToolLog()
+        os.makedirs(os.path.dirname(CLOSED_LOG), exist_ok=True)
+        open(CLOSED_LOG, "a").close()
+        db = self.con.sql("SELECT current_database()").fetchone()[0]
+        cols = "{" + ", ".join(f"'{k}': '{v}'" for k, v in _CLOSED_COLS.items()) + "}"
+        self.con.execute(f"""
+            CREATE TEMP VIEW closed_case AS
+            SELECT * FROM "{db}".main.closed_case
+            UNION ALL BY NAME
+            SELECT * FROM read_json('{CLOSED_LOG}', columns={cols},
+                                    format='newline_delimited')""")
+
+    def write_closed_case(self, p) -> bool:
+        """The console's close/blacklist write, in the mirror's own column names."""
+        row = {
+            "case_id": p["p_case_id"], "customer_id": p["p_customer_id"],
+            "card_id": p["p_card_id"], "opened_at": p["p_opened_at"],
+            "closed_at": p["p_closed_at"], "outcome": p["p_outcome"],
+            "pattern": p["p_pattern"],
+            "first_fraud_txn_id": int(p["p_first_txn_id"]) if p["p_first_txn_id"] else None,
+            "txn_ids": "|".join(p["p_txn_ids"]), "n_txns": p["p_n_txns"],
+            "exposure_usd": p["p_exposure"],
+            "connected_card_ids": "|".join(p["p_connected_cards"]) or None,
+            "actions_taken": p["p_actions_taken"],
+            "report_filed": p["p_report_filed"] == "True",
+            "analyst_notes": p["p_analyst_notes"],
+        }
+        with open(CLOSED_LOG, "a") as fh:
+            fh.write(json.dumps(row) + "\n")
+        self.log.record("write_closed_case", {"case_id": row["case_id"]}, 1)
+        return True
 
     def _df(self, name, sql, params, rows_from=None):
         df = self.con.execute(sql, params).df()
@@ -117,6 +159,17 @@ class DuckDBBackend:
             sql += " AND c.opened_at < ?"
             p.append(before)
         return self._df("prior_cases_for_device", sql + " ORDER BY c.opened_at DESC LIMIT 25", p)
+
+    # 6b -------------------------------------------------------------------
+    def customer_confirmed_cards(self, customer_id, before=None):
+        """Policy R10: this customer's cards with a confirmed-fraud closed case."""
+        sql = """SELECT DISTINCT card_id FROM closed_case
+                 WHERE customer_id = ? AND outcome = 'confirmed_fraud'"""
+        p = [customer_id]
+        if before is not None:
+            sql += " AND opened_at < ?"
+            p.append(before)
+        return sorted(self._df("customer_confirmed_cards", sql, p).card_id.tolist())
 
     # 8 --------------------------------------------------------------------
     def connected_cards(self, card_id, t_from, t_to):
@@ -370,6 +423,14 @@ class TigerGraphBackend:
         return (df.sort_values("opened_at", ascending=False).head(25)
                 if len(df) else df)
 
+    def customer_confirmed_cards(self, customer_id, before=None):
+        import pandas as pd
+        df = self._frame(self._run("customer_confirmed_cards",
+                                   {"p_customer_id": customer_id}), "confirmed")
+        if before is not None and len(df):
+            df = df[df.opened_at < pd.Timestamp(before)]
+        return sorted(set(df.card_id)) if len(df) else []
+
     def connected_cards(self, card_id, t_from, t_to):
         r = self._run("connected_cards", {"p_card_id": card_id, "p_from": self._ts(t_from),
                                           "p_to": self._ts(t_to)})
@@ -564,6 +625,10 @@ class TigerGraphBackend:
         for row in self._rows(r, "device"):
             return int(row.get("n_cards") or 0)
         return 0
+
+    def write_closed_case(self, params) -> bool:
+        self._run("write_closed_case", params)
+        return True
 
     def write_case(self, payload):
         self._run("write_case", {
