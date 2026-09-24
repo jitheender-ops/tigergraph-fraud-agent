@@ -25,6 +25,8 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState(false);
   const [notice, setNotice] = useState('');
+  // what the last steering action did, in words -- it used to be thrown away
+  const [outcome, setOutcome] = useState('');
   const [tok, setTok] = useState(token.get());
 
   useEffect(() => {
@@ -45,6 +47,7 @@ export default function App() {
   };
 
   useEffect(() => {
+    setOutcome('');
     if (selectedCaseId) {
       setLoading(true);
       fetch(`${API}/case/${selectedCaseId}`)
@@ -66,7 +69,20 @@ export default function App() {
         body: payload ? JSON.stringify(payload) : undefined
       });
       // a refused change must say so; it used to fail silently
-      setNotice(res.ok ? '' : `${endpoint}: ${(await res.text()).slice(0, 200)}`);
+      const body = await res.text();
+      setNotice(res.ok ? '' : `${endpoint}: ${body.slice(0, 200)}`);
+      if (res.ok) {
+        const d = JSON.parse(body);
+        const ch = d.changed;
+        const moved = ch ? ` · probability ${ch.probability[0]} → ${ch.probability[1]}` +
+          (ch.verdict[0] !== ch.verdict[1] ? ` · verdict ${ch.verdict[0]} → ${ch.verdict[1]}` : '') : '';
+        setOutcome(
+          endpoint === 'challenge' ? (d.matched?.length ? `Withdrew ${d.matched.join(', ')}${moved}`
+                                                        : (d.note || 'No signal matched; nothing changed.')) :
+          endpoint === 'reset' ? (d.restored ? `Restored the agent's own assessment${moved}` : (d.note || '')) :
+          endpoint === 'stepup' ? `Step-up ${d.passed ? 'passed (scored 0: an assumed pass clears nothing)' : 'failed'}${moved}` :
+          endpoint === 'deepen' ? `Ring re-computed at a wider cap${ch ? ` · component ${ch.ring_size[0]} → ${ch.ring_size[1]} cards` : ''}${moved}` : '');
+      }
       // Refresh active case state
       const r = await fetch(`${API}/case/${selectedCaseId}`);
       setActiveCase(await r.json());
@@ -355,7 +371,7 @@ export default function App() {
                   <div className="text-2xl font-serif text-ink">${activeCase.case.exposure_usd.toLocaleString()}</div>
                 </div>
                 <div className="bg-white p-6 relative">
-                  <div className="text-[10px] font-bold text-muted uppercase tracking-widest mb-2">Risk Score</div>
+                  <div className="text-[10px] font-bold text-muted uppercase tracking-widest mb-2">Fraud Probability</div>
                   <div className="text-2xl font-serif text-ink">{activeCase.case.fraud_probability.toFixed(2)}</div>
                 </div>
                 <div className="bg-white p-6">
@@ -394,6 +410,9 @@ export default function App() {
                         <Send className="w-4 h-4" />
                       </button>
                     </div>
+                    {outcome && (
+                      <div className="mt-3 text-sm text-ink border-l-2 border-crimson pl-3">{outcome}</div>
+                    )}
                     {activeCase.suppressed?.length > 0 && (
                       <div className="mt-3 text-xs text-muted font-mono flex items-center gap-4">
                         <span>Suppressed signals: {activeCase.suppressed.join(', ')}</span>

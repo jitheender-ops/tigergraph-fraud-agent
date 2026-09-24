@@ -297,3 +297,18 @@ def test_opening_a_case_shows_the_answer_on_disk(console):
     assert d["case"]["summary"] == f["case"]["summary"]
     assert d["evidence_requests"] == f["evidence_requests"]
     assert d["signals"], "the breakdown is still computed"
+
+
+@needs_data
+def test_challenges_match_whole_words_only(console):
+    """As substrings, "ip" matched "trip" and "ring" matched "during": one sentence about a
+    holiday silently withdrew the proxy and device-ring evidence too."""
+    _, server, _ = console
+    names = dict.fromkeys(["region_new_travel", "proxy_noted", "ring_component", "email_domain_intel"], "")
+    import os
+    keys = {k: os.environ.pop(k, None) for k in ("OPENAI_API_KEY", "SARVAM_API_KEY")}
+    try:
+        assert server._match_signals("customer is on a trip during the holidays", names) == ["region_new_travel"]
+        assert server._match_signals("the email domain is their employer", names) == ["email_domain_intel"]
+    finally:
+        os.environ.update({k: v for k, v in keys.items() if v})

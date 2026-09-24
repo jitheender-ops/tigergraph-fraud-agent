@@ -12,7 +12,7 @@ not a judgement -- and even that is validated against the signals actually prese
   uv run uvicorn server:app --reload --port 8000
 """
 from __future__ import annotations
-import contextvars, datetime as dt, hashlib, hmac, json, os, pathlib, sys, threading
+import contextvars, datetime as dt, re, hashlib, hmac, json, os, pathlib, sys, threading
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "agent"))
 
@@ -902,7 +902,10 @@ def _signal_names(c: Case) -> dict[str, str]:
     """
     hydrate(c)
     return {s.name: s.claim for s in c.signals
-            if s.source == "graph" and not s.name.startswith("withdrawn:")}
+            # the graph's evidence and the external vendor's; never the cardholder's or
+            # an analyst's own words, which are not premises to withdraw
+            if s.source in ("graph", "external") and not s.name.startswith("withdrawn:")
+            and s.name not in ("analyst_request", "analyst_context", "analyst_reply")}
 
 
 # Signal names as patterns.py emits them. An objection withdraws the premise it names.
@@ -910,17 +913,21 @@ _OBJECTIONS = [
     (("region", "holiday", "travel", "travelling", "abroad", "trip", "vacation"),
      ("region_new_bad", "region_new_travel")),
     (("new phone", "handset", "upgraded", "new device"), ("device_new",)),
-    (("risk score", "model score", "score"), ("risk_score", "risk_score_mid",
-                                              "risk_score_high")),
+    (("risk score", "model score", "score"), ("risk_score_mid", "risk_score_high")),
     (("match flag", "m1", "mflag", "match flags"), ("m_flags",)),
     (("burst", "volume", "busy"), ("burst",)),
     (("amount", "large", "outlier"), ("amount_outlier",)),
     (("channel",), ("channel_odd",)),
     (("subscription", "recurring", "monthly"), ("recurring",)),
-    (("proxy", "vpn", "ip"), ("proxy", "proxy_noted", "proxy_new_device")),
+    (("proxy", "vpn", "ip"), ("proxy_noted", "proxy_new_device")),
     (("prior case", "previous case", "past case", "older case"),
      ("prior_fraud", "prior_cleared")),
     (("ring", "component", "shared device"), ("device_ring", "ring_component")),
+    (("card testing", "testing", "small auths", "small authorisations", "micro"),
+     ("card_testing",)),
+    (("device history", "blacklisted", "device case", "device fraud"), ("device_prior_fraud",)),
+    (("email", "domain", "webmail"), ("email_domain_intel",)),
+    (("similar cases", "similar case", "lookalike"), ("similar_cases",)),
 ]
 
 
@@ -932,8 +939,11 @@ def _match_signals(text: str, names: dict[str, str]) -> list[str]:
     then its answer is intersected with the signals really present -- it can only choose
     among them, never invent one.
     """
+    # whole words only: as substrings, "ip" matched "trip" and "ring" matched "during",
+    # so "customer is on a trip during the holidays" withdrew the proxy and ring evidence
     low = text.lower()
-    hit = {n for words, targets in _OBJECTIONS if any(w in low for w in words)
+    said = lambda w: re.search(rf"\b{re.escape(w)}\b", low) is not None
+    hit = {n for words, targets in _OBJECTIONS if any(said(w) for w in words)
            for n in targets if n in names}
     if hit or not (os.getenv("OPENAI_API_KEY") or os.getenv("SARVAM_API_KEY")):
         return sorted(hit)
