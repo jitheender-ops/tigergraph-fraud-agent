@@ -133,3 +133,45 @@ def test_release_respects_the_approval_tier(console):
     ev = [e for e in r.json()["events"] if e["kind"] == "release"][-1]
     assert ev["by"] == "kim" and ev["role"] == "L2", ev
     assert all(x.get("requested_by") == "ana" for x in held), "approvals record who asked"
+
+
+class _FakeLLM:
+    """Stands in for the model: returns whatever the test tells it to."""
+    def __init__(self, pick):
+        self.pick = pick
+
+    def choose_next(self, options, r):
+        return self.pick(options)
+
+
+def _planner(llm):
+    inv = importlib.import_module("investigate").Investigation.__new__(
+        importlib.import_module("investigate").Investigation)
+    inv.llm = llm
+    return inv
+
+
+def test_planner_can_only_pick_what_policy_allows():
+    llm_mod = importlib.import_module("llm")
+    # the parser refuses any name it was not offered
+    class R:
+        def __init__(self, text): self.text = text
+    fake = llm_mod.LLM.__new__(llm_mod.LLM)
+    fake._chat = lambda *a, **k: "REQUEST: block_everything\nWHY: because"
+    ctx = {"signals": [], "verdict": "uncertain", "prob": 0.5, "pattern": "none", "exposure": 0.0}
+    assert fake.choose_next({"step_up_auth": "x", "analyst_info": "y"}, ctx) is None
+    fake._chat = lambda *a, **k: "REQUEST: analyst_info\nWHY: exposure is high"
+    assert fake.choose_next({"step_up_auth": "x", "analyst_info": "y"}, ctx) == \
+        ("analyst_info", "exposure is high")
+
+
+def test_planner_falls_back_to_policy_order():
+    opts = ["customer_validation", "step_up_auth"]
+    kind, plan = _planner(_FakeLLM(lambda o: None))._choose(opts, [], {})
+    assert kind == "customer_validation" and plan["chosen_by"] == "policy"
+    kind, plan = _planner(_FakeLLM(lambda o: ("step_up_auth", "cardholder is silent")))._choose(opts, [], {})
+    assert kind == "step_up_auth" and plan["chosen_by"] == "llm" and plan["planner_note"]
+    kind, plan = _planner(None)._choose(opts, [], {})
+    assert kind == "customer_validation", "no LLM: the policy order, deterministically"
+    kind, plan = _planner(_FakeLLM(lambda o: ("analyst_info", "?")))._choose(["step_up_auth"], [], {})
+    assert kind == "step_up_auth" and plan["chosen_by"] == "policy", "one option is not a choice"

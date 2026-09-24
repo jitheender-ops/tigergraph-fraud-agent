@@ -34,7 +34,7 @@ What shipped:
 • three interchangeable backends — pyTigerGraph, TigerGraph MCP, and a local mirror
 • GraphRAG on both halves: connected evidence from the graph plus the policy, the
   typologies and FinCEN guidance retrieved *before* the action decision, never after
-• the fraud policy compiled to code — the LLM writes prose and never picks an action,
+• the fraud policy compiled to code — the LLM plans which evidence to gather and writes the prose, but never picks an action,
   a route, a verdict or a probability
 • connected components over the device-sharing graph, reported and deliberately
   unweighted, because the transitive hull percolates into one giant component at every
@@ -77,7 +77,7 @@ What shipped:
 • 12 installed GSQL queries as the whole tool surface
 • 3 backends: pyTigerGraph, TigerGraph MCP, local mirror
 • GraphRAG both halves — graph evidence + policy/FinCEN retrieved BEFORE the decision
-• policy as code; the LLM writes prose and nothing else
+• policy as code; the LLM plans evidence requests inside policy limits, never actions
 • connected components, reported and deliberately unweighted
 
 ---

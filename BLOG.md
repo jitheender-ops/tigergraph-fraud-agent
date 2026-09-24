@@ -19,7 +19,8 @@ day.
 ## What I built
 
 A trigger-driven investigation loop that runs entirely on graph traversals and a policy
-engine, with an LLM confined to writing prose.
+engine, with an LLM that plans which evidence to gather inside the limits the policy
+sets, and writes the prose.
 
 ```
 trigger ─▶ investigate ─▶ assess ─▶ request evidence ─▶ re-assess ─▶ act ─▶ explain ─▶ remember
@@ -93,10 +94,14 @@ across backends; `prep/backend_diff.py` asserts the whole answer files are. Both
 identifiers, the `auto`/`L1`/`L2` routing table, rules R1–R10. `route_for()` is the only
 place an approval route is decided, so there is exactly one line to audit.
 
-**The LLM writes prose and nothing else.** It never picks an action, a route, a verdict
-or a probability. It rewrites a deterministic draft of the case summary and the SAR
-narrative, and every rewrite is checked afterwards: if it drops or invents an ID or a
-dollar amount, it is discarded and the draft stands.
+**The LLM plans; the policy decides.** It never picks an action, a route, a verdict or a
+probability. It does choose which evidence to ask for next: the policy works out which
+requests are allowed and whether to stop, and when there is a real choice the model reads
+the evidence and picks the most informative one, with its reason written onto the request.
+It can only name an option it was offered; anything else falls back to the policy's order,
+so a bad answer costs a round, never a rule. It also rewrites the deterministic drafts of
+the case summary and SAR narrative, and every rewrite is checked: one that drops or invents
+an ID or a dollar amount is discarded and the draft stands.
 
 ## How TigerGraph is used
 
@@ -199,6 +204,13 @@ ever shared a browser fingerprint", which describes most of the book.
 The easy move is to delete the feature and never mention it. Instead the component is
 reported as evidence — policy R6 requires the shared element to be named — and given
 zero weight, with the sweep table in the source so the next person does not redo it.
+
+The table is not only my implementation's word for it. TigerGraph's own algorithm library
+computes the same partition: `tg_wcc`, installed unmodified from `gsql-graph-algorithms`,
+run over `RING_DEVICE` edges that join each card to every ring-grade device profile it
+used. `prep/ring_parity.py` asserts the two agree component for component — 2,616 cards
+in 52 components, the cap-8 row above. The per-case query expands just the seed card's
+component, which is what an investigation needs; the library runs the whole graph at once.
 
 The bounded tail is where the algorithm earns its keep: components of 4–10 cards run 15
 confirmed fraud against 2 cleared, and their members feed `MONITOR_CONNECTED_CARDS` even

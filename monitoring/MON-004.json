@@ -84,7 +84,7 @@
       "CC-4776",
       "CC-4827"
     ],
-    "summary": "Monitoring sweep on card C00081-K2 over a $977.77 in person transaction on 2016-11-02 assessed the transaction as legitimate at probability 0.25 with case ID CC-2463, CC-5082, CC-2379, CC-4776, and CC-4827 cited as memory. $977.77 is 8.7x this card's median and above its 95th percentile, and connected components over the device-sharing graph placed this card in a bounded component of 3 cards, C05979-K1 and C12940-K1, linked transitively through device profiles each used by no more than 8 cards. External email-domain intelligence classified 'gmail.com' as a free webmail address, and the 5 closed cases whose transaction most resembles this one closed as 5 confirmed fraud and 0 cleared. The pattern was card_not_present_fraud, exposure was $0.00, step-up authentication passed, and policy rule R8 was not triggered because the verdict was not `uncertain` and exposure did not exceed $500, though policy rule R6 named the 2 other card(s) transacted through the same device profile in the window for monitoring.",
+    "summary": "A monitoring sweep on card C00081-K2 over a $977.77 in person transaction on 2016-11-02 assessed the activity as legitimate at probability 0.25 with a card_not_present_fraud pattern and $0.00 exposure. Although $977.77 is 8.7x this card's median and above its 95th percentile, the connected component for this card contained 3 cards (C05979-K1, C12940-K1), and step-up authentication passed for customer ID unknown under case ID unknown. Policy rule R8 was not triggered, while policy rule R6 recommended CREATE_CASE, FILE_REPORT, and MONITOR_CONNECTED_CARDS for the 2 other card(s) transacted through the same device profile, and 5 closed cases (CC-2463, CC-5082, CC-2379, CC-4776, CC-4827) closed as 5 confirmed fraud and 0 cleared.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-M004"
   },
@@ -94,14 +94,16 @@
       "asked_after_step": 11,
       "reason": "R1: the case rests on a single signal and assessed probability is 0.38, below 0.70. Verify before any block.",
       "assumed_response": "No reply within 24 hours. ASSUMPTION: no replies ship with this dataset, and nothing independent in the evidence points to what the cardholder would say. Inventing an answer here would manufacture certainty, so the agent assumes the case policy R4 is written for - the customer does not respond - and acts accordingly.",
-      "simulated": true
+      "simulated": true,
+      "chosen_by": "policy"
     },
     {
       "type": "step_up_auth",
       "asked_after_step": 12,
       "reason": "Policy 5: the cardholder did not answer the verification request, and step-up authentication is the other channel the agent may use without approval.",
       "assumed_response": "One-time passcode completed successfully from the cardholder's registered number. ASSUMPTION: simulated; no authentication responses ship with the dataset. Derived from the card-detail match flags (a mismatch fails it), not from the agent's own probability.",
-      "simulated": true
+      "simulated": true,
+      "chosen_by": "policy"
     }
   ],
   "next_best_actions": {
@@ -151,8 +153,8 @@
   },
   "stop_reason": "Policy 6: probability 0.25 on 2 independent pieces of evidence sits between the stopping thresholds, and every request the agent may make without approval has been made. The remaining uncertainty is the cardholder's own intent, which only the cardholder or an analyst can resolve; the recommended actions route it to them rather than resolving it in the graph.",
   "tool_calls": 12,
-  "tokens": 1179,
-  "latency_s": 0.13,
+  "tokens": 1125,
+  "latency_s": 0.12,
   "trigger": {
     "type": "monitoring_sweep",
     "text": "Self-directed sweep. Connected components over the device-sharing graph put card C00081-K2 in a bounded component of 3 cards sharing 2 device profile(s), moving $7,102.69 across 48 transactions since 2016-11-02. No model score, cardholder report or analyst request opened this."

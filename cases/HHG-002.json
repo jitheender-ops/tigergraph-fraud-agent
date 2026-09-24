@@ -100,7 +100,7 @@
       "CC-4218",
       "CC-5375"
     ],
-    "summary": "The risk score on card C11891-K1 for a $292.36 online transaction on 2016-11-22 was 0.79, and the case ID is CC-5375 with a verdict of uncertain at probability 0.37. Against it, the bank has 1 confirmed-fraud case(s) already closed on this card (CC-4160), pattern(s): card_not_present_fraud. For the cardholder, step-up authentication passed, while $292.36 is 7.9x this card's median and above its 95th percentile, and exposure if the activity is fraudulent is $292.36.",
+    "summary": "Risk score on card C11891-K1 over a $292.36 online transaction on 2016-11-22 yielded a probability of 0.37 with pattern card_not_present_fraud and exposure of $292.36. Against this, the bank has 1 confirmed-fraud case(s) already closed on this card (CC-4160), pattern(s): card_not_present_fraud, while step-up authentication passed for the customer, and $292.36 is 7.9x this card's median and above its 95th percentile. The conflicting evidence leaves the case undecided in the graph.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-002"
   },
@@ -110,14 +110,16 @@
       "asked_after_step": 11,
       "reason": "R1: probability 0.51 is below 0.70; ask the cardholder before taking any action with customer impact.",
       "assumed_response": "No reply within 24 hours. ASSUMPTION: no replies ship with this dataset, and nothing independent in the evidence points to what the cardholder would say. Inventing an answer here would manufacture certainty, so the agent assumes the case policy R4 is written for - the customer does not respond - and acts accordingly.",
-      "simulated": true
+      "simulated": true,
+      "chosen_by": "policy"
     },
     {
       "type": "step_up_auth",
       "asked_after_step": 12,
       "reason": "Policy 5: the cardholder did not answer the verification request, and step-up authentication is the other channel the agent may use without approval.",
       "assumed_response": "One-time passcode completed successfully from the cardholder's registered number. ASSUMPTION: simulated; no authentication responses ship with the dataset. Derived from the card-detail match flags (a mismatch fails it), not from the agent's own probability.",
-      "simulated": true
+      "simulated": true,
+      "chosen_by": "policy"
     }
   ],
   "next_best_actions": {
@@ -167,6 +169,6 @@
   },
   "stop_reason": "Policy 6: probability 0.37 on 4 independent pieces of evidence sits between the stopping thresholds, and every request the agent may make without approval has been made. The remaining uncertainty is the cardholder's own intent, which only the cardholder or an analyst can resolve; the recommended actions route it to them rather than resolving it in the graph.",
   "tool_calls": 11,
-  "tokens": 1152,
-  "latency_s": 0.52
+  "tokens": 1143,
+  "latency_s": 0.51
 }

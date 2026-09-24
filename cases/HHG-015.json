@@ -113,7 +113,7 @@
       "CC-2261",
       "CC-0528"
     ],
-    "summary": "Risk score on card C03042-K1 over a $599.94 online transaction on 2016-11-17 was 0.77, and the identity record marked the device New. The card had no billing history in region 327.0, and $599.94 was 6.0x this card's median and above its 95th percentile. External email-domain intelligence classified 'anonymous.com' as a masked address, and the 5 most similar closed cases (CC-0735, CC-2959, CC-0882, CC-2261, CC-0528) included 2 confirmed fraud and 3 cleared. The bank has 2 confirmed-fraud case(s) already closed on this card (CC-3886, CC-0615), pattern(s): card_not_present_new_device, and the case was assessed as legitimate at probability 0.03 with exposure of $0.00.",
+    "summary": "Risk score on card C03042-K1 over a $599.94 online transaction on 2016-11-17 assessed the case as legitimate at probability 0.03 with exposure of $0.00. Against the cardholder, the bank has 2 confirmed-fraud case(s) already closed on this card (CC-3886, CC-0615), pattern(s): card_not_present_new_device, and the card has no billing history in region 327.0, but every card-detail match flag passed. For the cardholder, external email-domain intelligence classifies 'anonymous.com' as a masked address -- the processor withheld it rather than the cardholder choosing an anonymous one. Model risk score was 0.77, the identity record marked this device New for the account, $599.94 was 6.0x this card's median and above its 95th percentile, and the 5 closed cases whose transaction most resembles this one (CC-0735, CC-2959, CC-0882, CC-2261, CC-0528) closed as 2 confirmed fraud (card not present new device) and 3 cleared. The 0.70-0.85 band held 817 confirmed frauds against 234 cleared alarms with a likelihood ratio of 0.67, and connected components placed this card in the graph's giant device-sharing component (2,500 cards), though transitive device sharing percolated at every threshold tested so membership carried no weight.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-015"
   },
@@ -155,6 +155,6 @@
   },
   "stop_reason": "Policy 6: probability 0.03 is at or below 0.15 on 6 independent pieces of evidence; the alarm is explained and further investigation would not change the outcome.",
   "tool_calls": 15,
-  "tokens": 1358,
+  "tokens": 1483,
   "latency_s": 0.6
 }

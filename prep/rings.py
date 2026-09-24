@@ -6,9 +6,12 @@ under-reads a ring: card A shares a handset with B, B shares a different handset
 and C never appears. Connected components close the transitive hull, which is what policy
 R6 is actually asking -- how far does this compromise reach.
 
-TigerGraph runs this with the algorithm library (graph/queries.gsql:ring_component wraps
-`tg_conn_comp` over the Card -> Transaction -> DeviceProfile projection). This module is
-the mirror that keeps the pipeline runnable without a workspace, and it is the
+On TigerGraph the same partition is computed by the algorithm library itself: tg_wcc,
+unmodified from TigerGraph's gsql-graph-algorithms repo, runs over RING_DEVICE edges
+(graph/load.py --rings), and prep/ring_parity.py asserts it matches this module component
+for component -- 2,616 cards in 52 components. Per case, graph/queries.gsql:ring_component
+expands the seed card's own component, which is what an investigation needs. This module
+is the mirror that keeps the pipeline runnable without a workspace, and it is the
 calibration harness the finding below came out of.
 
 THE FINDING, and why ring_size carries no weight

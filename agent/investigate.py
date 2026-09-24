@@ -301,12 +301,15 @@ class Investigation:
             if pol.at_stop_bar(prob, pol.independent_evidence_count(self.signals)):
                 stop_kind = "threshold"
                 break
-            kind = self._next_request(wanted, requests, recurring)
-            if kind is None:
+            options = self._candidates(wanted, requests, recurring)
+            if not options:
                 stop_kind = "exhausted"
                 break
+            kind, plan = self._choose(options, wanted, {
+                "signals": self.signals, "verdict": verdict, "prob": prob,
+                "pattern": pattern, "exposure": exposure})
             self.step(f"request evidence: {kind}")
-            r = self._ask(kind, wanted, f, recurring)
+            r = {**self._ask(kind, wanted, f, recurring), **plan}
             requests.append(r)
             prob, verdict, exposure = self._reassess(prob, [r], episode, verdict)
             if kind == "customer_validation" and (r["_confirmed"] or r["_denied"]):
@@ -412,10 +415,34 @@ class Investigation:
             return "legitimate"
         return "uncertain"
 
-    def _next_request(self, wanted, done, recurring):
-        """The next piece of evidence policy 5 lets the agent ask for without approval,
-        in order of how directly it answers the open question: the cardholder first,
-        then the authentication channel, then an analyst. Each is asked at most once."""
+    def _choose(self, options, wanted, state):
+        """Which of the allowed requests to make. The policy's order is the default and
+        the fallback; with an LLM and a real choice, the model picks and says why."""
+        if self.llm is None or len(options) < 2:
+            return options[0], {"chosen_by": "policy"}
+        why = {a["action"]: a["reason"] for a in wanted}
+        desc = {
+            "customer_validation": "ask the cardholder whether they made the transaction. "
+                                   + (why.get(pol.VERIFY_WITH_CUSTOMER) or ""),
+            "step_up_auth": "challenge the cardholder with a one-time passcode to the "
+                            "registered phone; proves who holds the device, not who made "
+                            "past purchases. " + (why.get(pol.STEP_UP_AUTH) or ""),
+            "analyst_info": "ask a fraud analyst for merchant-side or law-enforcement "
+                            "context the graph cannot see. "
+                            + (why.get(pol.ESCALATE_TO_ANALYST) or ""),
+        }
+        pick = self.llm.choose_next({k: desc[k] for k in options}, state)
+        if pick is None:
+            return options[0], {"chosen_by": "policy",
+                                "planner_note": "LLM gave no valid choice; policy order used"}
+        return pick[0], {"chosen_by": "llm", "planner_note": pick[1],
+                         "options": list(options)}
+
+    def _candidates(self, wanted, done, recurring):
+        """Every piece of evidence policy 5 lets the agent ask for right now, without
+        approval, in the policy's own order of how directly each answers the open
+        question: the cardholder, the authentication channel, an analyst. Each is asked
+        at most once. The planner chooses among them; it can never add one."""
         want = {a["action"] for a in wanted}
         asked = {r["type"] for r in done}
         # A customer report IS the cardholder's denial. Asking them the same question
@@ -424,17 +451,18 @@ class Investigation:
         # genuinely different question from "did you make this purchase?".
         already_denied = self.t["trigger_type"] == "customer_report" and not recurring
         silent = any(r.get("_no_reply") for r in done)
+        out = []
         if (pol.VERIFY_WITH_CUSTOMER in want and "customer_validation" not in asked
                 and not already_denied):
-            return "customer_validation"
+            out.append("customer_validation")
         # a cardholder who does not answer can still be reached through step-up; one who
         # has already disputed the charge cannot be told anything new by it
         if ("step_up_auth" not in asked and not already_denied
                 and (pol.STEP_UP_AUTH in want or silent)):
-            return "step_up_auth"
+            out.append("step_up_auth")
         if pol.ESCALATE_TO_ANALYST in want and "analyst_info" not in asked:
-            return "analyst_info"
-        return None
+            out.append("analyst_info")
+        return out
 
     def _ask(self, kind, wanted, f, recurring):
         """Ask for one piece of evidence. A real reply recorded through the console wins;

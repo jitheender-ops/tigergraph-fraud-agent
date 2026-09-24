@@ -84,7 +84,9 @@ def build(trigger, r, llm=None, backend=None) -> dict:
         "evidence_requests": [
             {"type": q["type"], "asked_after_step": q["asked_after_step"],
              "reason": q["reason"], "assumed_response": q["assumed_response"],
-             "simulated": q.get("simulated", True)}
+             "simulated": q.get("simulated", True), "chosen_by": q.get("chosen_by", "policy"),
+             **({"planner_note": q["planner_note"]} if q.get("planner_note") else {}),
+             **({"options": q["options"]} if q.get("options") else {})}
             for q in r["requests"]
         ],
         "next_best_actions": {

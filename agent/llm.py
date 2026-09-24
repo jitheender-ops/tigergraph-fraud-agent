@@ -1,9 +1,16 @@
-"""LLM synthesis, deliberately confined to prose.
+"""The LLM: evidence synthesis, prose, and choosing which evidence to ask for next.
 
 The model never chooses an action, a route, a verdict or a probability: those come from
-policy.py and patterns.py so they are reproducible and auditable. It rewrites the
-deterministic draft into something an analyst or a regulator would want to read, and
-every rewrite is checked afterwards. If the rewrite drops or invents an ID or an amount,
+policy.py and patterns.py so they are reproducible and auditable. It does two jobs.
+
+It selects the next evidence request (`choose_next`). The policy decides WHICH requests
+are allowed at this point and whether to stop at all; when more than one is allowed, the
+model reads the evidence gathered so far and picks the one most likely to settle the case,
+with its reason. It can only name an option it was given -- anything else is discarded and
+the policy's own order is used, so a bad answer costs a round, never a rule.
+
+It rewrites the deterministic drafts into something an analyst or a regulator would want to
+read, and every rewrite is checked afterwards. If it drops or invents an ID or an amount,
 it is discarded and the deterministic text stands.
 """
 from __future__ import annotations
@@ -35,6 +42,15 @@ Rules:
 - Keep every date and dollar amount exactly as given.
 - State plainly what was assumed rather than observed, if the draft says so.
 - No headings, no bullet points, no recommendations to the regulator."""
+
+PLAN_SYSTEM = """You are the planning step of a fraud investigation agent. The case below is
+still uncertain. Policy allows you to request exactly ONE more piece of evidence now,
+chosen from the OPTIONS listed. Pick the one whose answer is most likely to move the
+decision, given what the evidence already shows and what has already been asked.
+
+Reply with exactly two lines:
+REQUEST: <one option name, spelled exactly as listed>
+WHY: <one sentence, citing the evidence that makes this the most informative request>"""
 
 _ID = re.compile(r"\b(?:T?\d{6,}|C\d{4,}(?:-K\d+)?|CC-\d+|CASE-\d{4}-\d+)\b")
 _MONEY = re.compile(r"\$[\d,]+(?:\.\d{2})?")
@@ -93,6 +109,21 @@ class LLM:
             # ran out mid-sentence: a truncated narrative is worse than the draft
             return None
         return (choice.message.content or "").strip() or None
+
+    def choose_next(self, options: dict[str, str], r) -> tuple[str, str] | None:
+        """Pick one of `options` (name -> what it would establish). None when the model
+        fails or names something it was not offered."""
+        listing = "\n".join(f"- {k}: {v}" for k, v in options.items())
+        try:
+            out = self._chat(PLAN_SYSTEM, _ctx(r) + "\n\nOPTIONS:\n" + listing, 160) or ""
+        except Exception as e:
+            print(f"  [llm] planner skipped: {e}")
+            return None
+        m = re.search(r"REQUEST:\s*([a-z_]+)", out)
+        why = re.search(r"WHY:\s*(.+)", out)
+        if not m or m.group(1) not in options:
+            return None
+        return m.group(1), (why.group(1).strip() if why else "")[:400]
 
     @staticmethod
     def _faithful(allowed: str, out: str, require: str = "") -> bool:

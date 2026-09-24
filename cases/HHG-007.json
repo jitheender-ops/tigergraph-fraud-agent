@@ -118,7 +118,7 @@
       "CC-3773",
       "CC-0057"
     ],
-    "summary": "The assessed fraud probability is 0.86 for mixed-channel activity consistent with stolen credentials on card C09933-K2, with $241.87 of exposure across 3 transaction(s) on 2016-12-05. Against this conclusion, 3 of the card-detail match flags M1-M9 came back F, the model risk score was 0.87, and the bank has 18 closed confirmed-fraud case(s) on this card (CC-5521, CC-5092, CC-4787, CC-4597) showing patterns of account_takeover and out_of_region_use. A burst of 24 transactions in the 48 hours ending at the flagged one was also noted, while external email-domain intelligence, connected-components membership, and 5 resembling closed case(s) (CC-0450, CC-2083, CC-4146, CC-3773, CC-0057) carried no weight.",
+    "summary": "Risk score 0.87 on card C09933-K2 for a $111.92 in person transaction on 2016-12-05 was assessed against 3 of the card-detail match flags M1-M9 coming back F, 24 transactions in the 48 hours ending at the flagged one, and membership in a graph component of 2,500 cards. The bank has 18 confirmed-fraud case(s) already closed on this card (CC-5521, CC-5092, CC-4787, CC-4597), pattern(s): account_takeover, out_of_region_use, and the 5 closed cases whose transaction most resembles this one (CC-0450, CC-2083, CC-4146, CC-3773, CC-0057) closed as 5 confirmed fraud (account takeover, out of region use) and 0 cleared. Against fraud, model risk score 0.87 is evidence AGAINST fraud rather than for it, and 'gmail.com' is baseline context with no weight. The case was assessed as mixed-channel activity consistent with stolen credentials at probability 0.86, with 3 transaction(s) and $241.87 of exposure.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-007"
   },
@@ -160,6 +160,6 @@
   },
   "stop_reason": "Policy 6: probability 0.86 is at or above 0.85 on 4 independent pieces of evidence, which is the bar for a defensible action. No further evidence was requested because none could change it.",
   "tool_calls": 12,
-  "tokens": 1250,
+  "tokens": 1308,
   "latency_s": 0.8
 }

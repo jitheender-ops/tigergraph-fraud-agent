@@ -87,7 +87,7 @@
       "CC-2739",
       "CC-0649"
     ],
-    "summary": "Customer reported card C09988-K1 for the 2016-12-11 online transaction of $59.67. The cardholder denied making the purchase, while the identity record marked the device as New and the case followed pattern card_not_present_new_device. Evidence included transitive device sharing across 2,500 cards, external hotmail.com classification, memory from closed cases CC-3886, CC-1558, CC-4376, CC-2739, and CC-0649, and policy rule R2, leaving the verdict uncertain at probability 0.50 with exposure of $59.67.",
+    "summary": "Customer report on card C09988-K1 over a $59.67 online transaction on 2016-12-11. Against it: The cardholder contacted the bank stating they did not make this purchase. For the cardholder: The identity record marks this device New for the account. The evidence conflicts and probability sits at 0.50, so the case is not decided in the graph; exposure if the activity is fraudulent is $59.67.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-016"
   },
@@ -97,7 +97,8 @@
       "asked_after_step": 11,
       "reason": "R8: the verdict is uncertain and the evidence conflicts; hand to a human analyst.",
       "assumed_response": "Analyst confirms no merchant-side chargeback or law-enforcement notice is attached to these transactions, so the graph evidence stands as gathered. ASSUMPTION: simulated; no analyst replies ship with the dataset.",
-      "simulated": true
+      "simulated": true,
+      "chosen_by": "policy"
     }
   ],
   "next_best_actions": {
@@ -162,6 +163,6 @@
   },
   "stop_reason": "Policy 6: probability 0.50 on 2 independent pieces of evidence sits between the stopping thresholds, and every request the agent may make without approval has been made. The remaining uncertainty is the cardholder's own intent, which only the cardholder or an analyst can resolve; the recommended actions route it to them rather than resolving it in the graph.",
   "tool_calls": 12,
-  "tokens": 920,
-  "latency_s": 0.58
+  "tokens": 960,
+  "latency_s": 0.57
 }

@@ -1,6 +1,6 @@
 """Fraud Policy v1.0 as executable code.
 
-Deliberately deterministic: the LLM writes prose, it does not pick actions or routes.
+Deliberately deterministic: the LLM never picks an action, a route or a verdict.
 Action names and route identifiers are the exact strings the policy defines.
 """
 from __future__ import annotations

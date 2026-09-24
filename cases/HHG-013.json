@@ -121,7 +121,7 @@
       "CC-1898",
       "CC-0796"
     ],
-    "summary": "Risk score on card C07671-K2 over a $35.66 online transaction on 2016-12-09 was 0.76, and the identity record marked the device as New for the account. The card had 25 transactions in the 48 hours ending at the flagged one, the cardholder passed step-up authentication, and the bank had 3 confirmed-fraud case(s) already closed on this card (CC-4294, CC-3216, CC-1475) with pattern(s): account_takeover, card_not_present_new_device. The transaction was assessed as legitimate at probability 0.28 with exposure of $0.00, and no transaction is treated as part of a fraud episode.",
+    "summary": "The risk score for card C07671-K2 on a $35.66 online transaction on 2016-12-09 was 0.76. The bank has 3 confirmed-fraud case(s) already closed on this card (CC-4294, CC-3216, CC-1475), pattern(s): account_takeover, card_not_present_new_device, and 25 transactions occurred on this card in the 48 hours ending at the flagged one. The identity record marked this device New for the account, and the customer passed step-up authentication, resulting in a verdict of legitimate at probability 0.28 with exposure of $0.00.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-013"
   },
@@ -131,14 +131,17 @@
       "asked_after_step": 11,
       "reason": "R1: probability 0.42 is below 0.70; ask the cardholder before taking any action with customer impact.",
       "assumed_response": "No reply within 24 hours. ASSUMPTION: no replies ship with this dataset, and nothing independent in the evidence points to what the cardholder would say. Inventing an answer here would manufacture certainty, so the agent assumes the case policy R4 is written for - the customer does not respond - and acts accordingly.",
-      "simulated": true
+      "simulated": true,
+      "chosen_by": "llm",
+      "planner_note": "The evidence is mixed with multiple mildly exculpatory signals (new device, low online history, free email) conflicting with the high risk score and transaction burst, and policy R1 explicitly requires customer verification when the assessed probability of 0.42 is below 0.70."
     },
     {
       "type": "step_up_auth",
       "asked_after_step": 12,
       "reason": "Policy 5: the cardholder did not answer the verification request, and step-up authentication is the other channel the agent may use without approval.",
       "assumed_response": "One-time passcode completed successfully from the cardholder's registered number. ASSUMPTION: simulated; no authentication responses ship with the dataset. Derived from the card-detail match flags (a mismatch fails it), not from the agent's own probability.",
-      "simulated": true
+      "simulated": true,
+      "chosen_by": "policy"
     }
   ],
   "next_best_actions": {
@@ -193,6 +196,6 @@
   },
   "stop_reason": "Policy 6: probability 0.28 on 6 independent pieces of evidence sits between the stopping thresholds, and every request the agent may make without approval has been made. The remaining uncertainty is the cardholder's own intent, which only the cardholder or an analyst can resolve; the recommended actions route it to them rather than resolving it in the graph.",
   "tool_calls": 12,
-  "tokens": 1223,
-  "latency_s": 0.67
+  "tokens": 2195,
+  "latency_s": 1.03
 }

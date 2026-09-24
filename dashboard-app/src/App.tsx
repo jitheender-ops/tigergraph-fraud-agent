@@ -513,6 +513,12 @@ export default function App() {
                           <div className="font-mono text-xs uppercase tracking-widest text-muted mb-2">
                             {q.type} · after step {q.asked_after_step}
                           </div>
+                          {q.reason && <div className="text-sm text-muted mb-2">Why asked: {q.reason}</div>}
+                          {q.chosen_by === 'llm' && q.planner_note && (
+                            <div className="text-sm text-ink/70 mb-2 border-l-2 border-crimson pl-3">
+                              Planner chose this over {(q.options || []).filter((o: string) => o !== q.type).join(', ') || 'the alternatives'}: {q.planner_note}
+                            </div>
+                          )}
                           <div className="text-ink/80 leading-relaxed">{q.assumed_response}</div>
                           {q.simulated && !activeCase.closed && (
                             <div className="flex flex-wrap gap-2 mt-3 items-center">

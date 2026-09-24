@@ -95,7 +95,7 @@
       "CC-3846",
       "CC-3718"
     ],
-    "summary": "The risk score on card C05876-K2 for a $30.91 in person transaction on 2016-12-18 assessed the event as mixed-channel activity consistent with stolen credentials at probability 0.93. One card-detail match flag (M1-M9) came back F on this transaction, and the bank has 1 confirmed-fraud case(s) already closed on this card (CC-2370), pattern(s): card_not_present_fraud. There were 13 transactions on this card in the 48 hours ending at the flagged one, and case CC-1822, CC-0258, CC-5148, CC-3846, and CC-3718 closed as 5 confirmed fraud. The exposure was $30.91, and the verdict was fraud at probability 0.93 with pattern account_takeover.",
+    "summary": "The risk score on card C05876-K2 for a $30.91 in person transaction on 2016-12-18 assessed fraud at probability 0.93 with pattern account_takeover. One card-detail match flag (M1-M9) came back F on this transaction, and the bank has 1 confirmed-fraud case(s) already closed on this card (CC-2370), pattern(s): card_not_present_fraud. The case rests on mixed-channel activity consistent with stolen credentials, 1 transaction(s), and $30.91 of exposure.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-012"
   },
@@ -137,6 +137,6 @@
   },
   "stop_reason": "Policy 6: probability 0.93 is at or above 0.85 on 3 independent pieces of evidence, which is the bar for a defensible action. No further evidence was requested because none could change it.",
   "tool_calls": 12,
-  "tokens": 1045,
-  "latency_s": 0.59
+  "tokens": 976,
+  "latency_s": 0.63
 }

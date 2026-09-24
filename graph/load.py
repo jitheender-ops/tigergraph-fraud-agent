@@ -5,6 +5,7 @@
   uv run python graph/load.py --data        export CSVs and upsert them
   uv run python graph/load.py --docs        load the GraphRAG corpus into the vector store
   uv run python graph/load.py --queries     install graph/queries.gsql
+  uv run python graph/load.py --rings       RING_DEVICE edges + the library's tg_wcc
   uv run python graph/load.py --all
 """
 from __future__ import annotations
@@ -216,12 +217,41 @@ def do_data(conn):
     upsert(conn, "e_case_conn", etype="CONNECTED_TO", src=("ClosedCase", "case_id"), tgt=("Card", "card_id"))
 
 
+def do_rings(conn):
+    """The device-sharing graph as TigerGraph's own algorithm library sees it.
+
+    A RING_DEVICE edge joins a card to a device profile only when that profile is
+    ring-grade -- 2 to 8 cards, not an all-unknown fingerprint -- the same definition
+    prep/rings.py uses. tg_wcc, unmodified from TigerGraph's library, then computes the
+    connected components over exactly those edges; prep/ring_parity.py asserts they
+    equal the partition the pipeline uses.
+    """
+    if "RING_DEVICE" not in conn.getEdgeTypes():
+        run_gsql(conn, f"""USE GRAPH {GRAPH}
+CREATE SCHEMA_CHANGE JOB add_ring_device FOR GRAPH {GRAPH} {{
+  ADD UNDIRECTED EDGE RING_DEVICE (FROM Card, TO DeviceProfile);
+}}
+RUN SCHEMA_CHANGE JOB add_ring_device
+DROP JOB add_ring_device""", "RING_DEVICE edge type")
+    sys.path.insert(0, str(HERE.parent / "prep"))
+    from rings import RING_DEVICES
+    con = duckdb.connect("build/fraud.db", read_only=True)
+    pairs = con.sql(f"""WITH d AS ({RING_DEVICES})
+                        SELECT DISTINCT t.card_id, t.device_profile
+                        FROM tx t JOIN d USING (device_profile)""").fetchall()
+    n = conn.upsertEdges("Card", "RING_DEVICE", "DeviceProfile", [(c, d, {}) for c, d in pairs])
+    print(f"-- {n:,} RING_DEVICE edges")
+    run_gsql(conn, f"USE GRAPH {GRAPH}\n" + (HERE / "algorithms" / "tg_wcc.gsql").read_text()
+             + "\nINSTALL QUERY tg_wcc", "tg_wcc (TigerGraph algorithm library)")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--schema", action="store_true")
     ap.add_argument("--data", action="store_true")
     ap.add_argument("--docs", action="store_true")
     ap.add_argument("--queries", action="store_true")
+    ap.add_argument("--rings", action="store_true")
     ap.add_argument("--export-only", action="store_true")
     ap.add_argument("--all", action="store_true")
     a = ap.parse_args()
@@ -236,6 +266,8 @@ def main():
         do_docs(conn)
     if a.all or a.queries:
         do_queries(conn)
+    if a.all or a.rings:
+        do_rings(conn)
     print("\nvertex counts:", conn.getVertexCount("*"))
 
 

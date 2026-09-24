@@ -195,6 +195,14 @@ the population and its separation decays as it grows: membership is not "this ca
 ring", it is "this card has ever shared a browser fingerprint". So component size is named
 as evidence, as R6 requires, and given no weight — the same call the one-hop ring got.
 
+TigerGraph's own library computes the same thing: `tg_wcc`, copied unmodified from
+[gsql-graph-algorithms](https://github.com/tigergraph/gsql-graph-algorithms) into
+`graph/algorithms/`, runs over `RING_DEVICE` edges (card ↔ ring-grade device profile,
+`graph/load.py --rings`), and `prep/ring_parity.py` asserts its partition equals the
+pipeline's, component for component: 2,616 cards in 52 components. Per case, the
+`ring_component` query expands only the seed card's own component, which is what an
+investigation needs and what the analyst's *deepen* re-runs at a wider cap.
+
 The bounded tail is where the algorithm earns its place. Components of 4–10 cards run 15
 confirmed fraud against 2 cleared, and their members feed `MONITOR_CONNECTED_CARDS` even
 where no single device links the cards directly. The giant component never does: monitoring
@@ -206,7 +214,7 @@ All twenty benchmark cases arrive from a trigger somebody else pulled. `monitor.
 other half: it ranks the bounded ring components by money moved in the exam window, discards
 any that touch a benchmark card, and runs the same investigation, policy engine and answer
 format over each. Output is `monitoring/`, same shape as `cases/`, appended to the same
-graph case log. The top five move $6.9k–$17.5k apiece and one of them files a SAR.
+graph case log. The top five move $6.9k–$17.5k apiece and four of them file a SAR.
 
 ## How TigerGraph is used
 
@@ -332,9 +340,14 @@ route, a verdict or a probability — those are deterministic and reproducible. 
 exposure over $1,000 was reported, and the only four reported below it were the undocumented
 ones with connected cards.
 
-`agent/llm.py` is confined to prose — the case summary and the SAR narrative — and every
-rewrite is checked afterwards. If it drops or invents an ID or a dollar amount, it is
-discarded and the deterministic draft stands.
+`agent/llm.py` does two jobs. It is the **planner** for evidence gathering: the policy
+decides which requests are allowed at each step and when to stop; when more than one is
+allowed, the model reads the evidence so far and picks the one most likely to settle the
+case, and its reason is recorded on the request (`chosen_by`, `planner_note`). It can only
+name an option it was offered — anything else is discarded and the policy's own order is
+used. And it writes the case summary and SAR narrative from a deterministic draft; every
+rewrite is checked afterwards, and one that drops or invents an ID or a dollar amount is
+discarded. Without an API key the agent runs fully deterministically.
 
 ## Layout
 
@@ -356,7 +369,8 @@ tests/       test_agent.py (pytest)      dashboard-app/e2e/  (Playwright)
 Checks:
 
 ```bash
-uv run pytest -q                          # rules, permission boundary, console flow
+uv run pytest -q                          # rules, planner guardrails, console flow
+uv run python prep/ring_parity.py         # TigerGraph's tg_wcc == the pipeline's rings
 cd dashboard-app && npx playwright test   # the console, driven in Chromium
 ANALYST_TOKEN=... uv run python console_smoke.py   # every endpoint, against a running server
 ```

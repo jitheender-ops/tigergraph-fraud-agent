@@ -210,9 +210,9 @@ CREATE OR REPLACE QUERY device_reach(STRING p_device_profile) FOR GRAPH FraudInv
 //     A shares a phone with B, B shares a different phone with C -- and one hop
 //     never reaches C. This is a breadth-first expansion to a fixed point, which
 //     is the connected component of the seed card, computed on the seed's
-//     component alone rather than by running tg_conn_comp over the whole graph
-//     (the library algorithm is the right tool when every component is wanted at
-//     once; monitor.py is where that sweep lives).
+//     component alone. When every component is wanted at once, TigerGraph's library
+//     algorithm does it: tg_wcc (graph/algorithms/, unmodified) over RING_DEVICE
+//     edges, asserted identical to the pipeline's partition by prep/ring_parity.py.
 //
 //     A profile only conducts an edge if it plausibly describes a machine. Above
 //     p_max_cards_per_device it is a configuration -- 'Windows | Windows 10 |

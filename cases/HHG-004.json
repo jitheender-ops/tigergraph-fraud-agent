@@ -109,7 +109,7 @@
       "CC-3683",
       "CC-3853"
     ],
-    "summary": "Customer reported fraud on card C08106-K1 for transaction ID on 2016-12-29 with exposure of $128.33. The cardholder denied the purchase, and the bank had 3 closed confirmed-fraud cases on the card, CC-3778, CC-2121, and CC-1736, with pattern card_not_present_fraud. While the identity record marked the device New and the $128.33 amount was 4.8x the card's median and above its 95th percentile, 83% of cleared alarms and 18% of confirmed fraud involved a New device, and large outliers appeared on 16% of cleared alarms and 6% of confirmed fraud. The verdict remained uncertain at probability 0.61 with pattern card_not_present_new_device.",
+    "summary": "The customer reported card C08106-K1 over a $128.33 online transaction on 2016-12-29. The cardholder contacted the bank stating they did not make this purchase, and the bank has 3 confirmed-fraud case(s) already closed on this card (CC-3778, CC-2121, CC-1736), pattern(s): card_not_present_fraud. The identity record marks this device New for the account, and $128.33 is 4.8x this card's median and above its 95th percentile. The evidence conflicts and the verdict is uncertain at probability 0.61, so the case is not decided in the graph; exposure if the activity is fraudulent is $128.33.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-004"
   },
@@ -119,7 +119,8 @@
       "asked_after_step": 11,
       "reason": "R8: the verdict is uncertain and the evidence conflicts; hand to a human analyst.",
       "assumed_response": "Analyst confirms no merchant-side chargeback or law-enforcement notice is attached to these transactions, so the graph evidence stands as gathered. ASSUMPTION: simulated; no analyst replies ship with the dataset.",
-      "simulated": true
+      "simulated": true,
+      "chosen_by": "policy"
     }
   ],
   "next_best_actions": {
@@ -184,6 +185,6 @@
   },
   "stop_reason": "Policy 6: probability 0.61 on 4 independent pieces of evidence sits between the stopping thresholds, and every request the agent may make without approval has been made. The remaining uncertainty is the cardholder's own intent, which only the cardholder or an analyst can resolve; the recommended actions route it to them rather than resolving it in the graph.",
   "tool_calls": 14,
-  "tokens": 1176,
+  "tokens": 1164,
   "latency_s": 0.58
 }
