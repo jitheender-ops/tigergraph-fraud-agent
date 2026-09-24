@@ -277,6 +277,23 @@ def get(cid) -> Case:
     return STORE[cid]
 
 
+def hydrate(c: Case) -> None:
+    """Give a case its signal breakdown without replacing its answer.
+
+    Opening a case used to re-run it without the LLM and overwrite the stored answer, so
+    the console showed a different summary, SAR narrative and planner reasoning from the
+    answer file on disk. An untouched case now keeps its answer; only the arithmetic the
+    waterfall needs is recomputed. A case carrying a human's input re-runs in full."""
+    if c.signals is not None:
+        return
+    if c.suppressed or c.analyst_signals or c.ring_cap or c.replies:
+        rerun(c)
+        return
+    r = Investigation(backend(ToolLog()), c.trigger).run()
+    c.signals, c.features = r["signals"], r["f"]
+    c.ring_size = _ring_size(next((x for x in r["signals"] if x.name == "ring_component"), None))
+
+
 def rerun(c: Case) -> dict:
     """Re-investigate under the analyst's current steering and replace the answer."""
     log = ToolLog()
@@ -325,8 +342,7 @@ def list_cases():
 @app.get("/api/case/{cid}")
 def one_case(cid: str):
     c = get(cid)
-    if c.signals is None:
-        rerun(c)
+    hydrate(c)
     return {"case_id": cid, "source": c.source, "closed": c.closed,
             "trigger": c.trigger, "events": c.events, "signals": _signals(c),
             "suppressed": sorted(c.suppressed), "ring_cap": c.ring_cap, **c.answer}
@@ -422,8 +438,7 @@ def deepen(cid: str, body: Deepen):
     if c.closed:
         raise HTTPException(409, "case is closed")
     with c.lock:
-        if c.signals is None:
-            rerun(c)      # establish the baseline so the diff has something to show
+        hydrate(c)        # establish the baseline so the diff has something to show
         c.ring_cap = body.cap
         res = rerun(c)
     c.log("deepen", f"device-sharing component recomputed at a cap of {body.cap} cards",
@@ -438,8 +453,7 @@ def stepup(cid: str):
     if c.closed:
         raise HTTPException(409, "case is closed")
     with c.lock:
-        if c.features is None:
-            rerun(c)
+        hydrate(c)
         passed = step_up_passes(c.features)     # same rule the offline loop uses
         c.analyst_signals = [x for x in c.analyst_signals if x.name != "step_up"]
         c.analyst_signals.append(P.Signal(
@@ -886,8 +900,7 @@ def _signal_names(c: Case) -> dict[str, str]:
     region signal as the match-flag one, because the region claim happens to end "...but
     every card-detail match flag passed". Claims talk about each other; names do not.
     """
-    if c.signals is None:
-        rerun(c)
+    hydrate(c)
     return {s.name: s.claim for s in c.signals
             if s.source == "graph" and not s.name.startswith("withdrawn:")}
 
