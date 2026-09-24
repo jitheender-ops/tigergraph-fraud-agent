@@ -164,6 +164,10 @@ class Case:
         self.signals = None        # real Signal objects, filled by the first re-run
         self.features = None       # the feature row, for the step-up simulation
         self.replies: dict[str, dict] = {}   # real replies, by evidence-request type
+        # what the agent concluded on its own, before any human touched the case -- the
+        # yardstick for whether a later decision is a downgrade that needs approval
+        self.agent_verdict = answer["case"]["verdict"]
+        self.agent_final = {a["action"] for a in answer["next_best_actions"]["final"]}
 
         # Steering re-runs the investigation and writes back onto this object; two
         # requests for one case must not interleave. FastAPI runs sync endpoints in a
@@ -472,6 +476,28 @@ def ledger(cid: str):
             "awaiting_approval": sum(r["status"] != "executed" for r in rows)}
 
 
+# A human may make the agent harsher alone. Making it more lenient -- clearing a case the
+# agent did not clear, or dropping a block it recommended -- needs an L1 approver, and
+# execute.release() refuses to let anyone approve their own request.
+EXONERATING = {pol.ALLOW_TRANSACTION, pol.CLOSE_NO_FRAUD}
+HARSH = {pol.BLOCK_CARD, pol.BLOCK_ALL_CARDS, pol.DECLINE_TRANSACTION, pol.FILE_REPORT}
+
+
+def _hold(action: dict, why: str) -> dict:
+    """At least L1: an auto action becomes one a second person must release."""
+    if action["route"] != pol.AUTO:
+        return action
+    return {**action, "route": pol.L1, "reason": f"{action.get('reason', '')} [held: {why}]"}
+
+
+def _approver_role():
+    who = USER.get() or {}
+    if who.get("role") not in ("L1", "L2"):
+        raise HTTPException(403, f"{who.get('name', 'this user')} is not an approver; "
+                                 "this needs an L1 or L2 token")
+    return who
+
+
 def _by() -> str | None:
     who = USER.get()
     return who["name"] if who else None
@@ -574,6 +600,15 @@ def decide(cid: str, body: Decision):
         raise HTTPException(409, "case is closed")
     final = c.answer["next_best_actions"]["final"]
     if body.decision == "approve":
+        # steering or a recorded reply that dropped a block the agent recommended makes
+        # the whole approved set a downgrade; clearing a case the agent did not clear is
+        # one on its own
+        dropped = HARSH & (c.agent_final - {a["action"] for a in final})
+        if dropped:
+            final = [_hold(a, f"human input dropped {', '.join(sorted(dropped))}") for a in final]
+        elif c.agent_verdict != "legitimate":
+            final = [_hold(a, f"clears a case the agent rated {c.agent_verdict}")
+                     if a["action"] in EXONERATING else a for a in final]
         done = [X.execute(cid, a, _ctx(c), by=_by()) for a in final]
         ran = [r for r in done if r["status"] == "executed"]
         held = [r for r in done if r["status"] != "executed"]
@@ -588,8 +623,11 @@ def decide(cid: str, body: Decision):
         route = pol.route_for(body.action, c.answer["case"]["exposure_usd"])
     except ValueError:
         raise HTTPException(400, f"{body.action} is not a policy action")
-    rec = X.execute(cid, {"action": body.action, "route": route,
-                          "reason": body.note or "analyst override"}, _ctx(c), by=_by())
+    act = {"action": body.action, "route": route, "reason": body.note or "analyst override"}
+    if body.action in EXONERATING and c.agent_verdict != "legitimate":
+        act = _hold(act, f"overrides a case the agent rated {c.agent_verdict}")
+    route = act["route"]
+    rec = X.execute(cid, act, _ctx(c), by=_by())
     c.log("override", body.note or f"analyst overrode to {body.action}",
           action=body.action, route=route,
           replaced=[a["action"] for a in final])
@@ -711,6 +749,10 @@ def close(cid: str, body: Close):
     c = get(cid)
     if c.closed:
         raise HTTPException(409, "case is already closed")
+    # clearing is a verdict the agent did not reach, and it becomes memory every later
+    # investigation reads -- an approver's call, not an analyst's
+    if body.outcome == "cleared" and c.agent_verdict != "legitimate":
+        _approver_role()
     a, t = c.answer, c.trigger
     case_id = closed_case_id(cid)
     payload = {
@@ -750,10 +792,19 @@ def blacklist(body: Blacklist):
     the transactions that ran on it. query 7 (prior_cases_for_device) then reaches it
     from any future transaction on the same profile -- so the flag propagates through
     the graph rather than through a side table nothing else reads."""
+    # A blacklist writes confirmed fraud onto every card that used the profile, and memory
+    # scores it on each of them from then on. So it is an approver's decision, and only
+    # for a profile that plausibly IS one machine: ring-grade, at most 8 cards -- the
+    # prep/rings.py line. 'Windows | Windows 10 | chrome 63.0' is 842 cardholders.
+    _approver_role()
     b = backend()
     lo = dt.datetime(2016, 1, 1)
     hi = dt.datetime(2017, 1, 1)
     ring = b.device_neighbors(body.device_profile, lo, hi)
+    if len(ring["cards"]) > 8:
+        raise HTTPException(400, f"'{body.device_profile}' is used by {len(ring['cards'])} "
+                                 "cards; that is a configuration, not a machine, and "
+                                 "blacklisting it would mark them all as fraud")
     txns = ring["txns"]
     txn_ids = [str(x) for x in (txns.txn_id.tolist() if len(txns) else [])][:200]
     # hash() is salted per process, so the same device profile produced a different case

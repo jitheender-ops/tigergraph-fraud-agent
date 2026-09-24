@@ -151,7 +151,7 @@
       "CC-4259",
       "CC-3520"
     ],
-    "summary": "A fraud review was opened for case ID on card C13487-K1 after a cardholder denied an online transaction of $74.96 on 2016-11-22. The connection came through an anonymising proxy (IP_PROXY:ANONYMOUS) from a device marked New for the account on named hardware (SM-G935F Build/NRD90M), and 19 other card(s) transacted through the same device profile within the 30-day window. The identity record marks this device New for the account, and the card has a 5% online history. The activity was assessed as undocumented with a probability of 0.90 and $74.96 of exposure.",
+    "summary": "Analyst request on card C13487-K1 over a $74.96 online transaction on 2016-11-22. The cardholder denied the transaction on contact, and the connection came through an anonymising proxy (IP_PROXY:ANONYMOUS) from a device marked New for the account on named hardware (SM-G935F Build/NRD90M). Against the cardholder, the identity record marks this device New for the account, 83% of cleared alarms had a New device against 18% of confirmed fraud, the card's history is 5% online, 11.9% of cleared cases versus 4.5% of confirmed fraud used an online transaction, 19 other card(s) and 20 customer(s) shared the device profile, the proxy combination appeared in 4 of 9 confirmed fraud cases, and 'yahoo.com' is a free webmail address. The case is assessed as undocumented fraud at probability 0.90, and 19 other card(s) transacted through the same device profile in the 30-day window and are named for monitoring.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-014"
   },
@@ -163,7 +163,12 @@
       "assumed_response": "Analyst confirms no merchant-side chargeback or law-enforcement notice is attached to these transactions, so the graph evidence stands as gathered. ASSUMPTION: simulated; no analyst replies ship with the dataset.",
       "simulated": true,
       "chosen_by": "llm",
-      "planner_note": "The current evidence points to an undocumented, cross-card pattern of abuse that the model cannot resolve, and only a human analyst can provide the external merchant-side or law-enforcement context needed to break the deadlock."
+      "planner_note": "The current evidence shows an undocumented pattern with only 9 confirmed fraud cases for the proxy-new device combination, so analyst context is the most likely to resolve whether this is a genuine coordinated abuse or a false positive.",
+      "options": [
+        "customer_validation",
+        "step_up_auth",
+        "analyst_info"
+      ]
     },
     {
       "type": "customer_validation",
@@ -172,7 +177,11 @@
       "assumed_response": "Cardholder states they did not make the transaction and still holds the card. ASSUMPTION: no replies ship with this dataset. This one is drawn from 2 independent incriminating findings in the graph, not from the agent's own probability.",
       "simulated": true,
       "chosen_by": "llm",
-      "planner_note": "The probability of 0.73 is below the 0.85 stopping bar in policy 6, so confirming directly with the cardholder is the most informative next step before any customer-impacting action."
+      "planner_note": "The probability of 0.73 is below the 0.85 stopping bar, and the existing evidence\u2014especially the new device signature and the analyst\u2019s independent flag\u2014leaves substantial uncertainty that a direct cardholder confirmation is best positioned to resolve.",
+      "options": [
+        "customer_validation",
+        "step_up_auth"
+      ]
     }
   ],
   "next_best_actions": {
@@ -272,6 +281,6 @@
   },
   "stop_reason": "A verification response settled the question (policy 6): probability moved to 0.90 on 5 independent pieces of evidence and the action set follows directly. Further steps would not change it.",
   "tool_calls": 18,
-  "tokens": 5885,
-  "latency_s": 0.9
+  "tokens": 6048,
+  "latency_s": 0.88
 }

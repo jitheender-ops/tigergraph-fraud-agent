@@ -91,7 +91,7 @@
       "CC-0415",
       "CC-2518"
     ],
-    "summary": "Customer report on card C07297-K1 over a $482.12 online transaction on 2016-11-21. The cardholder contacted the bank stating they did not make this purchase, while the identity record marks this device New for the account, $482.12 is 8.2x this card's median and above its 95th percentile, and the transaction occurred on a card whose history is 2% online. The evidence conflicts and probability sits at 0.27, so the case is not decided in the graph; exposure if the activity is fraudulent is $1,906.07 under case ID CC-3907.",
+    "summary": "Customer report on card C07297-K1 over a $482.12 online transaction on 2016-11-21, with case ID CC-3907. The cardholder contacted the bank stating they did not make this purchase, and an online transaction occurred on a card whose history is 2% online. The identity record marks this device New for the account, $482.12 is 8.2x this card's median and above its 95th percentile, and the 5 closed cases whose transaction most resembles this one closed as 5 confirmed fraud and 0 cleared. The evidence conflicts and the verdict is uncertain at probability 0.27, with exposure if the activity is fraudulent at $1,906.07.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-006"
   },
@@ -167,6 +167,6 @@
   },
   "stop_reason": "Policy 6: probability 0.27 on 3 independent pieces of evidence sits between the stopping thresholds, and every request the agent may make without approval has been made. The remaining uncertainty is the cardholder's own intent, which only the cardholder or an analyst can resolve; the recommended actions route it to them rather than resolving it in the graph.",
   "tool_calls": 13,
-  "tokens": 983,
+  "tokens": 1001,
   "latency_s": 0.13
 }

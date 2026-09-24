@@ -90,7 +90,7 @@
       "CC-1239",
       "CC-5455"
     ],
-    "summary": "The risk score on card C02923-K1 over a $100.07 online transaction on 2016-12-07 was assessed as legitimate at fraud probability 0.22, with exposure of $0.00 and case ID CC-2857, CC-2717, CC-2400. The identity record marks this device New for the account, 83% of cleared alarms had a New device against 18% of confirmed fraud, and external email-domain intelligence classifies 'icloud.com' as an address tied to a paid internet, cable or phone subscription, which means a billing relationship and a credit check stand behind it. The 5 closed cases whose transaction most resembles this one, CC-1681, CC-3192, CC-1891, CC-1239, CC-5455, closed as 5 confirmed fraud (card not present new device) and 0 cleared, and connected components place this card in the graph's giant device-sharing component (2,500 cards). Known fraud pattern 3 is Card-not-present fraud from a new device: Card-not-present fraud from a new device, and the bank has 3 confirmed-fraud case(s) already closed on this card, pattern(s): account_takeover. The fraud probability of 0.22 did not reach the 0.85 or 0.15 thresholds for stopping, so the investigation remains open.",
+    "summary": "The risk score on card C02923-K1 for the $100.07 online transaction on 2016-12-07 assessed the case as legitimate at probability 0.22 with exposure of $0.00. The bank has 3 confirmed-fraud case(s) already closed on this card (CC-2857, CC-2717, CC-2400), pattern(s): account_takeover, and the identity record marks this device New for the account. For the cardholder, external email-domain intelligence classifies 'icloud.com' as an address tied to a paid internet, cable or phone subscription, which means a billing relationship and a credit check stand behind it.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-005"
   },
@@ -142,6 +142,6 @@
   },
   "stop_reason": "Policy 6: probability 0.22 on 3 independent pieces of evidence sits between the stopping thresholds, and every request the agent may make without approval has been made. The remaining uncertainty is the cardholder's own intent, which only the cardholder or an analyst can resolve; the recommended actions route it to them rather than resolving it in the graph.",
   "tool_calls": 13,
-  "tokens": 1246,
-  "latency_s": 0.57
+  "tokens": 1076,
+  "latency_s": 0.61
 }

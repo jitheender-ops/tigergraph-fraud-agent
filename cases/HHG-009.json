@@ -3,7 +3,7 @@
   "case": {
     "status": "open",
     "verdict": "uncertain",
-    "fraud_probability": 0.45,
+    "fraud_probability": 0.73,
     "pattern": "card_not_present_fraud",
     "pattern_description": "",
     "affected_txn_ids": [
@@ -70,9 +70,9 @@
         "entity_ids": []
       },
       {
-        "claim": "Cardholder confirms the transaction was theirs",
+        "claim": "Step-up authentication passed",
         "source": "customer",
-        "ref": "evidence_request:customer_validation",
+        "ref": "evidence_request:step_up_auth",
         "entity_ids": []
       }
     ],
@@ -83,7 +83,7 @@
       "CC-0842",
       "CC-2891"
     ],
-    "summary": "Customer report on card C08299-K1 over a $30.02 online transaction on 2016-12-28. Against it: The cardholder contacted the bank stating they did not make this purchase. For the cardholder: Cardholder confirms the transaction was theirs. The evidence conflicts and probability sits at 0.45, so the case is not decided in the graph; exposure if the activity is fraudulent is $30.02.",
+    "summary": "The customer disputed a $30.02 online transaction on 2016-12-28 on card C08299-K1, and step-up authentication passed. The cardholder contacted the bank stating they did not make the purchase, yet this exact amount was charged to the card 5 times across 3 distinct months under the same product code, and policy R7 forbids blocking on that subscription cadence. Known fraud pattern 2 describes card-not-present fraud, and 5 closed cases resembling this transaction closed as 5 confirmed fraud cases, though that memory carries no weight. The card belongs to a giant device-sharing component of 2,500 cards, which policy R6 requires to be named but which carries no weight as evidence of a ring. The case ID is uncertain at probability 0.73.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-009"
   },
@@ -91,11 +91,18 @@
     {
       "type": "customer_validation",
       "asked_after_step": 11,
-      "reason": "R1: probability 0.73 is below the 0.85 stopping bar in policy 6; confirm with the cardholder before any action with customer impact.",
-      "assumed_response": "Cardholder, shown the charge history, recognises the amount as a recurring charge they had forgotten and confirms it is theirs. ASSUMPTION: no replies ship with this dataset. This one is drawn from an independent feature of the data - 5 charges of this exact amount across 3 months, a median 34 days apart - not from the agent's own probability.",
+      "reason": "R7: confirm with the cardholder that the recurring charge is theirs before any action on the card.",
+      "assumed_response": "No reply within 24 hours. ASSUMPTION: no replies ship with this dataset, and nothing independent in the evidence points to what the cardholder would say. Inventing an answer here would manufacture certainty, so the agent assumes the case policy R4 is written for - the customer does not respond - and acts accordingly.",
       "simulated": true,
-      "chosen_by": "llm",
-      "planner_note": "The cardholder has already disputed the purchase, and policy R7 explicitly requires verifying with the customer before acting on a recurring-pattern dispute, making direct confirmation the most decisive next step."
+      "chosen_by": "policy"
+    },
+    {
+      "type": "step_up_auth",
+      "asked_after_step": 12,
+      "reason": "Policy 5: the cardholder did not answer the verification request, and step-up authentication is the other channel the agent may use without approval.",
+      "assumed_response": "One-time passcode completed successfully from the cardholder's registered number. ASSUMPTION: simulated; no authentication responses ship with the dataset. Derived from the card-detail match flags (a mismatch fails it), not from the agent's own probability.",
+      "simulated": true,
+      "chosen_by": "policy"
     }
   ],
   "next_best_actions": {
@@ -103,27 +110,17 @@
       {
         "action": "CREATE_CASE",
         "route": "auto",
-        "reason": "Policy 3a: probability is at or above 0.30, so a case is opened."
+        "reason": "R7: cardholder disputes a charge that matches their own recurring pattern; the dispute is recorded as a case."
       },
       {
         "action": "VERIFY_WITH_CUSTOMER",
         "route": "auto",
-        "reason": "R1: probability 0.73 is below the 0.85 stopping bar in policy 6; confirm with the cardholder before any action with customer impact."
+        "reason": "R7: confirm with the cardholder that the recurring charge is theirs before any action on the card."
       },
       {
-        "action": "STEP_UP_AUTH",
+        "action": "WARN_CUSTOMER",
         "route": "auto",
-        "reason": "R1: require step-up authentication on further activity while verification is outstanding."
-      },
-      {
-        "action": "DECLINE_TRANSACTION",
-        "route": "L1",
-        "reason": "R4: decline the pending authorisation while the card stays active, given assessed probability 0.73."
-      },
-      {
-        "action": "MONITOR_CARD",
-        "route": "auto",
-        "reason": "R4: raise monitoring sensitivity for 72 hours."
+        "reason": "R7: send the recurring-charge reminder. R7 explicitly forbids blocking on this profile."
       }
     ],
     "final": [
@@ -141,25 +138,20 @@
         "action": "WARN_CUSTOMER",
         "route": "auto",
         "reason": "R7: send the recurring-charge reminder. R7 explicitly forbids blocking on this profile."
-      },
-      {
-        "action": "MONITOR_CARD",
-        "route": "auto",
-        "reason": "R7 with residual doubt: the cardholder confirms the charge but the assessment still reads 0.45, so the card stays active under monitoring rather than being closed outright."
       }
     ],
-    "what_changed": "Cardholder, shown the charge history, recognises the amount as a recurring charge they had forgotten and confirms it is theirs, moving assessed probability to 0.45. Added: WARN_CUSTOMER. Dropped: DECLINE_TRANSACTION, STEP_UP_AUTH."
+    "what_changed": "The requested evidence came back consistent with the initial assessment, so the recommended actions are unchanged."
   },
   "sar": {
     "file": false,
-    "reason": "Policy 3a: a report requires fraud confirmed or strongly suspected. Assessed probability 0.45 with verdict 'uncertain' does not meet that bar.",
+    "reason": "Policy 3a: fraud established but exposure $30.02 is under $1,000, the activity is confined to this card, and no shared origin or coordination was found. A case is opened; most cases never need a report.",
     "narrative": "",
     "subjects": [],
     "total_amount_usd": 0,
     "activity_dates": []
   },
-  "stop_reason": "A verification response settled the question (policy 6): probability moved to 0.45 on 2 independent pieces of evidence and the action set follows directly. Further steps would not change it.",
+  "stop_reason": "Policy 6: probability 0.73 on 1 independent pieces of evidence sits between the stopping thresholds, and every request the agent may make without approval has been made. The remaining uncertainty is the cardholder's own intent, which only the cardholder or an analyst can resolve; the recommended actions route it to them rather than resolving it in the graph.",
   "tool_calls": 13,
-  "tokens": 1675,
-  "latency_s": 0.96
+  "tokens": 873,
+  "latency_s": 0.59
 }

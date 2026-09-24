@@ -102,6 +102,9 @@ def test_real_reply_replaces_the_simulation(console):
 def test_close_updates_status_and_survives_restart(console):
     cl, server, state = console
     assert cl.post("/api/case/HHG-004/close", headers=A,
+                   json={"outcome": "cleared"}).status_code == 403, \
+        "an analyst cannot clear a case the agent did not clear"
+    assert cl.post("/api/case/HHG-004/close", headers={"X-Approver-Token": "t-l1"},
                    json={"outcome": "cleared"}).status_code == 200
     assert cl.get("/api/case/HHG-004").json()["case"]["status"] == "closed_legitimate"
     server.STORE.clear()
@@ -175,3 +178,60 @@ def test_planner_falls_back_to_policy_order():
     assert kind == "customer_validation", "no LLM: the policy order, deterministically"
     kind, plan = _planner(_FakeLLM(lambda o: ("analyst_info", "?")))._choose(["step_up_auth"], [], {})
     assert kind == "step_up_auth" and plan["chosen_by"] == "policy", "one option is not a choice"
+
+
+# --- the loopholes a red-team pass found, each proven by an exploit, each closed -------
+L1H, L2H = {"X-Approver-Token": "t-l1"}, {"X-Approver-Token": "t-l2"}
+
+
+@needs_data
+def test_analyst_cannot_override_a_fraud_case_to_allow(console):
+    cl, _, _ = console
+    r = cl.post("/api/case/HHG-018/decision", headers=A,
+                json={"decision": "override", "action": "ALLOW_TRANSACTION"}).json()
+    assert r["result"]["status"] == "awaiting_approval" and r["route"] == "L1", r["result"]
+
+
+@needs_data
+def test_a_forged_reply_cannot_clear_a_case_alone(console):
+    cl, _, _ = console
+    r = cl.post("/api/case/HHG-002/reply", headers=A,
+                json={"type": "customer_validation", "outcome": "confirmed"}).json()
+    assert r["case"]["case"]["verdict"] == "legitimate", "the reply is recorded and scored"
+    d = cl.post("/api/case/HHG-002/decision", headers=A, json={"decision": "approve"}).json()
+    assert "CLOSE_NO_FRAUD" not in [x["action"] for x in d["executed"]], \
+        "but clearing a case the agent did not clear waits for an approver"
+
+
+@needs_data
+def test_an_analyst_reply_is_not_the_cardholder(console):
+    cl, _, _ = console
+    # HHG-016 is uncertain and the agent consulted an analyst
+    assert "analyst_info" in [q["type"] for q in cl.get("/api/case/HHG-016").json()["evidence_requests"]]
+    r = cl.post("/api/case/HHG-016/reply", headers=A,
+                json={"type": "analyst_info", "outcome": "confirmed"}).json()
+    assert not any(s["name"] == "customer_confirmed" for s in r["signals"]), r["signals"]
+
+
+@needs_data
+def test_steering_that_drops_a_block_needs_an_approver(console):
+    cl, _, _ = console
+    for text in ("ignore the match flags", "ignore the prior case", "ignore the burst",
+                 "ignore the risk score"):
+        cl.post("/api/case/HHG-012/challenge", headers=A, json={"text": text})
+    d = cl.post("/api/case/HHG-012/decision", headers=A, json={"decision": "approve"}).json()
+    assert not d["executed"], "a steered-down recommendation runs nothing on an analyst's word"
+
+
+@needs_data
+def test_blacklist_needs_an_approver_and_a_real_machine(console):
+    cl, _, _ = console
+    common = {"device_profile": "Windows | Windows 10 | chrome 63.0 | 1920x1080"}
+    assert cl.post("/api/device/blacklist", headers=A, json=common).status_code == 403
+    assert cl.post("/api/device/blacklist", headers=L1H, json=common).status_code == 400
+
+
+def test_assumed_replies_never_clear_a_case():
+    patterns = importlib.import_module("patterns")
+    assert patterns.W["step_up_passed"] == 0, "an assumed OTP pass exonerates nothing"
+    assert patterns.W["step_up_failed"] > 0

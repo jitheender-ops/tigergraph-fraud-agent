@@ -91,9 +91,11 @@ W = {
     # confidence the investigation has not earned.
     "customer_denied":   1.20,
     "customer_confirmed": -1.20,
-    # a simulated step-up is derived from the match flags, which are already scored, so
-    # it carries half a customer reply rather than counting that fact at full weight again
-    "step_up_passed":    -0.60,
+    # A simulated step-up is read off the match flags. A FAIL is corroboration (half a
+    # customer reply, since the flags are already scored). A PASS is scored at zero:
+    # stolen full card details match every flag, so an assumed pass would hand the
+    # fraudster the exoneration. Only a real passcode result moves the score down.
+    "step_up_passed":     0.00,
     "step_up_failed":     0.60,
     "episode":           0.00,   # cleared cases are single-transaction BY CONSTRUCTION;
                                  # scoring episode size would be scoring our own choice

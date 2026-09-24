@@ -176,7 +176,7 @@ five values does not need a vector index.
 
 ## A graph algorithm, and a negative result worth keeping
 
-`connected_cards` is one hop — who else touched this handset. A ring is transitive: A shares
+`device_neighbors` is one hop — who else touched this handset. A ring is transitive: A shares
 a phone with B, B shares a different phone with C, and one hop never reaches C.
 `ring_component` closes the hull (GSQL breadth-first expansion to a fixed point; the mirror
 in `prep/rings.py` is what the calibration ran on).
@@ -224,15 +224,15 @@ BillingRegion, ClosedCase and Case vertices; `OWNS`, `MADE`, `FROM_DEVICE`,
 the `CASE_*` edges the agent writes back — and `DocChunk`, whose 384-dimension vector
 attribute is the GraphRAG document store.
 
-`graph/queries.gsql` — twelve installed GSQL queries that *are* the agent's tools:
+`graph/queries.gsql` — fourteen installed GSQL queries that *are* the agent's tools:
 `card_window`, `card_baseline`, `device_neighbors`, `region_history`,
-`card_testing_probe`, `prior_cases_for_card`, `prior_cases_for_device`, `connected_cards`,
-`region_cluster`, `ring_component`, `doc_search`, `write_case`. The multi-hop ones do the
-work that a row store cannot:
-`device_neighbors` walks DeviceProfile ← Transaction ← Card to find every other cardholder
-who used one machine; `connected_cards` expands two hops from a card through its device
-profiles and back out; `prior_cases_for_device` reaches a closed investigation through the
-transactions that shared a device.
+`card_testing_probe`, `prior_cases_for_card`, `customer_confirmed_cards`,
+`prior_cases_for_device`, `device_reach`, `ring_component`, `doc_search`,
+`cross_case_entities`, `write_case`, `write_closed_case` — plus the library's `tg_wcc`.
+The multi-hop ones do the work that a row store cannot: `device_neighbors` walks
+DeviceProfile ← Transaction ← Card to find every other cardholder who used one machine;
+`prior_cases_for_device` reaches a closed investigation through the transactions that
+shared a device.
 
 `write_case` closes the memory loop. Every investigation is written back as a `FraudCase`
 vertex — not `Case`, which GSQL reserves — with edges to its transactions, its connected
@@ -384,7 +384,18 @@ Every change made through the console needs a token, and the token is a person:
 and the tier from the token — a name in the request body is ignored — so every case event
 and ledger entry records who did it, and an L1 cannot release L2 work. (The single
 `ANALYST_TOKEN` / `APPROVER_TOKEN_L1` / `_L2` still work, under generic names.) Reads stay
-open. Cross-origin
+open.
+
+A human may make the agent **harsher** alone; making it **more lenient** needs an approver,
+and never the same person. Concretely: an override to `ALLOW_TRANSACTION` or
+`CLOSE_NO_FRAUD` on a case the agent did not clear is held for L1; approving a
+recommendation that steering or a recorded reply stripped of a block holds the whole set;
+closing such a case as *cleared* needs an L1/L2 token; a device blacklist needs one too,
+and is refused for any profile used by more than 8 cards (a configuration, not a machine);
+and whoever requested a held action cannot release it. An **assumed** reply can never
+clear a case: a simulated passcode pass scores zero, and a disputed charge is never
+assumed confirmed. Every one of these was an exploit first — `tests/test_agent.py` keeps
+each closed. Cross-origin
 calls are refused unless listed in `CONSOLE_ORIGINS`; the console itself goes through the
 Vite proxy and needs none.
 

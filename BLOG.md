@@ -27,22 +27,22 @@ trigger ─▶ investigate ─▶ assess ─▶ request evidence ─▶ re-asses
 ```
 
 About thirteen graph and retrieval calls per case, 11 seconds of wall clock across all
-twenty on the live database, ~1,400 LLM tokens each. The output is the spec's answer file: the case, the SAR
+twenty on the live database, ~1,600 LLM tokens each. The output is the spec's answer file: the case, the SAR
 when policy requires one, and both the before-evidence and after-evidence action sets
 with their approval routes.
 
-Twenty cases: 8 fraud, 7 legitimate, 5 uncertain. Two SARs. 165 distinct closed cases
+Twenty cases: 8 fraud, 7 uncertain, 5 legitimate. Two SARs. 165 distinct closed cases
 retrieved and cited as memory, by identity and by resemblance. Nine of the twenty asked
-for evidence, and all nine changed their recommendation on the answer; the other eleven
-met the policy 6 bar, or had nothing left to ask, before asking anything.
+for evidence and eight changed their recommendation on the answer; the other eleven met
+the policy 6 bar, or had nothing left to ask, before asking anything.
 
 ## The architecture
 
 Four layers, and the boundary between them is the point.
 
-**Graph tools.** Twelve installed GSQL queries *are* the agent's tool surface —
+**Graph tools.** Fourteen installed GSQL queries *are* the agent's tool surface —
 `card_window`, `device_neighbors`, `prior_cases_for_device`, `ring_component`,
-`doc_search`, `write_case` and the rest. Not "the agent can write Cypher": twelve named,
+`doc_search`, `write_case` and the rest. Not "the agent can write Cypher": fourteen named,
 parameterised, installed queries with a fixed shape.
 
 **Three backends behind one interface.** `tigergraph` runs the installed queries over
@@ -184,7 +184,7 @@ that works on the next one.
 
 ### And a negative result I kept
 
-`connected_cards` is one hop: who else touched this handset. A ring is transitive —
+`device_neighbors` is one hop: who else touched this handset. A ring is transitive —
 A shares a phone with B, B shares a different phone with C, and one hop never reaches C.
 So I added connected components over the device-sharing graph.
 
@@ -219,7 +219,7 @@ Monitoring 2,500 cards is not an action, it is a denial of service on the fraud 
 
 ## Agentic capabilities
 
-**Uncertainty is a first-class verdict.** Five of twenty cases land `uncertain`, and
+**Uncertainty is a first-class verdict.** Seven of twenty cases land `uncertain`, and
 they are not failures. The policy has a rule for exactly that state (R8: escalate when
 uncertain and exposed), and the stop reason says so explicitly: the remaining uncertainty
 is the cardholder's own intent, which only the cardholder or an analyst can resolve, so
@@ -311,7 +311,7 @@ defects in the graph path that no unit test would have been written for — incl
 that changed which closed cases the agent cited and what it concluded. Two
 implementations of one definition drift the moment nobody checks.
 
-**Installed queries make an agent tractable.** Twelve named parameterised queries are a
+**Installed queries make an agent tractable.** Fourteen named parameterised queries are a
 contract. The agent cannot drift, the routing is auditable, and swapping pyTigerGraph for
 MCP became a twenty-line shim instead of a rewrite.
 
@@ -372,6 +372,21 @@ asking a cardholder who had just reported the fraud, and because a denial that c
 a legitimate verdict was only noticed after the evidence step. The validator never checked
 that rule; it does now. Each of these is fixed, and each now has a check.
 
+Then a second agent red-teamed it, and found three ways past the controls; I found six
+more by attacking the running API. They shared one shape: **the approval routes guarded
+only the harsh actions.** Blocking, declining and filing needed L1 or L2 — but allowing a
+transaction, closing a case, recording a "customer confirmed" reply, withdrawing evidence,
+closing fraud as cleared and blacklisting a device all ran on a single analyst's token. A
+rogue insider only needs the downgrade path. Worse, two exoneration paths were my own
+simulation: an assumed passcode success (stolen card details pass every match flag) and an
+assumed "the cardholder recognises this subscription" that overruled a cardholder who had
+just disputed the charge. An analyst's reply was even being scored as the cardholder's.
+
+The fix is one rule: a human may make the agent harsher alone; making it more lenient
+needs a second person, and an assumption may never clear a case. Each exploit is now a
+test. Two benchmark cases that had read `legitimate` on an assumed passcode now read
+`uncertain` and wait for a real answer — a worse-looking score and a more honest one.
+
 What did not change is worth saying too: the verdict band. The backtest fits the band a cost
 function would choose and prints it beside the shipped one. It looks better on October —
 under a review cost and a false-block cost I made up. Nobody in this dataset prices either,
@@ -396,6 +411,6 @@ so the band stays at the policy's own numbers, and the fit is there for whoever 
 
 ---
 
-*Code: the twelve GSQL queries, the policy engine, the calibration harness and all twenty
+*Code: the fourteen GSQL queries, the policy engine, the calibration harness and all twenty
 answer files are in the repository. Built for the TigerGraph × Hacker House Goa agentic
 fraud investigation challenge.*

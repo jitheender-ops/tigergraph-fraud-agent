@@ -3,7 +3,7 @@
   "case": {
     "status": "open",
     "verdict": "uncertain",
-    "fraud_probability": 0.37,
+    "fraud_probability": 0.51,
     "pattern": "card_not_present_fraud",
     "pattern_description": "",
     "affected_txn_ids": [
@@ -100,7 +100,7 @@
       "CC-4218",
       "CC-5375"
     ],
-    "summary": "Risk score on card C11891-K1 over a $292.36 online transaction on 2016-11-22 yielded a probability of 0.37 with pattern card_not_present_fraud and exposure of $292.36. Against this, the bank has 1 confirmed-fraud case(s) already closed on this card (CC-4160), pattern(s): card_not_present_fraud, while step-up authentication passed for the customer, and $292.36 is 7.9x this card's median and above its 95th percentile. The conflicting evidence leaves the case undecided in the graph.",
+    "summary": "Risk score 0.79 on card C11891-K1 for a $292.36 online transaction on 2016-11-22 produced a probability of 0.51 of uncertain verdict. Against the cardholder, the bank has 1 confirmed-fraud case(s) already closed on this card (CC-4160), pattern(s): card_not_present_fraud, while $292.36 is 7.9x this card's median and above its 95th percentile. The conflicting evidence leaves the case undecided, with exposure of $292.36 if the activity is fraudulent, and step-up authentication passed for customer ID not provided.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-002"
   },
@@ -157,18 +157,18 @@
         "reason": "Policy 3a: a case is opened because evidence was requested."
       }
     ],
-    "what_changed": "No reply within 24 hours, moving assessed probability to 0.37. Added: DECLINE_TRANSACTION. Dropped: VERIFY_WITH_CUSTOMER."
+    "what_changed": "No reply within 24 hours, moving assessed probability to 0.51. Added: DECLINE_TRANSACTION. Dropped: VERIFY_WITH_CUSTOMER."
   },
   "sar": {
     "file": false,
-    "reason": "Policy 3a: a report requires fraud confirmed or strongly suspected. Assessed probability 0.37 with verdict 'uncertain' does not meet that bar.",
+    "reason": "Policy 3a: a report requires fraud confirmed or strongly suspected. Assessed probability 0.51 with verdict 'uncertain' does not meet that bar.",
     "narrative": "",
     "subjects": [],
     "total_amount_usd": 0,
     "activity_dates": []
   },
-  "stop_reason": "Policy 6: probability 0.37 on 4 independent pieces of evidence sits between the stopping thresholds, and every request the agent may make without approval has been made. The remaining uncertainty is the cardholder's own intent, which only the cardholder or an analyst can resolve; the recommended actions route it to them rather than resolving it in the graph.",
+  "stop_reason": "Policy 6: probability 0.51 on 3 independent pieces of evidence sits between the stopping thresholds, and every request the agent may make without approval has been made. The remaining uncertainty is the cardholder's own intent, which only the cardholder or an analyst can resolve; the recommended actions route it to them rather than resolving it in the graph.",
   "tool_calls": 11,
-  "tokens": 1143,
-  "latency_s": 0.51
+  "tokens": 1152,
+  "latency_s": 0.68
 }

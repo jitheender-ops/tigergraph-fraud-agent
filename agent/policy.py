@@ -137,7 +137,10 @@ def decide_actions(*, prob, verdict, exposure, signals, pattern, trigger_type,
 
     # ---- R7: disputed but legitimate recurring charge. Checked before R2 so a
     # forgotten subscription never produces a block.
-    if recurring and prob < 0.70 and (customer_denied or trigger_type == "customer_report"):
+    # R7 carries no probability condition. It gives way only at the policy 6 fraud bar,
+    # where independent evidence says fraud whatever the cadence -- a patient attacker
+    # can grow a monthly cadence on a stolen card.
+    if recurring and prob < 0.85 and (customer_denied or trigger_type == "customer_report"):
         _add(a, CREATE_CASE, exposure, "R7: cardholder disputes a charge that matches their own recurring pattern; the dispute is recorded as a case.")
         _add(a, VERIFY_WITH_CUSTOMER, exposure, "R7: confirm with the cardholder that the recurring charge is theirs before any action on the card.")
         _add(a, WARN_CUSTOMER, exposure, "R7: send the recurring-charge reminder. R7 explicitly forbids blocking on this profile.")
@@ -186,7 +189,8 @@ def decide_actions(*, prob, verdict, exposure, signals, pattern, trigger_type,
         return r9(a)
 
     # ---- R2: customer denies
-    if customer_denied and not recurring and verdict != "legitimate":
+    # a recurring cadence shields the charge from R2 exactly as far as it does in R7
+    if customer_denied and (not recurring or prob >= 0.85) and verdict != "legitimate":
         _add(a, BLOCK_CARD, exposure, f"R2: the cardholder denies the transaction; block and reissue. Exposure ${exposure:,.2f} sets the approval route.")
         _add(a, CREATE_CASE, exposure, "R2: open the internal case with the evidence attached.")
 
@@ -367,6 +371,11 @@ def demo():
     a = acts(recurring=True, prob=0.45, customer_denied=True, trigger_type="customer_report")
     assert {CREATE_CASE, VERIFY_WITH_CUSTOMER, WARN_CUSTOMER} <= a, a
     assert BLOCK_CARD not in a and BLOCK_ALL_CARDS not in a, "R7 forbids blocking"
+    a = acts(recurring=True, prob=0.75, verdict="uncertain", trigger_type="customer_report")
+    assert {VERIFY_WITH_CUSTOMER, WARN_CUSTOMER} <= a and DECLINE_TRANSACTION not in a, a
+    a = acts(recurring=True, prob=0.9, verdict="fraud", customer_denied=True,
+             trigger_type="customer_report")
+    assert BLOCK_CARD in a, "at the fraud bar a cadence no longer shields the charge"
 
     # --- R8: uncertain and exposed goes to a human ---
     assert ESCALATE_TO_ANALYST in acts(verdict="uncertain", prob=0.5, exposure=600.0)

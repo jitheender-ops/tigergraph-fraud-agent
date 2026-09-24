@@ -8,15 +8,6 @@ which is what `tool_calls` in the answer file reports.
 from __future__ import annotations
 import datetime as dt, json, os
 
-TOOL_NAMES = [
-    "card_window", "card_baseline", "device_neighbors", "region_history",
-    "card_testing_probe", "prior_cases_for_card", "prior_cases_for_device",
-    "customer_confirmed_cards",
-    "connected_cards", "region_cluster", "device_reach", "ring_component",
-    "doc_search", "email_intel", "cross_case_entities", "write_case", "similar_cases",
-]
-
-
 CASE_LOG = "build/graph_cases.jsonl"
 # Cases an analyst closes from the console while it runs on the DuckDB mirror. The mirror
 # is opened read-only, so they land here and a temp view folds them into closed_case --
@@ -51,7 +42,25 @@ class ToolLog:
         return len(self.calls)
 
 
-class DuckDBBackend:
+class _Lookups:
+    """The two tools that are lookups, not traversals, so both backends share them."""
+
+    def similar_cases(self, f, before=None, k=5):
+        """Nearest closed cases by transaction profile. A lookup over an offline index of the closed cases, not a traversal."""
+        import similar
+        hits = similar.nearest(f, before, k)
+        self.log.record("similar_cases", {"txn_id": str(f.get("txn_id"))}, len(hits))
+        return hits
+
+    def email_intel(self, domain):
+        """The one evidence source outside the institution."""
+        import external
+        hit = external.lookup(domain)
+        self.log.record("email_intel", {"domain": domain}, 1 if hit["class"] != "unknown" else 0)
+        return hit
+
+
+class DuckDBBackend(_Lookups):
     """Same traversals as the GSQL, expressed over the derived tables."""
     name = "duckdb"
 
@@ -173,28 +182,6 @@ class DuckDBBackend:
             p.append(before)
         return sorted(self._df("customer_confirmed_cards", sql, p).card_id.tolist())
 
-    # 8 --------------------------------------------------------------------
-    def connected_cards(self, card_id, t_from, t_to):
-        df = self._df("connected_cards", """
-            WITH d AS (SELECT DISTINCT device_profile FROM tx
-                       WHERE card_id = ? AND ts BETWEEN ? AND ? AND device_profile IS NOT NULL)
-            SELECT DISTINCT t.card_id, t.customer_id, t.device_profile
-            FROM tx t JOIN d ON d.device_profile = t.device_profile
-            WHERE t.ts BETWEEN ? AND ? AND t.card_id <> ?
-        """, [card_id, t_from, t_to, t_from, t_to, card_id])
-        return {"cards": sorted(df.card_id.unique().tolist()),
-                "devices": sorted(df.device_profile.unique().tolist()),
-                "customers": sorted(df.customer_id.unique().tolist())}
-
-    # 9 --------------------------------------------------------------------
-    def region_cluster(self, region, t_from, t_to):
-        df = self._df("region_cluster", """
-            SELECT card_id, count(*) n, sum(amount) total FROM tx
-            WHERE addr1 IS NOT DISTINCT FROM ? AND ts BETWEEN ? AND ? GROUP BY card_id
-        """, [region, t_from, t_to])
-        return {"cards": df.card_id.tolist(), "n_txns": int(df.n.sum()) if len(df) else 0,
-                "total": float(df.total.sum()) if len(df) else 0.0}
-
     # helper: full feature row -------------------------------------------------
     def features(self, card_id, txn_id):
         from features import FEATURE_SQL
@@ -246,22 +233,6 @@ class DuckDBBackend:
         """, [card_id])
         members = [c for c in df.card_id.tolist() if c != card_id]
         return {"ring_id": card_id, "ring_size": len(members) + 1, "members": members[:25]}
-
-    def similar_cases(self, f, before=None, k=5):
-        """Nearest closed cases by transaction profile. Shared by both backends: a
-        lookup over an offline index of the closed cases, not a traversal."""
-        import similar
-        hits = similar.nearest(f, before, k)
-        self.log.record("similar_cases", {"txn_id": str(f.get("txn_id"))}, len(hits))
-        return hits
-
-    def email_intel(self, domain):
-        """The one evidence source outside the institution. Shared by both backends: it
-        is a vendor lookup, not a graph traversal, so there is nothing to express twice."""
-        import external
-        hit = external.lookup(domain)
-        self.log.record("email_intel", {"domain": domain}, 1 if hit["class"] != "unknown" else 0)
-        return hit
 
     def cross_case_entities(self, min_cases=2):
         """Entities recurring across investigations. The SQL mirror reads the same two
@@ -324,7 +295,7 @@ class DuckDBBackend:
         return payload["graph_case_id"]
 
 
-class TigerGraphBackend:
+class TigerGraphBackend(_Lookups):
     """Runs the installed GSQL queries in graph/queries.gsql."""
     name = "tigergraph"
 
@@ -441,24 +412,6 @@ class TigerGraphBackend:
             df = df[df.closed_at < pd.Timestamp(before)]
         return sorted(set(df.card_id)) if len(df) else []
 
-    def connected_cards(self, card_id, t_from, t_to):
-        r = self._run("connected_cards", {"p_card_id": card_id, "p_from": self._ts(t_from),
-                                          "p_to": self._ts(t_to)})
-        cards, devs = [], []
-        for blk in r:
-            cards += blk.get("connected_card_ids", [])
-            devs += blk.get("shared_device_profiles", [])
-        return {"cards": sorted(set(cards)), "devices": sorted(set(devs)), "customers": []}
-
-    def region_cluster(self, region, t_from, t_to):
-        r = self._run("region_cluster", {"p_region": str(region), "p_from": self._ts(t_from),
-                                         "p_to": self._ts(t_to)})
-        out = {}
-        for blk in r:
-            out.update(blk)
-        return {"cards": out.get("card_ids", []), "n_txns": out.get("n_txns", 0),
-                "total": out.get("total_amount", 0.0)}
-
     def ring_component(self, card_id, cap=None):
         params = {"p_card_id": card_id}
         if cap:
@@ -473,22 +426,6 @@ class TigerGraphBackend:
         members = sorted(c for c in out.get("members", []) if c != card_id)
         return {"ring_id": out.get("ring_id", ""),
                 "ring_size": int(out.get("ring_size", 1) or 1), "members": members[:25]}
-
-    def similar_cases(self, f, before=None, k=5):
-        """Nearest closed cases by transaction profile. Shared by both backends: a
-        lookup over an offline index of the closed cases, not a traversal."""
-        import similar
-        hits = similar.nearest(f, before, k)
-        self.log.record("similar_cases", {"txn_id": str(f.get("txn_id"))}, len(hits))
-        return hits
-
-    def email_intel(self, domain):
-        """The one evidence source outside the institution. Shared by both backends: it
-        is a vendor lookup, not a graph traversal, so there is nothing to express twice."""
-        import external
-        hit = external.lookup(domain)
-        self.log.record("email_intel", {"domain": domain}, 1 if hit["class"] != "unknown" else 0)
-        return hit
 
     def cross_case_entities(self, min_cases=2):
         r = self._run("cross_case_entities", {"p_min_cases": int(min_cases)})

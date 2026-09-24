@@ -119,7 +119,7 @@
       "CC-3012",
       "CC-4375"
     ],
-    "summary": "The risk score on card C07987-K2 for the $99.92 online transaction on 2016-12-01 was 0.90 against a fraud probability of 0.11. Evidence against fraud included 3 prior confirmed-fraud case(s) on the card (CC-5026, CC-2860, CC-2011) with pattern(s): card_not_present_fraud, out_of_region_use, a New device marking, and an external email-domain intelligence result for 'verizon.net' yielding a log-likelihood ratio of -1.24. Evidence for the cardholder included 13 prior charges of $99.92 across 4 distinct months under the same product code, a median of 27 days apart, and policy rule R7, which forbids blocking on that subscription cadence. The device profile 'Windows | other | chrome 61.0 | 1280x720' was shared with 2 other card(s) across 3 customer(s) in the 30-day window, and the card was placed in a giant device-sharing component of 2,500 cards, both items named per policy rule R6. Exposure was $0.00, and 5 similar closed cases (CC-0757, CC-3020, CC-0635, CC-3012, CC-4375) closed as 1 confirmed fraud and 4 cleared.",
+    "summary": "The risk score on card C07987-K2 for a $99.92 online transaction on 2016-12-01 was 0.90, and the identity record marked the device as New for the account. The exact amount of $99.92 had been charged to this card 13 times across 4 distinct months under the same product code, and external intelligence classified 'verizon.net' as an address tied to a paid internet, cable or phone subscription with a log-likelihood ratio of -1.24. The card was assessed as legitimate at fraud probability 0.11 with exposure of $0.00, 2 other card(s) shared the device profile 'Windows | other | chrome 61.0 | 1280x720' across 3 customer(s), and the bank had 3 confirmed-fraud case(s) already closed on this card (CC-5026, CC-2860, CC-2011), pattern(s): card_not_present_fraud, out_of_region_use.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-019"
   },
@@ -161,6 +161,6 @@
   },
   "stop_reason": "Policy 6: probability 0.11 is at or below 0.15 on 4 independent pieces of evidence; the alarm is explained and further investigation would not change the outcome.",
   "tool_calls": 16,
-  "tokens": 1501,
-  "latency_s": 0.64
+  "tokens": 1407,
+  "latency_s": 0.67
 }

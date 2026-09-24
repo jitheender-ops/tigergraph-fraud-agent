@@ -87,7 +87,7 @@
       "CC-2739",
       "CC-0649"
     ],
-    "summary": "Customer report on card C09988-K1 over a $59.67 online transaction on 2016-12-11. Against it: The cardholder contacted the bank stating they did not make this purchase. For the cardholder: The identity record marks this device New for the account. The evidence conflicts and probability sits at 0.50, so the case is not decided in the graph; exposure if the activity is fraudulent is $59.67.",
+    "summary": "The case ID for card C09988-K1 over transaction 2016-12-11 with exposure $59.67 is uncertain at probability 0.50. The customer reported they did not make the purchase, yet the identity record marks the device New, the device-sharing component contains 2,500 cards, and the top 5 similar closed cases (CC-3886, CC-1558, CC-4376, CC-2739, CC-0649) were all confirmed fraud. Under policy rule R2, the recommendation is to block the card and create a case.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-016"
   },
@@ -163,6 +163,6 @@
   },
   "stop_reason": "Policy 6: probability 0.50 on 2 independent pieces of evidence sits between the stopping thresholds, and every request the agent may make without approval has been made. The remaining uncertainty is the cardholder's own intent, which only the cardholder or an analyst can resolve; the recommended actions route it to them rather than resolving it in the graph.",
   "tool_calls": 12,
-  "tokens": 960,
-  "latency_s": 0.57
+  "tokens": 910,
+  "latency_s": 0.61
 }

@@ -3,7 +3,7 @@
   "case": {
     "status": "closed_legitimate",
     "verdict": "legitimate",
-    "fraud_probability": 0.12,
+    "fraud_probability": 0.2,
     "pattern": "none",
     "pattern_description": "",
     "affected_txn_ids": [],
@@ -86,7 +86,7 @@
       "CC-3601",
       "CC-2982"
     ],
-    "summary": "Risk score on card C04570-K1 over a $100.09 online transaction on 2016-11-11 was assessed as legitimate at fraud probability 0.12 with exposure of $0.00. Step-up authentication passed for customer C04570-K1, and 1 previous alarm on this card was investigated and cleared under case CC-1383. External email-domain intelligence classified 'anonymous.com' as a masked address, the connection came through IP_PROXY:HIDDEN, and 5 closed cases most resembling this transaction were CC-4358, CC-4529, CC-3902, CC-3601, and CC-2982. The transaction fits an undocumented pattern under policy R9, and the card sits in a giant device-sharing component of 2,500 cards.",
+    "summary": "Risk score on card C04570-K1 over a $100.09 online transaction on 2016-11-11. The connection came through a proxy (IP_PROXY:HIDDEN), 1 previous alarm(s) on this card were investigated and cleared (CC-1383), the 5 closed cases whose transaction most resembles this one (CC-4358, CC-4529, CC-3902, CC-3601, CC-2982) closed as 4 confirmed fraud and 1 cleared, and connected components placed this card in the graph's giant device-sharing component (2,500 cards). External email-domain intelligence classifies 'anonymous.com' as a masked address -- the processor withheld it rather than the cardholder choosing an anonymous one -- and step-up authentication passed, resulting in an assessment of legitimate at probability 0.20, a pattern of undocumented, and exposure of $0.00.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-017"
   },
@@ -98,7 +98,11 @@
       "assumed_response": "No reply within 24 hours. ASSUMPTION: no replies ship with this dataset, and nothing independent in the evidence points to what the cardholder would say. Inventing an answer here would manufacture certainty, so the agent assumes the case policy R4 is written for - the customer does not respond - and acts accordingly.",
       "simulated": true,
       "chosen_by": "llm",
-      "planner_note": "The current probability of 0.20 rests on a single signal (proxy use) with no exposure, and direct cardholder confirmation is the only remaining evidence that can decisively shift the verdict either toward fraud or legitimacy."
+      "planner_note": "The current probability of 0.20 rests on a single weak signal (masked proxy domain with -1.39 log-likelihood ratio) and the policy R9 explicitly requires verifying undocumented patterns before escalation, making direct cardholder confirmation the most decisive next step.",
+      "options": [
+        "customer_validation",
+        "step_up_auth"
+      ]
     },
     {
       "type": "step_up_auth",
@@ -131,26 +135,31 @@
       {
         "action": "ALLOW_TRANSACTION",
         "route": "auto",
-        "reason": "R1 and policy 6: probability 0.12 with 2 independent pieces of evidence pointing away from fraud; the transaction stands."
+        "reason": "R1 and policy 6: probability 0.20 with 1 independent pieces of evidence pointing away from fraud; the transaction stands."
       },
       {
         "action": "CLOSE_NO_FRAUD",
         "route": "auto",
         "reason": "Policy 6: the evidence settles the question; close as legitimate."
+      },
+      {
+        "action": "MONITOR_CARD",
+        "route": "auto",
+        "reason": "Residual uncertainty is low but non-zero; keep 72-hour monitoring without customer impact."
       }
     ],
-    "what_changed": "No reply within 24 hours, moving assessed probability to 0.12. Added: ALLOW_TRANSACTION, CLOSE_NO_FRAUD. Dropped: MONITOR_CARD, STEP_UP_AUTH, VERIFY_WITH_CUSTOMER."
+    "what_changed": "No reply within 24 hours, moving assessed probability to 0.20. Added: ALLOW_TRANSACTION, CLOSE_NO_FRAUD. Dropped: STEP_UP_AUTH, VERIFY_WITH_CUSTOMER."
   },
   "sar": {
     "file": false,
-    "reason": "Policy 3a: a report requires fraud confirmed or strongly suspected. Assessed probability 0.12 with verdict 'legitimate' does not meet that bar.",
+    "reason": "Policy 3a: a report requires fraud confirmed or strongly suspected. Assessed probability 0.20 with verdict 'legitimate' does not meet that bar.",
     "narrative": "",
     "subjects": [],
     "total_amount_usd": 0,
     "activity_dates": []
   },
-  "stop_reason": "Policy 6: probability 0.12 is at or below 0.15 on 2 independent pieces of evidence; the alarm is explained and further investigation would not change the outcome.",
+  "stop_reason": "Policy 6: probability 0.20 on 1 independent pieces of evidence sits between the stopping thresholds, and every request the agent may make without approval has been made. The remaining uncertainty is the cardholder's own intent, which only the cardholder or an analyst can resolve; the recommended actions route it to them rather than resolving it in the graph.",
   "tool_calls": 13,
-  "tokens": 1634,
-  "latency_s": 0.91
+  "tokens": 1659,
+  "latency_s": 0.87
 }

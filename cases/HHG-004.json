@@ -109,7 +109,7 @@
       "CC-3683",
       "CC-3853"
     ],
-    "summary": "The customer reported card C08106-K1 over a $128.33 online transaction on 2016-12-29. The cardholder contacted the bank stating they did not make this purchase, and the bank has 3 confirmed-fraud case(s) already closed on this card (CC-3778, CC-2121, CC-1736), pattern(s): card_not_present_fraud. The identity record marks this device New for the account, and $128.33 is 4.8x this card's median and above its 95th percentile. The evidence conflicts and the verdict is uncertain at probability 0.61, so the case is not decided in the graph; exposure if the activity is fraudulent is $128.33.",
+    "summary": "The customer reported card C08106-K1 for the $128.33 online transaction on 2016-12-29. The identity record marks the device New for the account, and $128.33 is 4.8x this card's median and above its 95th percentile. The bank has 3 confirmed-fraud case(s) already closed on this card (CC-3778, CC-2121, CC-1736), pattern(s): card_not_present_fraud. The case ID is unassigned, the probability is 0.61, and the exposure is $128.33.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-004"
   },
@@ -185,6 +185,6 @@
   },
   "stop_reason": "Policy 6: probability 0.61 on 4 independent pieces of evidence sits between the stopping thresholds, and every request the agent may make without approval has been made. The remaining uncertainty is the cardholder's own intent, which only the cardholder or an analyst can resolve; the recommended actions route it to them rather than resolving it in the graph.",
   "tool_calls": 14,
-  "tokens": 1164,
-  "latency_s": 0.58
+  "tokens": 1136,
+  "latency_s": 0.6
 }

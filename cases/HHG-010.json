@@ -87,7 +87,7 @@
       "CC-1751",
       "CC-1335"
     ],
-    "summary": "Risk score on card C10434-K1 for a $1,000.03 online transaction on 2016-12-02 was 0.90, and 1 previous alarm on the card (CC-0873) was investigated and cleared. External email-domain intelligence classifies 'anonymous.com' as a masked address, and the identity record marks this device New for the account. Assessed as legitimate at probability 0.02, pattern card_not_present_new_device, with case ID CC-0873 and exposure of $0.00.",
+    "summary": "Risk score on card C10434-K1 over a $1,000.03 online transaction on 2016-12-02 returned a model risk score of 0.90, 1 previous alarm on this card (CC-0873) was investigated and cleared, and the identity record marks this device New for the account. External email-domain intelligence classifies 'anonymous.com' as a masked address -- the processor withheld it rather than the cardholder choosing an anonymous one -- and 5 closed cases whose transactions most resemble this one (CC-0996, CC-4444, CC-3692, CC-1751, CC-1335) closed as 5 confirmed fraud (card not present new device) and 0 cleared. The case was assessed as legitimate at probability 0.02, exposure is $0.00, and the pattern is card_not_present_new_device.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-010"
   },
@@ -129,6 +129,6 @@
   },
   "stop_reason": "Policy 6: probability 0.02 is at or below 0.15 on 4 independent pieces of evidence; the alarm is explained and further investigation would not change the outcome.",
   "tool_calls": 13,
-  "tokens": 1050,
+  "tokens": 1128,
   "latency_s": 0.12
 }

@@ -33,6 +33,22 @@ def is_recurring_charge(f) -> bool:
 MAX_EVIDENCE_ROUNDS = 3
 
 
+def reconcile(verdict, prob, disputed, recurring) -> str:
+    """When the cardholder's dispute and the evidence disagree, that is a conflict for a
+    human (R8), not a verdict.
+
+    A denial the graph calls legitimate: closing it would tell a cardholder who reported
+    fraud that they are wrong. A dispute of a charge on their own monthly cadence (R7):
+    calling it fraud below the policy 6 bar would overrule the cadence on the strength
+    of a score that does not weigh it. At 0.85 on the evidence, it is fraud whatever the
+    cadence says -- a patient attacker can build one."""
+    if disputed and not recurring and verdict == "legitimate":
+        return "uncertain"
+    if disputed and recurring and verdict == "fraud" and prob < 0.85:
+        return "uncertain"
+    return verdict
+
+
 def step_up_passes(f) -> bool:
     """Simulated OTP outcome. The code goes to the cardholder's registered phone, so it
     fails when the party transacting is not the cardholder. It turns on the card-detail
@@ -213,12 +229,10 @@ class Investigation:
         recurring = is_recurring_charge(f)
         n_ind = pol.independent_evidence_count(self.signals)
         verdict = self._verdict(prob)
-        # A denial the graph evidence contradicts is a conflict, not an acquittal (R8).
-        # The report is known from the trigger, so this applies to the FIRST
-        # recommendation too -- applied only after the evidence step, it flipped
-        # ALLOW/CLOSE to BLOCK/ESCALATE between initial and final with nothing asked.
-        if customer_disputed and not recurring and verdict == "legitimate":
-            verdict = "uncertain"
+        # Known from the trigger, so reconciled before the FIRST recommendation too --
+        # applied only after the evidence step, it flipped ALLOW/CLOSE to BLOCK/ESCALATE
+        # between initial and final with nothing asked.
+        verdict = reconcile(verdict, prob, customer_disputed, recurring)
 
         # exposure only means something if we think something went wrong
         exposure = episode["exposure"] if verdict != "legitimate" else 0.0
@@ -333,11 +347,7 @@ class Investigation:
         # would assert more than the evidence carries.
         if customer_confirmed and verdict != "fraud" and prob <= 0.30:
             verdict = "legitimate"
-        # A denial the graph evidence contradicts is a conflict, not an acquittal. Closing
-        # it as legitimate would tell a cardholder who reported fraud that they are wrong;
-        # policy R8 sends conflicting evidence to a human instead.
-        if customer_denied and verdict == "legitimate":
-            verdict = "uncertain"
+        verdict = reconcile(verdict, prob, customer_denied or customer_disputed, recurring)
         # exposure is settled only after the verdict is final, so a case flipped to
         # uncertain still carries the amount at risk rather than zero.
         if verdict == "legitimate":
@@ -494,7 +504,13 @@ class Investigation:
 
         if kind == "customer_validation":
             strong = sum(1 for x in self.signals if x.weight >= 0.7)
-            if recurring:
+            # An ASSUMED reply may never clear a case. When the cardholder has already
+            # disputed the charge, inventing "they recognise it" would overrule their
+            # actual words -- and a patient attacker can grow the recurring cadence
+            # themselves. So the subscription confirmation is only assumed when nobody
+            # disputed anything; a disputed recurring charge waits for a real answer.
+            disputed = self.t["trigger_type"] == "customer_report"
+            if recurring and not disputed:
                 resp = ("Cardholder, shown the charge history, recognises the amount as a "
                         "recurring charge they had forgotten and confirms it is theirs. "
                         "ASSUMPTION: no replies ship with this dataset. This one is drawn "
@@ -554,6 +570,14 @@ class Investigation:
                     else P.W["customer_confirmed" if ok else "customer_denied"],
                     "Step-up authentication " + ("passed" if ok else "was not completed"),
                     [], "evidence_request:step_up_auth", source="customer"))
+            elif r["type"] == "analyst_info":
+                # context, not the cardholder's word: it used to fall through to the
+                # branches below and score -1.2 as "cardholder confirms"
+                if not r.get("simulated", True):
+                    self.signals.append(P.Signal(
+                        "analyst_reply", 0.0,
+                        f"Analyst reply recorded: {r['assumed_response']}", [],
+                        "evidence_request:analyst_info", source="external"))
             elif r["_denied"]:
                 self.signals.append(P.Signal("customer_denied", P.W["customer_denied"],
                     "Cardholder denies the transaction on contact", [], f"evidence_request:{r['type']}",

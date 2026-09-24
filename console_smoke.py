@@ -87,8 +87,11 @@ def main():
     call("/case/HHG-011/reset", method="POST")
 
     su = call("/case/HHG-004/stepup", method="POST")
-    ok("step-up moves the probability", su["changed"]["probability"][0]
-       != su["changed"]["probability"][1], str(su["changed"]["probability"]))
+    before, after = su["changed"]["probability"]
+    # a simulated FAIL is evidence and raises p; a simulated PASS scores zero, because
+    # stolen card details pass every match flag -- it must never lower p
+    ok("step-up can raise p, never lower it",
+       after > before if not su["passed"] else after == before, f"passed={su['passed']} {before}->{after}")
     call("/case/HHG-004/reset", method="POST")
 
     # --- decisions -----------------------------------------------------------

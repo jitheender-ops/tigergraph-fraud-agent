@@ -111,7 +111,7 @@
       "CC-3543",
       "CC-4325"
     ],
-    "summary": "On 2016-12-10, the cardholder denied an in-person transaction for $49.00 on card C08623-K2, and 3 of the card-detail match flags M1-M9 came back F for this transaction. The bank has 5 confirmed-fraud case(s) already closed on this card (CC-4957, CC-3682, CC-3327, CC-2935), and 13 transactions occurred on this card in the 48 hours ending at the flagged one. The case is assessed as account_takeover with probability 0.92 and $49.00 of exposure.",
+    "summary": "The cardholder reported on 2016-12-10 that they did not make an in person transaction for $49.00 on card C08623-K2. Against this, 3 of the card-detail match flags M1-M9 came back F, and the transaction was assessed as mixed-channel activity consistent with stolen credentials at probability 0.92. External email-domain intelligence classified 'me.com' as an address tied to a paid internet, cable or phone subscription, which points away from fraud (log-likelihood ratio -1.24). The bank has 5 confirmed-fraud case(s) already closed on this card (CC-4957, CC-3682, CC-3327, CC-2935), and 13 transactions on this card occurred in the 48 hours ending at the flagged one. The case ID is CC-0136, and the recommended action is `BLOCK_CARD` and `CREATE_CASE` per policy rule R2.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-003"
   },
@@ -153,6 +153,6 @@
   },
   "stop_reason": "Policy 6: probability 0.92 is at or above 0.85 on 5 independent pieces of evidence, which is the bar for a defensible action. No further evidence was requested because none could change it.",
   "tool_calls": 12,
-  "tokens": 1073,
-  "latency_s": 0.63
+  "tokens": 1145,
+  "latency_s": 0.68
 }

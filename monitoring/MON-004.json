@@ -1,19 +1,21 @@
 {
   "case_id": "MON-004",
   "case": {
-    "status": "closed_legitimate",
-    "verdict": "legitimate",
-    "fraud_probability": 0.25,
-    "pattern": "none",
+    "status": "escalated",
+    "verdict": "uncertain",
+    "fraud_probability": 0.38,
+    "pattern": "card_not_present_fraud",
     "pattern_description": "",
-    "affected_txn_ids": [],
-    "first_suspicious_txn_id": "",
+    "affected_txn_ids": [
+      "3423666"
+    ],
+    "first_suspicious_txn_id": "3423666",
     "connected_card_ids": [
       "C05979-K1",
       "C12940-K1"
     ],
     "connected_device_profiles": [],
-    "exposure_usd": 0.0,
+    "exposure_usd": 977.77,
     "evidence": [
       {
         "claim": "$977.77 is 8.7x this card's median and above its 95th percentile. Counter-intuitively this is mildly exculpatory: large outliers appear on 16% of cleared alarms and 6% of confirmed fraud, because confirmed fraud tends to stay inside the cardholder's normal range to avoid attention",
@@ -84,7 +86,7 @@
       "CC-4776",
       "CC-4827"
     ],
-    "summary": "A monitoring sweep on card C00081-K2 over a $977.77 in person transaction on 2016-11-02 assessed the activity as legitimate at probability 0.25 with a card_not_present_fraud pattern and $0.00 exposure. Although $977.77 is 8.7x this card's median and above its 95th percentile, the connected component for this card contained 3 cards (C05979-K1, C12940-K1), and step-up authentication passed for customer ID unknown under case ID unknown. Policy rule R8 was not triggered, while policy rule R6 recommended CREATE_CASE, FILE_REPORT, and MONITOR_CONNECTED_CARDS for the 2 other card(s) transacted through the same device profile, and 5 closed cases (CC-2463, CC-5082, CC-2379, CC-4776, CC-4827) closed as 5 confirmed fraud and 0 cleared.",
+    "summary": "Monitoring sweep on card C00081-K2 over a $977.77 in person transaction on 2016-11-02 produced a verdict of uncertain at probability 0.38 with pattern card_not_present_fraud. The $977.77 is 8.7x this card's median and above its 95th percentile, and the 5 closed cases whose transaction most resembles this one (CC-2463, CC-5082, CC-2379, CC-4776, CC-4827) closed as 5 confirmed fraud and 0 cleared. Connected components over the device-sharing graph placed this card in a bounded component of 3 cards (C05979-K1, C12940-K1) linked transitively through device profiles each used by no more than 8 cards. Policy rule R8 recommended ESCALATE_TO_ANALYST because the verdict is uncertain and exposure exceeds $500, while policy rule R6 named the shared element and recommended CREATE_CASE, FILE_REPORT, and MONITOR_CONNECTED_CARDS for the 2 other card(s) transacted through the same device profile. Step-up authentication passed for customer ID associated with case ID.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-M004"
   },
@@ -126,35 +128,45 @@
     ],
     "final": [
       {
-        "action": "ALLOW_TRANSACTION",
-        "route": "auto",
-        "reason": "R1 and policy 6: probability 0.25 with 2 independent pieces of evidence pointing away from fraud; the transaction stands."
-      },
-      {
-        "action": "CLOSE_NO_FRAUD",
-        "route": "auto",
-        "reason": "Policy 6: the evidence settles the question; close as legitimate."
-      },
-      {
         "action": "MONITOR_CARD",
         "route": "auto",
-        "reason": "Residual uncertainty is low but non-zero; keep 72-hour monitoring without customer impact."
+        "reason": "R4: no reply within 24 hours; keep the card active under raised monitoring."
+      },
+      {
+        "action": "DECLINE_TRANSACTION",
+        "route": "L1",
+        "reason": "R4: decline pending authorisations while the verification is unanswered."
+      },
+      {
+        "action": "ESCALATE_TO_ANALYST",
+        "route": "auto",
+        "reason": "R4: no reply and exposure $977.77 exceeds $500; escalate to a human analyst."
+      },
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "Policy 3a: a case is opened because evidence was requested."
+      },
+      {
+        "action": "MONITOR_CONNECTED_CARDS",
+        "route": "auto",
+        "reason": "R6: shared device-sharing component of 3 cards links 2 other card(s); place them under monitoring."
       }
     ],
-    "what_changed": "No reply within 24 hours, moving assessed probability to 0.25. Added: ALLOW_TRANSACTION, CLOSE_NO_FRAUD. Dropped: CREATE_CASE, VERIFY_WITH_CUSTOMER."
+    "what_changed": "No reply within 24 hours, moving assessed probability to 0.38. Added: DECLINE_TRANSACTION, ESCALATE_TO_ANALYST, MONITOR_CONNECTED_CARDS. Dropped: VERIFY_WITH_CUSTOMER."
   },
   "sar": {
     "file": false,
-    "reason": "Policy 3a: a report requires fraud confirmed or strongly suspected. Assessed probability 0.25 with verdict 'legitimate' does not meet that bar.",
+    "reason": "Policy 3a: a report requires fraud confirmed or strongly suspected. Assessed probability 0.38 with verdict 'uncertain' does not meet that bar.",
     "narrative": "",
     "subjects": [],
     "total_amount_usd": 0,
     "activity_dates": []
   },
-  "stop_reason": "Policy 6: probability 0.25 on 2 independent pieces of evidence sits between the stopping thresholds, and every request the agent may make without approval has been made. The remaining uncertainty is the cardholder's own intent, which only the cardholder or an analyst can resolve; the recommended actions route it to them rather than resolving it in the graph.",
+  "stop_reason": "Policy 6: probability 0.38 on 1 independent pieces of evidence sits between the stopping thresholds, and every request the agent may make without approval has been made. The remaining uncertainty is the cardholder's own intent, which only the cardholder or an analyst can resolve; the recommended actions route it to them rather than resolving it in the graph.",
   "tool_calls": 12,
-  "tokens": 1125,
-  "latency_s": 0.12,
+  "tokens": 1176,
+  "latency_s": 0.13,
   "trigger": {
     "type": "monitoring_sweep",
     "text": "Self-directed sweep. Connected components over the device-sharing graph put card C00081-K2 in a bounded component of 3 cards sharing 2 device profile(s), moving $7,102.69 across 48 transactions since 2016-11-02. No model score, cardholder report or analyst request opened this."

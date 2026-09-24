@@ -152,47 +152,6 @@ CREATE OR REPLACE QUERY prior_cases_for_device(STRING p_device_profile) FOR GRAP
 }
 
 // ---------------------------------------------------------------------------
-// 8. Connected cards: two-hop ring expansion from this card through shared
-//    device profiles inside a window. Feeds MONITOR_CONNECTED_CARDS (R6).
-// ---------------------------------------------------------------------------
-CREATE OR REPLACE QUERY connected_cards(STRING p_card_id, DATETIME p_from, DATETIME p_to) FOR GRAPH FraudInvestigation {
-  SetAccum<STRING> @@devices, @@linked_cards;
-
-  Start = {Card.*};
-  C = SELECT c FROM Start:c WHERE c.card_id == p_card_id;
-  T = SELECT t FROM C:c -(MADE>)- Transaction:t
-      WHERE t.ts >= p_from AND t.ts <= p_to AND t.device_profile != ""
-      ACCUM @@devices += t.device_profile;
-
-  // an inline vertex-set literal is not a legal FROM source: it has to be bound first.
-  AllDevices = {DeviceProfile.*};
-  D  = SELECT d FROM AllDevices:d WHERE d.device_profile IN @@devices;
-  T2 = SELECT t FROM D:d -(DEVICE_USED_IN>)- Transaction:t
-       WHERE t.ts >= p_from AND t.ts <= p_to AND t.card_id != p_card_id
-       ACCUM @@linked_cards += t.card_id;
-
-  PRINT @@devices AS shared_device_profiles, @@linked_cards AS connected_card_ids;
-}
-
-// ---------------------------------------------------------------------------
-// 9. Region cluster (R6): cards newly active in a billing region in a window.
-//    Catches out-of-region rings that no single card's history reveals.
-// ---------------------------------------------------------------------------
-CREATE OR REPLACE QUERY region_cluster(STRING p_region, DATETIME p_from, DATETIME p_to) FOR GRAPH FraudInvestigation {
-  SetAccum<STRING> @@cards;
-  SumAccum<DOUBLE> @@total;
-  SumAccum<INT>    @@n;
-
-  Start = {BillingRegion.*};
-  R = SELECT r FROM Start:r WHERE r.region_id == p_region;
-  T = SELECT t FROM R:r -(REGION_OF>)- Transaction:t
-      WHERE t.ts >= p_from AND t.ts <= p_to
-      ACCUM @@cards += t.card_id, @@total += t.amount, @@n += 1;
-
-  PRINT @@cards AS card_ids, @@n AS n_txns, @@total AS total_amount;
-}
-
-// ---------------------------------------------------------------------------
 // 9b. How many distinct cards a device profile has ever touched. One attribute, but
 //     it decides whether a shared profile is a machine or a configuration, so the
 //     feature extractor needs it for every anchor transaction.
@@ -206,7 +165,7 @@ CREATE OR REPLACE QUERY device_reach(STRING p_device_profile) FOR GRAPH FraudInv
 // ---------------------------------------------------------------------------
 // 10. GRAPH ALGORITHM. Connected components over the device-sharing card graph.
 //
-//     query 8 is one hop: who else touched this handset. A ring is transitive --
+//     device_neighbors (query 3) is one hop: who else touched this handset. A ring is transitive --
 //     A shares a phone with B, B shares a different phone with C -- and one hop
 //     never reaches C. This is a breadth-first expansion to a fixed point, which
 //     is the connected component of the seed card, computed on the seed's

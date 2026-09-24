@@ -128,7 +128,7 @@
       "CC-4496",
       "CC-5559"
     ],
-    "summary": "Customer report on card C02354-K2 over a $39.08 in person transaction on 2016-11-27 stated they did not make the purchase. Against it, 4 of the card-detail match flags M1-M9 came back F, and the bank has 19 confirmed-fraud case(s) already closed on this card (CC-5558, CC-5441, CC-4942, CC-4721), with pattern(s): account_takeover, card_not_present_fraud, out_of_region_use. The 5 closed cases whose transaction most resembles this one (CC-5441, CC-1870, CC-0092, CC-4496, CC-5559) closed as 5 confirmed fraud (account takeover, out of region use) and 0 cleared. The transaction is assessed as fraud at probability 0.97 with pattern account_takeover and exposure of $769.01 across 13 transaction(s).",
+    "summary": "On 2016-11-27, the cardholder of card C02354-K2 reported a $39.08 in person transaction as unauthorized, and 4 of the card-detail match flags M1-M9 came back F. The assessment is fraud at probability 0.97 with pattern account_takeover and $769.01 of exposure. Among 95 transactions on this card in the 48 hours ending at the flagged one, a burst of ten or more is 1.9x more likely on confirmed fraud, and the bank has 19 closed confirmed-fraud cases on this card, including CC-5558, CC-5441, CC-4942, and CC-4721. The 5 closed cases whose transaction most resembles this one are CC-5441, CC-1870, CC-0092, CC-4496, and CC-5559, all of which closed as confirmed fraud, and the card belongs to the graph's giant device-sharing component of 2,500 cards. Policy rule R2 recommends `BLOCK_CARD` and `CREATE_CASE` because the customer denied the transaction.",
     "written_to_graph": true,
     "graph_case_id": "CASE-2016-018"
   },
@@ -170,6 +170,6 @@
   },
   "stop_reason": "Policy 6: probability 0.97 is at or above 0.85 on 4 independent pieces of evidence, which is the bar for a defensible action. No further evidence was requested because none could change it.",
   "tool_calls": 12,
-  "tokens": 1031,
-  "latency_s": 1.0
+  "tokens": 1062,
+  "latency_s": 1.06
 }

@@ -89,6 +89,8 @@ def release(case_id: str, name: str, approver_level: str, approver: str, ctx: di
     held = _find(case_id, name, "awaiting_approval")
     if not held:
         raise LookupError(f"no {name} is awaiting approval on {case_id}")
+    if held.get("requested_by") and held["requested_by"] == approver:
+        raise PermissionError(f"{approver} requested {name}; a second person must release it")
     if held["route"] not in _CAN_APPROVE.get(approver_level, set()):
         raise PermissionError(f"{name} needs {held['route']} approval; "
                               f"{approver_level or 'no level'} cannot release it")
@@ -149,6 +151,14 @@ def demo():
     try:
         release(case, "FILE_REPORT", "L1", "alice", ctx)
         raise AssertionError("L1 released an L2 action")
+    except PermissionError:
+        pass
+    # four eyes: whoever requested an action cannot release it
+    own = f"{case}-own"
+    execute(own, {"action": "BLOCK_CARD", "route": "L1"}, ctx, by="carol")
+    try:
+        release(own, "BLOCK_CARD", "L2", "carol", ctx)
+        raise AssertionError("an approver released their own request")
     except PermissionError:
         pass
     r = release(case, "FILE_REPORT", "L2", "bob", ctx)
