@@ -83,7 +83,10 @@ def should_file_report(verdict: str, prob: float, exposure: float,
     Validated against the closed history: of 4,665 confirmed cases every one with
     exposure over $1,000 was reported, and the only 4 reported below it were the
     undocumented ones with connected cards."""
-    strong = verdict == "fraud" or prob >= 0.70
+    # the verdict, not the raw probability: a score of 0.73 that a cardholder's dispute
+    # pulled down to `uncertain` (investigate.reconcile) is a conflict for a human, not a
+    # strong suspicion to report to a regulator
+    strong = verdict == "fraud"
     if not strong:
         return False, (
             f"Policy 3a: a report requires fraud confirmed or strongly suspected. "
@@ -190,7 +193,7 @@ def decide_actions(*, prob, verdict, exposure, signals, pattern, trigger_type,
 
     # ---- R2: customer denies
     # a recurring cadence shields the charge from R2 exactly as far as it does in R7
-    if customer_denied and (not recurring or prob >= 0.85) and verdict != "legitimate":
+    if customer_denied and (not recurring or prob >= 0.85):
         _add(a, BLOCK_CARD, exposure, f"R2: the cardholder denies the transaction; block and reissue. Exposure ${exposure:,.2f} sets the approval route.")
         _add(a, CREATE_CASE, exposure, "R2: open the internal case with the evidence attached.")
 
@@ -212,7 +215,7 @@ def decide_actions(*, prob, verdict, exposure, signals, pattern, trigger_type,
             _add(a, STEP_UP_AUTH, exposure, "R1: require step-up authentication on further activity while verification is outstanding.")
             _add(a, DECLINE_TRANSACTION, exposure, f"R4: decline the pending authorisation while the card stays active, given assessed probability {prob:.2f}.")
             _add(a, MONITOR_CARD, exposure, "R4: raise monitoring sensitivity for 72 hours.")
-    elif verdict == "legitimate":
+    elif verdict == "legitimate" and not customer_denied:
         _add(a, ALLOW_TRANSACTION, exposure, f"R1 and policy 6: probability {prob:.2f} with {n_ind} independent pieces of evidence pointing away from fraud; the transaction stands.")
         _add(a, CLOSE_NO_FRAUD, exposure, "Policy 6: the evidence settles the question; close as legitimate.")
         if prob >= 0.15:
@@ -394,7 +397,7 @@ def demo():
                                        phase="final"), "R9 lost to R4's return"
 
     # --- a legitimate verdict never blocks or declines, whatever else happened ---
-    for kw in ({}, {"no_reply": True, "phase": "final"}, {"customer_denied": True},
+    for kw in ({}, {"no_reply": True, "phase": "final"},
                {"recurring": True}, {"connected_cards": ["C1"], "shared_element": "d"},
                {"pattern": "card_testing"}, {"pattern": "undocumented",
                                              "connected_cards": ["C1"]}):
@@ -418,6 +421,8 @@ def demo():
     assert should_file_report("uncertain", 0.5, 50_000, True, True)[0] is False, \
         "an uncertain verdict never files, however large the exposure"
     assert should_file_report("fraud", 0.9, 1500, False, False)[0] is True
+    assert should_file_report("uncertain", 0.73, 5000, True, True)[0] is False, \
+        "a reconciled conflict is never reported, whatever the raw score"
     assert should_file_report("fraud", 0.9, 500, False, False)[0] is False
     assert should_file_report("fraud", 0.9, 500, True, False)[0] is True
     assert should_file_report("fraud", 0.9, 500, False, True)[0] is True

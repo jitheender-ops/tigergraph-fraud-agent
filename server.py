@@ -48,7 +48,7 @@ app = FastAPI(title="Fraud Investigation Console")
 # access. Anything else that wants it has to be named.
 app.add_middleware(CORSMiddleware, allow_methods=["GET", "POST"],
                    allow_origins=[o for o in os.getenv(
-                       "CONSOLE_ORIGINS", "http://localhost:5173").split(",") if o],
+                       "CONSOLE_ORIGINS", "http://localhost:5180").split(",") if o],
                    allow_headers=["content-type", "x-analyst-token", "x-approver-token"])
 
 
@@ -57,21 +57,30 @@ app.add_middleware(CORSMiddleware, allow_methods=["GET", "POST"],
 USER: contextvars.ContextVar[dict | None] = contextvars.ContextVar("user", default=None)
 
 
+MIN_TOKEN = 8
+
+
 def _users() -> dict[str, dict]:
     """token -> {name, role}. CONSOLE_USERS="ana:analyst:tok1,lee:L1:tok2,kim:L2:tok3"
     names each person; the single ANALYST_TOKEN / APPROVER_TOKEN_L1 / _L2 still work,
     under generic names, for a one-person setup.
     ponytail: tokens from .env; swap for SSO identities before real use."""
     out = {}
-    for item in os.getenv("CONSOLE_USERS", "").split(","):
-        parts = [x.strip() for x in item.split(":")]
-        if len(parts) == 3 and all(parts) and parts[1] in ("analyst", "L1", "L2"):
-            out[parts[2]] = {"name": parts[0], "role": parts[1]}
-    for env, name, role in (("ANALYST_TOKEN", "analyst", "analyst"),
-                            ("APPROVER_TOKEN_L1", "L1 approver", "L1"),
-                            ("APPROVER_TOKEN_L2", "L2 approver", "L2")):
-        if os.getenv(env):
-            out.setdefault(os.environ[env], {"name": name, "role": role})
+    entries = [[x.strip() for x in item.split(":")]
+               for item in os.getenv("CONSOLE_USERS", "").split(",") if item.strip()]
+    entries += [[name, role, os.environ[env]] for env, name, role in (
+        ("ANALYST_TOKEN", "analyst", "analyst"), ("APPROVER_TOKEN_L1", "L1 approver", "L1"),
+        ("APPROVER_TOKEN_L2", "L2 approver", "L2")) if os.getenv(env)]
+    for parts in entries:
+        # a guessable or shared token is a hole, not a setting: refused outright
+        if len(parts) != 3 or not all(parts) or parts[1] not in ("analyst", "L1", "L2") \
+                or len(parts[2]) < MIN_TOKEN:
+            continue
+        name, role, tok = parts
+        if tok in out and out[tok]["name"] != name:
+            raise RuntimeError(f"CONSOLE_USERS: {out[tok]['name']} and {name} share a token; "
+                               "every person needs their own")
+        out.setdefault(tok, {"name": name, "role": role})
     return out
 
 
@@ -145,6 +154,8 @@ def health():
         n, ok = str(e)[:200], False
     return {"backend": BACKEND, "graph_reachable": ok, "probe": n,
             "cases": len(STORE), "closed": sum(1 for c in STORE.values() if c.closed),
+            # a false here means someone edited or deleted a past decision
+            "ledger_intact": X.verify(X.LEDGER), "events_intact": X.verify(EVENTS),
             "actions_executed": sum(r["status"] == "executed" for r in X.history()),
             "actions_awaiting_approval": sum(r["status"] != "executed" for r in X.history())}
 
@@ -181,9 +192,8 @@ class Case:
               **({"by": who["name"], "role": who["role"]} if who else {})}
         self.events.append(ev)
         if persist:
-            EVENTS.parent.mkdir(exist_ok=True)
-            with open(EVENTS, "a") as fh:
-                fh.write(json.dumps({"case_id": self.answer["case_id"], **ev}, default=str) + "\n")
+            X.chain_append(EVENTS, json.loads(json.dumps(
+                {"case_id": self.answer["case_id"], **ev}, default=str)))
         return ev
 
     def mark_closed(self, outcome):
@@ -222,6 +232,7 @@ def load():
     if EVENTS.exists():
         for line in EVENTS.read_text().splitlines():
             ev = json.loads(line) if line.strip() else {}
+            ev = {k: v for k, v in ev.items() if k not in ("prev", "hash")}
             if ev.get("case_id") in STORE:
                 c = STORE[ev.pop("case_id")]
                 c.events.append(ev)
@@ -583,8 +594,8 @@ def closed_case(case_id: str):
 # ---------------------------------------------------------------------------
 class Decision(BaseModel):
     decision: str = Field(..., pattern="^(approve|override)$")
-    action: str | None = None
-    note: str = ""
+    action: str | None = Field(None, max_length=40)
+    note: str = Field("", max_length=500)
 
 
 @app.post("/api/case/{cid}/decision")
@@ -596,6 +607,11 @@ def decide(cid: str, body: Decision):
     sees the L2 approval it demands.
     """
     c = get(cid)
+    with c.lock:
+        return _decide(c, cid, body)
+
+
+def _decide(c, cid, body):
     if c.closed:
         raise HTTPException(409, "case is closed")
     final = c.answer["next_best_actions"]["final"]
@@ -662,7 +678,7 @@ def reply(cid: str, body: Reply):
 
 
 class Release(BaseModel):
-    action: str
+    action: str = Field(..., max_length=40)
 
 
 @app.post("/api/case/{cid}/release")
@@ -670,6 +686,11 @@ def release(cid: str, body: Release):
     """Release one action the policy held for L1/L2 approval. Until this existed an
     approved case's BLOCK_CARD sat at awaiting_approval with no way to run it."""
     c = get(cid)
+    with c.lock:
+        return _release(c, cid, body)
+
+
+def _release(c, cid, body):
     if c.closed:
         raise HTTPException(409, "case is closed")
     # tier AND name come from the credential: an analyst who could say "I am L2", or
@@ -691,10 +712,10 @@ def release(cid: str, body: Release):
 
 
 class NewCase(BaseModel):
-    card_id: str
-    txn_id: int
+    card_id: str = Field(..., pattern=r"^C\d{4,6}-K\d{1,2}$")
+    txn_id: int = Field(..., gt=0)
     trigger_type: str = Field(..., pattern="^(risk_score|customer_report|analyst_request)$")
-    trigger_text: str = ""
+    trigger_text: str = Field("", max_length=500)
 
 
 @app.post("/api/cases")
@@ -734,7 +755,7 @@ def open_case(body: NewCase):
 
 class Close(BaseModel):
     outcome: str = Field(..., pattern="^(confirmed_fraud|cleared)$")
-    note: str = ""
+    note: str = Field("", max_length=500)
 
 
 @app.post("/api/case/{cid}/close")
@@ -747,11 +768,19 @@ def close(cid: str, body: Close):
     retrained -- the evidence set grows.
     """
     c = get(cid)
+    with c.lock:
+        return _close(c, cid, body)
+
+
+def _close(c, cid, body):
     if c.closed:
         raise HTTPException(409, "case is already closed")
-    # clearing is a verdict the agent did not reach, and it becomes memory every later
-    # investigation reads -- an approver's call, not an analyst's
-    if body.outcome == "cleared" and c.agent_verdict != "legitimate":
+    # A close becomes memory every later investigation reads: confirmed fraud adds +0.95
+    # to the card and counts towards R10's block-every-card. One that contradicts the
+    # agent -- clearing what it did not clear, or condemning what it cleared -- is an
+    # approver's call, in either direction.
+    agrees = {"cleared": "legitimate", "confirmed_fraud": "fraud"}[body.outcome]
+    if c.agent_verdict != agrees:
         _approver_role()
     a, t = c.answer, c.trigger
     case_id = closed_case_id(cid)
@@ -782,8 +811,8 @@ def close(cid: str, body: Close):
 
 
 class Blacklist(BaseModel):
-    device_profile: str
-    note: str = ""
+    device_profile: str = Field(..., min_length=3, max_length=200)
+    note: str = Field("", max_length=500)
 
 
 @app.post("/api/device/blacklist")

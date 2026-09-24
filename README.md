@@ -394,7 +394,13 @@ closing such a case as *cleared* needs an L1/L2 token; a device blacklist needs 
 and is refused for any profile used by more than 8 cards (a configuration, not a machine);
 and whoever requested a held action cannot release it. An **assumed** reply can never
 clear a case: a simulated passcode pass scores zero, and a disputed charge is never
-assumed confirmed. Every one of these was an exploit first — `tests/test_agent.py` keeps
+assumed confirmed. A close that contradicts the agent in *either* direction — clearing
+what it did not clear, or condemning what it cleared — needs an approver, because a close
+becomes memory. Tokens shorter than 8 characters or shared between two people are refused.
+Every write is serialised per case, every input is length-bounded, and analyst text reaches
+the LLM as quoted data. The action ledger and case log are hash-chained: `/api/health`
+reports `ledger_intact` / `events_intact`, and editing or deleting a past decision turns
+them false. Every one of these was an exploit or a gap first — `tests/test_agent.py` keeps
 each closed. Cross-origin
 calls are refused unless listed in `CONSOLE_ORIGINS`; the console itself goes through the
 Vite proxy and needs none.

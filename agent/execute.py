@@ -54,24 +54,26 @@ def execute(case_id: str, action: dict, ctx: dict, by: str | None = None) -> dic
     name, route = action["action"], action["route"]
     template, system = EFFECTS.get(name, ("{action} performed", "UNKNOWN"))
     executed = route == "auto"
-    # approving the same case twice must not block a card twice or file two reports
-    done = (_find(case_id, name, "executed")
-            or _find(case_id, name, "awaiting_approval", route))
-    if done:
-        return done
-    rec = {
-        "at": dt.datetime.now().isoformat(timespec="seconds"),
-        "case_id": case_id, "action": name, "route": route,
-        "status": "executed" if executed else "awaiting_approval",
-        "system": system,
-        "reference": _ref(system, case_id, name) if executed else None,
-        "effect": (template.format(action=name, **ctx) if executed else
-                   f"requires {route} approval before {template.format(action=name, **ctx)}"),
-        "simulated": True,
-        "reason": action.get("reason", ""),
-        "requested_by": by,
-    }
-    append(rec)
+    
+    with _LOCK:
+        # approving the same case twice must not block a card twice or file two reports
+        done = (_find(case_id, name, "executed")
+                or _find(case_id, name, "awaiting_approval", route))
+        if done:
+            return done
+        rec = {
+            "at": dt.datetime.now().isoformat(timespec="seconds"),
+            "case_id": case_id, "action": name, "route": route,
+            "status": "executed" if executed else "awaiting_approval",
+            "system": system,
+            "reference": _ref(system, case_id, name) if executed else None,
+            "effect": (template.format(action=name, **ctx) if executed else
+                       f"requires {route} approval before {template.format(action=name, **ctx)}"),
+            "simulated": True,
+            "reason": action.get("reason", ""),
+            "requested_by": by,
+        }
+        _append_unlocked(LEDGER, rec)
     return rec
 
 
@@ -83,23 +85,24 @@ def release(case_id: str, name: str, approver_level: str, approver: str, ctx: di
 
     L2 may approve L1 work; L1 may never approve L2. Raises PermissionError when the
     approver is below the route, LookupError when nothing is held."""
-    done = _find(case_id, name, "executed")
-    if done:
-        return done
-    held = _find(case_id, name, "awaiting_approval")
-    if not held:
-        raise LookupError(f"no {name} is awaiting approval on {case_id}")
-    if held.get("requested_by") and held["requested_by"] == approver:
-        raise PermissionError(f"{approver} requested {name}; a second person must release it")
-    if held["route"] not in _CAN_APPROVE.get(approver_level, set()):
-        raise PermissionError(f"{name} needs {held['route']} approval; "
-                              f"{approver_level or 'no level'} cannot release it")
-    template, system = EFFECTS.get(name, ("{action} performed", "UNKNOWN"))
-    rec = {**held, "at": dt.datetime.now().isoformat(timespec="seconds"),
-           "status": "executed", "reference": _ref(system, case_id, name),
-           "effect": template.format(action=name, **ctx),
-           "approved_by": approver, "approver_level": approver_level}
-    append(rec)
+    with _LOCK:
+        done = _find(case_id, name, "executed")
+        if done:
+            return done
+        held = _find(case_id, name, "awaiting_approval")
+        if not held:
+            raise LookupError(f"no {name} is awaiting approval on {case_id}")
+        if held.get("requested_by") and held["requested_by"] == approver:
+            raise PermissionError(f"{approver} requested {name}; a second person must release it")
+        if held["route"] not in _CAN_APPROVE.get(approver_level, set()):
+            raise PermissionError(f"{name} needs {held['route']} approval; "
+                                  f"{approver_level or 'no level'} cannot release it")
+        template, system = EFFECTS.get(name, ("{action} performed", "UNKNOWN"))
+        rec = {**held, "at": dt.datetime.now().isoformat(timespec="seconds"),
+               "status": "executed", "reference": _ref(system, case_id, name),
+               "effect": template.format(action=name, **ctx),
+               "approved_by": approver, "approver_level": approver_level}
+        _append_unlocked(LEDGER, rec)
     return rec
 
 
@@ -111,17 +114,59 @@ def _find(case_id, name, status, route=None):
 
 
 def append(rec: dict) -> None:
+    chain_append(LEDGER, rec)
+
+
+def _last_hash(path: pathlib.Path) -> str:
+    last = ""
+    if path.exists():
+        for line in path.read_text().splitlines():
+            if line.strip():
+                last = json.loads(line).get("hash", last)
+    return last
+
+
+def _append_unlocked(path: pathlib.Path, rec: dict) -> None:
+    os.makedirs(path.parent, exist_ok=True)
+    body = {k: v for k, v in rec.items() if k not in ("prev", "hash")}
+    prev = _last_hash(path)
+    digest = hashlib.sha256((prev + json.dumps(body, sort_keys=True)).encode()).hexdigest()
+    with open(path, "a") as fh:
+        fh.write(json.dumps({**body, "prev": prev, "hash": digest}) + "\n")
+
+
+def chain_append(path: pathlib.Path, rec: dict) -> None:
+    """Append-only, and tamper-evident: each record carries the hash of the one before
+    it, so editing or deleting a past decision breaks every hash after it. Records
+    written before the chain existed carry none and are skipped by verify()."""
     with _LOCK:
-        os.makedirs(LEDGER.parent, exist_ok=True)
-        with open(LEDGER, "a") as fh:
-            fh.write(json.dumps(rec) + "\n")
+        _append_unlocked(path, rec)
+
+
+def verify(path: pathlib.Path) -> bool:
+    """True when no chained record has been altered, removed or reordered."""
+    prev = ""
+    if not path.exists():
+        return True
+    for line in path.read_text().splitlines():
+        rec = json.loads(line) if line.strip() else {}
+        if "hash" not in rec:
+            continue
+        body = {k: v for k, v in rec.items() if k not in ("prev", "hash")}
+        want = hashlib.sha256((prev + json.dumps(body, sort_keys=True)).encode()).hexdigest()
+        if rec["prev"] != prev or rec["hash"] != want:
+            return False
+        prev = rec["hash"]
+    return True
 
 
 def history(case_id: str | None = None) -> list[dict]:
     if not LEDGER.exists():
         return []
     rows = [json.loads(l) for l in LEDGER.read_text().splitlines() if l.strip()]
-    return [r for r in rows if case_id is None or r["case_id"] == case_id]
+    # callers want the record; only verify() needs the chain fields
+    return [{k: v for k, v in r.items() if k not in ("prev", "hash")}
+            for r in rows if case_id is None or r["case_id"] == case_id]
 
 
 def demo():
@@ -139,6 +184,7 @@ def demo():
         assert route in held["effect"]
 
     assert all(r["simulated"] for r in history("_selftest"))
+    assert verify(LEDGER), "the ledger chain is intact"
 
     # idempotent: a second approval returns the first execution, not a second one
     n = len(history("_selftest"))

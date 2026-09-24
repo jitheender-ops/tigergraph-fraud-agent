@@ -28,6 +28,27 @@ TOP_FIELDS = ["case_id","case","evidence_requests","next_best_actions","sar","st
               "tool_calls","tokens","latency_s"]
 
 
+_GRAPH_SEEN: dict[str, bool] = {}
+
+
+def _in_graph(case_id: str) -> bool:
+    """A case an analyst closed from the console on TigerGraph lives only in the graph.
+    Asked only for IDs the dataset and the local log do not know; with no graph
+    configured or reachable, an unknown ID stays an error rather than a guess."""
+    if case_id not in _GRAPH_SEEN:
+        try:
+            sys.path.insert(0, "agent")
+            from dotenv import load_dotenv
+            load_dotenv()
+            if not os.getenv("TG_HOST"):
+                raise RuntimeError("no graph configured")
+            from tg import connect
+            _GRAPH_SEEN[case_id] = bool(connect().getVerticesById("ClosedCase", case_id))
+        except Exception:                     # noqa: BLE001 - unknown stays unknown
+            _GRAPH_SEEN[case_id] = False
+    return _GRAPH_SEEN[case_id]
+
+
 def main(out="cases"):
     con = duckdb.connect("build/fraud.db", read_only=True)
     txns = {str(r[0]) for r in con.sql("SELECT txn_id FROM tx").fetchall()}
@@ -124,7 +145,7 @@ def main(out="cases"):
         for k in c.get("connected_card_ids", []):
             if k not in cards: E(f"unknown card id {k}")
         for k in c.get("similar_prior_cases", []):
-            if k not in ccs: E(f"unknown closed case id {k}")
+            if k not in ccs and not _in_graph(k): E(f"unknown closed case id {k}")
         for k in c.get("connected_device_profiles", []):
             if k not in devs: E(f"unknown device profile {k}")
         for q in d.get("evidence_requests", []):

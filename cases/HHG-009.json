@@ -144,7 +144,7 @@
   },
   "sar": {
     "file": false,
-    "reason": "Policy 3a: fraud established but exposure $30.02 is under $1,000, the activity is confined to this card, and no shared origin or coordination was found. A case is opened; most cases never need a report.",
+    "reason": "Policy 3a: a report requires fraud confirmed or strongly suspected. Assessed probability 0.73 with verdict 'uncertain' does not meet that bar.",
     "narrative": "",
     "subjects": [],
     "total_amount_usd": 0,
